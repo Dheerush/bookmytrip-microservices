@@ -1,0 +1,9 @@
+{
+  "name": "@bookmytrip/storybook",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "storybook dev -p 6006",
+    "build": "storybook build"
+  }
+}

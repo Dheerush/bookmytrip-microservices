@@ -1,0 +1,18 @@
+import { Router } from 'express';
+import { register, login, refresh, logout, verifyEmailOtp, resendOtp } from '../controllers/auth.controller';
+import { validate } from '../middleware/validate.middleware';
+import { loginSchema, registerSchema } from '../validators/auth.validator';
+import { loginLimiter, refreshLimiter, registerLimiter } from '../middleware/rateLimit.middleware';
+import { verifyCsrf } from '../middleware/csrf.middleware';
+
+
+const router: Router = Router();
+
+router.post('/register', registerLimiter, validate(registerSchema), register);
+router.post('/login', loginLimiter, validate(loginSchema), login);
+router.post('/refresh',verifyCsrf, refreshLimiter, refresh);
+router.post('/logout', verifyCsrf, logout);
+router.post('/verify-otp', verifyEmailOtp);
+router.post('/resend-otp', resendOtp);
+
+export default router;
