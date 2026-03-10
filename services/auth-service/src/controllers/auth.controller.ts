@@ -1,3 +1,4 @@
+
 import { Request, Response } from 'express';
 import crypto from 'crypto';
 import { registerUser, loginUser } from '../services/auth.service';
@@ -15,7 +16,8 @@ import {
   generateOtp,
   storeOtp,
   verifyOtp,
-  deleteOtp
+  deleteOtp,
+  resolveSession,
 } from '../services/otp.service';
 import { User } from '../models/User';
 import { publishEvent } from '../config/rabbitmq';
@@ -24,159 +26,272 @@ import { hashPassword } from '../utils/hash';
 import { v4 as uuidv4 } from 'uuid';
 
 
-
-
-/** ===================================================== 📝 Register (STRICT OTP) ============================================================= */
+/** ─────────────────────────────────────────────────────────────────────────
+ *  📝  REGISTER
+ *  ─────────────────────────────────────────────────────────────────────────
+ *  Happy path  → creates user, sends OTP, returns sessionToken
+ *  EMAIL_UNVERIFIED → user exists but never verified: re-sends OTP, returns
+ *                     a new sessionToken so frontend can go straight to /otp
+ *  EMAIL_EXISTS     → verified user already: tell them to log in
+ * ────────────────────────────────────────────────────────────────────────── */
 export const register = asyncHandler(async (req: Request, res: Response) => {
-  const { email, password, role } = req.body;
+  const { fullName, email, password, phone, role } = req.body;
 
-  const user = await registerUser(email, password, role);
+  let userId: string;
+  let userEmail: string;
 
-  // 🚫 DO NOT generate tokens here
+  try {
+    const user = await registerUser(fullName, email, password, phone, role);
+    userId    = user.id;
+    userEmail = user.email;
+  } catch (err: any) {
+    // Unverified account already exists → re-send OTP, return sessionToken
+    if (err.code === 'EMAIL_UNVERIFIED') {
+      const { userId: existingId, email: existingEmail } = err.data as {
+        userId: string; email: string;
+      };
 
-  const otp = generateOtp();
+      const otp          = generateOtp();
+      const sessionToken = await storeOtp(existingId, otp);
 
-  await storeOtp(user.id, otp);
+      await publishEvent({
+        type: 'SEND_OTP',
+        data: { email: existingEmail, otp },
+      });
+
+      // 202 Accepted — not a new resource, but action was taken
+      return res.status(202).json(
+        apiResponse(
+          { sessionToken, code: 'EMAIL_UNVERIFIED' },
+          'Account pending verification. A new OTP has been sent to your email.'
+        )
+      );
+    }
+
+    // Re-throw everything else (EMAIL_EXISTS, validation errors, etc.)
+    throw err;
+  }
+
+  // New user — generate + send OTP
+  const otp          = generateOtp();
+  const sessionToken = await storeOtp(userId, otp);
 
   await publishEvent({
     type: 'SEND_OTP',
-    data: {
-      email: user.email,
-      otp
-    }
+    data: { email: userEmail, otp },
   });
 
   res.status(201).json(
     apiResponse(
-      null,
-      'Registration successful. Please verify OTP sent to your email.'
+      { sessionToken },
+      'Registration successful. Please verify the OTP sent to your email.'
     )
   );
 });
 
-/** ====================================================== 🔐 Verify OTP ============================================================= */
+
+/** ─────────────────────────────────────────────────────────────────────────
+ *  🔐  VERIFY EMAIL OTP
+ *  ─────────────────────────────────────────────────────────────────────────
+ *  Body: { sessionToken, otp }
+ *  – sessionToken resolves to userId server-side (frontend never sends userId/email)
+ *  – Tracks attempts; locks after MAX_ATTEMPTS wrong guesses
+ *  – Deletes OTP + session on success (single use)
+ * ────────────────────────────────────────────────────────────────────────── */
 export const verifyEmailOtp = asyncHandler(async (req: Request, res: Response) => {
-  const { email, otp } = req.body;
+  const { sessionToken, otp } = req.body;
 
-  const user = await User.findOne({ email });
+  if (!sessionToken || !otp) {
+    throw new AppError('Session token and OTP are required', 400, 'MISSING_FIELDS');
+  }
+
+  // Resolve token → userId (if token is expired/invalid this returns null)
+  const userId = await resolveSession(sessionToken);
+
+  if (!userId) {
+    throw new AppError(
+      'Session expired or invalid. Please register again.',
+      401,
+      'INVALID_SESSION'
+    );
+  }
+
+  const user = await User.findById(userId);
 
   if (!user) {
-    throw new AppError('User not found', 404);
-  }
-
-  const isValid = await verifyOtp(user.id, otp);
-
-  if (!isValid) {
-    throw new AppError('Invalid or expired OTP', 400);
-  }
-
-  user.isVerified = true;
-  await user.save();
-  await publishEvent({
-    type: 'USER_VERIFIED',
-    data: {
-      email: user.email
-    }
-  });
-
-  await deleteOtp(user.id);
-
-  res.json(
-    apiResponse(null, 'Email verified successfully. You can now login.')
-  );
-});
-
-/** =======================================================🔁 Resend OTP =============================================================== */
-export const resendOtp = asyncHandler(async (req: Request, res: Response) => {
-  const { email } = req.body;
-
-  if (!email) {
-    throw new AppError('Email is required', 400);
-  }
-
-  const user = await User.findOne({ email });
-
-  if (!user) {
-    throw new AppError('User not found', 404);
+    throw new AppError('User not found', 404, 'USER_NOT_FOUND');
   }
 
   if (user.isVerified) {
-    throw new AppError('Email already verified', 400);
+    throw new AppError('Email already verified', 400, 'ALREADY_VERIFIED');
   }
 
-  // 🔐 Generate new OTP
-  const otp = generateOtp();
+  // Verify OTP (handles hashing + attempt counting internally)
+  const result = await verifyOtp(userId, otp);
 
-  // Store in Redis (overwrites previous OTP)
-  await storeOtp(user.id, otp);
-
-  // Publish event to notification-service
-  await publishEvent({
-    type: 'SEND_OTP',
-    data: {
-      email: user.email,
-      otp
+  if (!result.valid) {
+    switch (result.reason) {
+      case 'TOO_MANY_ATTEMPTS':
+        throw new AppError(
+          'Too many incorrect attempts. Please request a new OTP.',
+          429,
+          'TOO_MANY_ATTEMPTS'
+        );
+      case 'EXPIRED':
+        throw new AppError(
+          'OTP has expired. Please request a new one.',
+          410,
+          'OTP_EXPIRED'
+        );
+      case 'WRONG_OTP':
+        throw new AppError(
+          `Incorrect OTP. ${result.attemptsLeft} attempt${result.attemptsLeft === 1 ? '' : 's'} remaining.`,
+          400,
+          'WRONG_OTP',
+          { attemptsLeft: result.attemptsLeft }
+        );
+      default:
+        throw new AppError('Verification failed', 400, 'VERIFICATION_FAILED');
     }
+  }
+
+  // ✅ OTP is correct — mark user as verified
+  user.isVerified = true;
+  await user.save();
+
+  // Delete OTP + session (single use — can never be replayed)
+  await deleteOtp(userId, sessionToken);
+
+  await publishEvent({
+    type: 'USER_VERIFIED',
+    data: { email: user.email },
   });
 
   res.json(
-    apiResponse(null, 'New OTP sent successfully')
+    apiResponse(null, 'Email verified successfully. You can now log in.')
   );
 });
 
-/** ====================================================== 🔐 Login (Only if Verified) =================================================== */
+
+/** ─────────────────────────────────────────────────────────────────────────
+ *  🔁  RESEND OTP
+ *  ─────────────────────────────────────────────────────────────────────────
+ *  Body: { sessionToken }
+ *  – Uses existing session to identify the user (no email in body)
+ *  – Issues a new sessionToken and invalidates the old one
+ * ────────────────────────────────────────────────────────────────────────── */
+export const resendOtp = asyncHandler(async (req: Request, res: Response) => {
+  const { sessionToken } = req.body;
+
+  if (!sessionToken) {
+    throw new AppError('Session token is required', 400, 'MISSING_FIELDS');
+  }
+
+  const userId = await resolveSession(sessionToken);
+
+  if (!userId) {
+    throw new AppError(
+      'Session expired or invalid. Please register again.',
+      401,
+      'INVALID_SESSION'
+    );
+  }
+
+  const user = await User.findById(userId);
+
+  if (!user) {
+    throw new AppError('User not found', 404, 'USER_NOT_FOUND');
+  }
+
+  if (user.isVerified) {
+    throw new AppError('Email already verified', 400, 'ALREADY_VERIFIED');
+  }
+
+  // storeOtp issues a fresh OTP + new sessionToken, resets attempt counter
+  const otp            = generateOtp();
+  const newSessionToken = await storeOtp(userId, otp);
+
+  await publishEvent({
+    type: 'SEND_OTP',
+    data: { email: user.email, otp },
+  });
+
+  res.json(
+    apiResponse(
+      { sessionToken: newSessionToken },
+      'A new OTP has been sent to your email.'
+    )
+  );
+});
+
+
+/** ─────────────────────────────────────────────────────────────────────────
+ *  🔐  LOGIN  (only verified users)
+ * ────────────────────────────────────────────────────────────────────────── */
 export const login = asyncHandler(async (req: Request, res: Response) => {
   const { email, password } = req.body;
 
   const user = await loginUser(email, password);
 
   if (!user.isVerified) {
-    throw new AppError('Please verify your email first', 403);
+    // Don't leave unverified users stuck — send them a fresh OTP session
+    const otp          = generateOtp();
+    const sessionToken = await storeOtp(user._id.toString(), otp);
+
+    await publishEvent({
+      type: 'SEND_OTP',
+      data: { email: user.email, otp },
+    });
+
+    throw new AppError(
+      'Please verify your email first. A new OTP has been sent.',
+      403,
+      'EMAIL_UNVERIFIED',
+      { sessionToken }  // frontend can redirect straight to /otp
+    );
   }
 
-  const accessToken = generateAccessToken(user.id, user.role);
+  const accessToken  = generateAccessToken(user.id, user.role);
   const refreshToken = await generateRefreshToken(user.id);
 
   await publishEvent({
     type: 'LOGIN_SUCCESS',
     data: {
-      email: user.email,
+      email:     user.email,
       loginTime: new Date().toISOString(),
-      ip: req.ip,
-      userAgent: req.headers['user-agent']
-    }
+      ip:        req.ip,
+      userAgent: req.headers['user-agent'],
+    },
   });
 
   const csrfToken = generateCsrfToken();
 
   const safeUser = {
-    id: user.id,
+    id:    user.id,
     email: user.email,
-    role: user.role
+    role:  user.role,
   };
 
   res
     .cookie('refreshToken', refreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure:   process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000
+      maxAge:   7 * 24 * 60 * 60 * 1000,
     })
     .cookie('csrfToken', csrfToken, {
       httpOnly: false,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict'
+      secure:   process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
     })
     .status(200)
-    .json(
-      apiResponse(
-        { user: safeUser, accessToken },
-        'Login successful'
-      )
-    );
+    .json(apiResponse({ user: safeUser, accessToken }, 'Login successful'));
 });
 
-/** ======================================================== 🔄 Refresh Token ============================================================= */
+
+/** ─────────────────────────────────────────────────────────────────────────
+ *  🔄  REFRESH TOKEN
+ * ────────────────────────────────────────────────────────────────────────── */
 export const refresh = asyncHandler(async (req: Request, res: Response) => {
   const refreshToken = req.cookies.refreshToken;
 
@@ -185,8 +300,7 @@ export const refresh = asyncHandler(async (req: Request, res: Response) => {
   }
 
   const newRefreshToken = await rotateRefreshToken(refreshToken);
-
-  const tokenDoc = await RefreshToken.findOne({ token: newRefreshToken });
+  const tokenDoc        = await RefreshToken.findOne({ token: newRefreshToken });
 
   if (!tokenDoc) {
     throw new AppError('Invalid refresh token', 401);
@@ -203,19 +317,17 @@ export const refresh = asyncHandler(async (req: Request, res: Response) => {
   res
     .cookie('refreshToken', newRefreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure:   process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000
+      maxAge:   7 * 24 * 60 * 60 * 1000,
     })
-    .json(
-      apiResponse(
-        { accessToken },
-        'Token refreshed'
-      )
-    );
+    .json(apiResponse({ accessToken }, 'Token refreshed'));
 });
 
-/** ========================================================= 🚪 Logout =================================================================== */
+
+/** ─────────────────────────────────────────────────────────────────────────
+ *  🚪  LOGOUT
+ * ────────────────────────────────────────────────────────────────────────── */
 export const logout = asyncHandler(async (req: Request, res: Response) => {
   const refreshToken = req.cookies.refreshToken;
 
@@ -231,57 +343,42 @@ export const logout = asyncHandler(async (req: Request, res: Response) => {
     .json(apiResponse(null, 'Logged out successfully'));
 });
 
-/** ======================================================== Forgot ======================================================== */
+
+/** ─────────────────────────────────────────────────────────────────────────
+ *  🔑  FORGOT PASSWORD
+ * ────────────────────────────────────────────────────────────────────────── */
 export const forgotPassword = asyncHandler(async (req: Request, res: Response) => {
   const { email } = req.body;
 
   const user = await User.findOne({ email });
 
+  // Always return same message to prevent user enumeration
   if (!user) {
-    return res.json(apiResponse(null, 'If email exists, reset link will be sent'));
+    return res.json(apiResponse(null, 'If that email exists, a reset link has been sent.'));
   }
 
-  const rawToken = uuidv4();
+  const rawToken    = uuidv4();
+  const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
 
-  const hashedToken = crypto
-    .createHash('sha256')
-    .update(rawToken)
-    .digest('hex');
-
-  await redisClient.set(
-    `reset:${hashedToken}`,
-    user.id,
-    'EX',
-    600
-  );
-
+  await redisClient.set(`reset:${hashedToken}`, user.id, 'EX', 600);
 
   await publishEvent({
     type: 'PASSWORD_RESET_REQUEST',
-    data: {
-      email: user.email,
-      token: rawToken
-    }
+    data: { email: user.email, token: rawToken },
   });
 
-  res.json(
-    apiResponse(null, 'If email exists, reset link will be sent')
-  );
+  res.json(apiResponse(null, 'If that email exists, a reset link has been sent.'));
 });
 
-/**============================================================= Reset Password =========================================================== */
+
+/** ─────────────────────────────────────────────────────────────────────────
+ *  🔑  RESET PASSWORD
+ * ────────────────────────────────────────────────────────────────────────── */
 export const resetPassword = asyncHandler(async (req: Request, res: Response) => {
-  const { token, newPassword } = req.body as {
-  token: string;
-  newPassword: string;
-};
+  const { token, newPassword } = req.body as { token: string; newPassword: string };
 
-  const hashedToken = crypto
-    .createHash('sha256')
-    .update(token)
-    .digest('hex');
-
-  const userId = await redisClient.get(`reset:${hashedToken}`);
+  const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+  const userId      = await redisClient.get(`reset:${hashedToken}`);
 
   if (!userId) {
     throw new AppError('Invalid or expired reset token', 400);
@@ -296,17 +393,64 @@ export const resetPassword = asyncHandler(async (req: Request, res: Response) =>
   user.password = await hashPassword(newPassword);
   await user.save();
 
+  // Invalidate reset token + all refresh tokens (force re-login everywhere)
   await redisClient.del(`reset:${hashedToken}`);
-
   await RefreshToken.deleteMany({ userId: user.id });
 
   await publishEvent({
     type: 'PASSWORD_RESET_SUCCESS',
-    data: {
-      email: user.email
-    }
+    data: { email: user.email },
   });
 
-  res.json(apiResponse(null, 'Password reset successful'));
+  res.json(apiResponse(null, 'Password reset successful.'));
 });
+
+
+/** ─────────────────────────────────────────────────────
+ *  📧  REQUEST VERIFICATION  (no session token needed)
+ *  For users who registered but never verified and their
+ *  session has long expired. They provide only their email.
+ *  Rate limited to prevent abuse.
+ * ───────────────────────────────────────────────────── */
+export const requestVerification = asyncHandler(async (req: Request, res: Response) => {
+  const { email } = req.body;
+
+  if (!email) {
+    throw new AppError('Email is required', 400, 'MISSING_FIELDS');
+  }
+
+  const user = await User.findOne({ email });
+
+  // Always return same message — prevents user enumeration
+  // (attacker can't tell if email exists or not)
+  const genericMessage = 'If an unverified account exists, a new OTP has been sent.';
+
+  if (!user) {
+    return res.json(apiResponse(null, genericMessage));
+  }
+
+  if (user.isVerified) {
+    // Don't reveal they're verified — same message, just don't send OTP
+    return res.json(apiResponse(null, genericMessage));
+  }
+
+  // Generate fresh OTP + session token
+  const otp          = generateOtp();
+  const sessionToken = await storeOtp(user._id.toString(), otp);
+
+  await publishEvent({
+    type: 'SEND_OTP',
+    data: { email: user.email, otp },
+  });
+
+  // Return sessionToken so frontend can redirect to /otp
+  return res.json(
+    apiResponse(
+      { sessionToken },
+      genericMessage
+    )
+  );
+});
+
+
 

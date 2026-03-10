@@ -11,6 +11,13 @@ export const createApp = (): Express => {
   // Middleware
   app.use(express.json());
 
+  // CORS setup for frontend
+  const cors = require('cors');
+  app.use(cors({
+    origin: 'http://localhost:3000',
+    credentials: true
+  }));
+
   app.use(cookieParser()); // Add cookie-parser middleware to parse cookies
 
   // Health route

@@ -26,3 +26,12 @@ export const refreshLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 10
 });
+
+export const verificationRequestLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 15 min window -> later
+  max: 3,                    // only 3 attempts per IP per window
+  message: {
+    success: false,
+    message: 'Too many verification requests. Please wait 15 minutes and try again.'
+  }
+});
