@@ -1,0 +1,393 @@
+// ════════════════════════════════════════════════════
+// Navbar.module.scss
+// Two states:
+//   .transparent — over hero image (no bg, white text)
+//   .scrolled    — glass morphism, dark text
+// ════════════════════════════════════════════════════
+
+.navbar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 48px;
+  height: 72px;
+  transition:
+    background   0.45s ease,
+    backdrop-filter 0.45s ease,
+    border-color 0.45s ease,
+    box-shadow   0.45s ease,
+    height       0.45s ease;
+}
+
+// ── State: transparent (over hero) ──────────────────
+.transparent {
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.35) 0%, rgba(0, 0, 0, 0.08) 70%, transparent 100%);
+  border-bottom: 1px solid transparent;
+}
+
+// ── State: scrolled → glass ──────────────────────────
+.scrolled {
+  height: 64px;
+  background: rgba(250, 250, 248, 0.92);
+  backdrop-filter: blur(20px) saturate(1.8);
+  -webkit-backdrop-filter: blur(20px) saturate(1.8);
+  border-bottom: 1px solid rgba(59, 158, 221, 0.14);
+  box-shadow:
+    0 1px 0 rgba(201, 169, 110, 0.1),
+    0 6px 28px rgba(11, 25, 41, 0.07);
+
+  // gold top rule appears on scroll
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      #c9a96e 25%,
+      #e8c98a 50%,
+      #c9a96e 75%,
+      transparent 100%
+    );
+  }
+}
+
+// ── Nav Links ────────────────────────────────────────
+.navLinks {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  list-style: none;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.navLink {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 15px;
+  border-radius: 3px;
+  text-decoration: none;
+  font-family: var(--font-body, 'Jost', sans-serif);
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  transition: color 0.25s, background 0.25s;
+
+  // default: dark bg (scrolled state)
+  color: #6b7f93;
+
+  &:hover {
+    color: #0f1f2e;
+    background: rgba(59, 158, 221, 0.06);
+  }
+
+  &.active {
+    color: #0f1f2e;
+  }
+
+  // over hero: white text
+  &.onHero {
+    color: rgba(255, 255, 255, 0.75);
+
+    &:hover {
+      color: #ffffff;
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    &.active {
+      color: #ffffff;
+    }
+  }
+}
+
+.navIcon {
+  display: flex;
+  align-items: center;
+  opacity: 0.55;
+  transition: opacity 0.25s;
+
+  .navLink:hover &,
+  .navLink.active & {
+    opacity: 1;
+  }
+}
+
+// underline expands from center
+.underline {
+  position: absolute;
+  bottom: 3px;
+  left: 15px; right: 15px;
+  height: 1px;
+  background: linear-gradient(90deg, #c9a96e, #3b9edd, #c9a96e);
+  border-radius: 1px;
+  transform-origin: center;
+}
+
+// ── Right side ───────────────────────────────────────
+.navRight {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-shrink: 0;
+}
+
+.divider {
+  width: 1px; height: 20px;
+  background: linear-gradient(to bottom, transparent, rgba(11, 25, 41, 0.2), transparent);
+}
+.dividerLight {
+  background: linear-gradient(to bottom, transparent, rgba(255, 255, 255, 0.3), transparent);
+}
+
+// ── Login button ─────────────────────────────────────
+.loginBtn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 22px;
+  overflow: hidden;
+  text-decoration: none;
+  font-family: var(--font-body, 'Jost', sans-serif);
+  font-size: 0.74rem;
+  font-weight: 500;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  border-radius: 2px;
+
+  // scrolled (dark) variant — default
+  color: #0f1f2e;
+  border: 1px solid rgba(11, 25, 41, 0.2);
+  transition: color 0.32s, border-color 0.32s;
+
+  &:hover {
+    color: #fafaf8;
+    border-color: transparent;
+  }
+}
+
+// hero (light) variant — over dark background
+.loginBtnLight {
+  color: rgba(255, 255, 255, 0.88);
+  border-color: rgba(255, 255, 255, 0.32);
+
+  &:hover {
+    color: #fafaf8;
+    border-color: transparent;
+  }
+}
+
+// fill sweep on hover
+.loginFill {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, #0b1929, #162d4a);
+  z-index: 0;
+}
+
+// ── Profile ──────────────────────────────────────────
+.profileWrapper { position: relative; }
+
+.avatarBtn {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+}
+
+.avatarRing {
+  position: relative;
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  padding: 2px;
+  background: linear-gradient(135deg, #c9a96e, #6ab8ef, #c9a96e);
+  background-size: 200% 200%;
+  animation: gShift 3s ease infinite;
+  flex-shrink: 0;
+}
+
+@keyframes gShift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.avatarImg {
+  width: 100%; height: 100%;
+  border-radius: 50%; object-fit: cover;
+}
+
+.avatarInitial {
+  width: 100%; height: 100%;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0b1929, #162d4a);
+  color: #e8c98a;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 0.95rem; font-weight: 500;
+  display: flex; align-items: center; justify-content: center;
+}
+
+.onlineDot {
+  position: absolute; bottom: 1px; right: 1px;
+  width: 8px; height: 8px;
+  background: #22c55e;
+  border-radius: 50%;
+  border: 1.5px solid white;
+}
+
+.avatarName {
+  font-family: var(--font-body, 'Jost', sans-serif);
+  font-size: 0.78rem; font-weight: 400;
+  letter-spacing: 0.07em;
+  color: #6b7f93;
+  transition: color 0.2s;
+
+  .avatarBtn:hover & { color: #0f1f2e; }
+}
+
+.chevron {
+  color: #a8bdd1;
+  display: flex;
+}
+
+// ── Dropdown ─────────────────────────────────────────
+.dropdown {
+  position: absolute;
+  top: calc(100% + 14px); right: 0;
+  min-width: 205px;
+  background: rgba(250, 250, 248, 0.97);
+  border: 1px solid rgba(59, 158, 221, 0.14);
+  border-top: 2px solid #c9a96e;
+  border-radius: 3px;
+  box-shadow:
+    0 20px 60px rgba(11, 25, 41, 0.12),
+    0 4px 16px rgba(11, 25, 41, 0.06);
+  backdrop-filter: blur(20px);
+  padding: 6px;
+}
+
+.dropdownUser {
+  padding: 11px 13px;
+  border-bottom: 1px solid rgba(201, 169, 110, 0.15);
+  margin-bottom: 4px;
+}
+
+.dropdownName {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.05rem; font-weight: 500;
+  color: #0f1f2e; letter-spacing: 0.02em;
+}
+
+.dropdownTag {
+  font-size: 0.64rem; letter-spacing: 0.18em;
+  color: #c9a96e; text-transform: uppercase; margin-top: 1px;
+}
+
+.dropdownItem {
+  display: flex; align-items: center; gap: 9px;
+  width: 100%; padding: 9px 13px;
+  border: none; background: transparent; border-radius: 2px;
+  color: #6b7f93;
+  font-family: var(--font-body, 'Jost', sans-serif);
+  font-size: 0.77rem; font-weight: 400;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  cursor: pointer; text-align: left;
+  transition: background 0.18s, color 0.18s;
+
+  &:hover {
+    background: rgba(59, 158, 221, 0.06);
+    color: #0f1f2e;
+  }
+
+  &.danger { color: #b85c5c; }
+  &.danger:hover { background: rgba(184, 92, 92, 0.06); }
+}
+
+.dropdownSep {
+  height: 1px;
+  background: rgba(201, 169, 110, 0.12);
+  margin: 4px 0;
+}
+
+// ── Hamburger ────────────────────────────────────────
+.hamburger {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  width: 32px; height: 32px; padding: 4px;
+  border: 1px solid rgba(11, 25, 41, 0.2);
+  border-radius: 2px; background: transparent; cursor: pointer;
+
+  span {
+    display: block; height: 1px;
+    background: #0f1f2e; border-radius: 1px;
+    transform-origin: center;
+  }
+}
+
+.hamburgerLight {
+  border-color: rgba(255, 255, 255, 0.35);
+  span { background: white; }
+}
+
+// ── Mobile menu ──────────────────────────────────────
+.mobileMenu {
+  position: fixed;
+  top: 64px; left: 0; right: 0;
+  background: rgba(250, 250, 248, 0.97);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(59, 158, 221, 0.12);
+  border-top: 1px solid rgba(201, 169, 110, 0.18);
+  padding: 14px 20px 20px;
+  display: flex; flex-direction: column; gap: 2px;
+  box-shadow: 0 14px 40px rgba(11, 25, 41, 0.1);
+  z-index: 999;
+}
+
+.mobileLink {
+  display: flex; align-items: center; gap: 10px;
+  padding: 11px 13px; text-decoration: none;
+  color: #6b7f93;
+  font-family: var(--font-body, 'Jost', sans-serif);
+  font-size: 0.8rem; font-weight: 500;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  border-radius: 2px;
+  transition: background 0.18s, color 0.18s;
+
+  &:hover { background: rgba(59, 158, 221, 0.06); color: #0f1f2e; }
+}
+
+.mobileLogin {
+  display: flex; align-items: center; justify-content: center;
+  margin-top: 8px; padding: 11px;
+  background: linear-gradient(135deg, #0b1929, #162d4a);
+  color: #e8c98a;
+  font-family: var(--font-body, 'Jost', sans-serif);
+  font-size: 0.78rem; font-weight: 500;
+  letter-spacing: 0.15em; text-transform: uppercase;
+  border-radius: 2px; text-decoration: none;
+}
+
+// ── Responsive ───────────────────────────────────────
+@media (max-width: 900px) {
+  .navLinks, .divider, .dividerLight, .loginBtn, .avatarName { display: none; }
+  .hamburger { display: flex; }
+  .navbar { padding: 0 20px; }
+}
+
+@media (max-width: 480px) {
+  .navbar { padding: 0 16px; }
+}

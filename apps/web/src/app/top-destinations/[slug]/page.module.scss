@@ -1,0 +1,207 @@
+/* ═══════════════════════════════════════════════════
+   top-destinations/[slug]/page.module.scss
+   ═══════════════════════════════════════════════════ */
+
+.page {
+  min-height: 100vh;
+  background: var(--ivory);
+}
+
+/* ── Hero ── */
+.hero {
+  position: relative;
+  height: 55vh;
+  min-height: 380px;
+  display: flex;
+  align-items: flex-end;
+}
+
+.heroImage {
+  object-fit: cover;
+  z-index: 0;
+}
+
+.heroOverlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(5, 12, 25, 0.85) 0%, rgba(5, 12, 25, 0.2) 60%, transparent 100%);
+  z-index: 1;
+}
+
+.heroContent {
+  position: relative;
+  z-index: 2;
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 0 1.5rem 2.5rem;
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-body);
+  font-size: 0.76rem;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.7);
+  text-decoration: none;
+  margin-bottom: 1rem;
+  transition: color 0.2s;
+
+  &:hover { color: #fff; }
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  font-weight: 400;
+  color: #fff;
+  margin-bottom: 0.8rem;
+}
+
+.metaRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.metaChip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 5px 14px;
+  border-radius: 999px;
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* ── Body ── */
+.body {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem 4rem;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+}
+
+.tag {
+  font-family: var(--font-body);
+  font-size: 0.7rem;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  background: var(--sky-pale);
+  padding: 5px 12px;
+  border-radius: 4px;
+}
+
+/* ── Price card ── */
+.priceCard {
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 12px;
+  padding: 1.5rem 2rem;
+  margin-bottom: 2rem;
+}
+
+.priceLabel {
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 0.4rem;
+}
+
+.priceRow {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 0.3rem;
+}
+
+.original {
+  font-family: var(--font-body);
+  font-size: 1rem;
+  color: var(--text-light);
+  text-decoration: line-through;
+}
+
+.discounted {
+  font-family: var(--font-body);
+  font-size: 1.6rem;
+  font-weight: 600;
+  color: var(--text-dark);
+}
+
+.badge {
+  background: linear-gradient(135deg, #e74c3c, #c0392b);
+  color: #fff;
+  font-family: var(--font-body);
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.perPerson {
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  color: var(--text-light);
+  margin-bottom: 1.2rem;
+}
+
+.bookBtn {
+  padding: 0.75rem 2.5rem;
+  background: linear-gradient(135deg, var(--deep-navy), var(--mid-navy));
+  color: var(--gold-light);
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(11, 25, 41, 0.18);
+  }
+}
+
+/* ── Placeholder ── */
+.placeholder {
+  background: rgba(59, 158, 221, 0.04);
+  border: 1px dashed var(--border-soft);
+  border-radius: 8px;
+  padding: 2rem;
+  text-align: center;
+
+  p {
+    font-family: var(--font-body);
+    font-size: 0.88rem;
+    color: var(--text-muted);
+  }
+}
+
+/* ── Responsive ── */
+@media (max-width: 640px) {
+  .hero { height: 45vh; min-height: 320px; }
+  .priceCard { padding: 1.2rem 1.4rem; }
+}

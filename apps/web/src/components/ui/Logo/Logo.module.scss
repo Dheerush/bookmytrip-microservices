@@ -1,0 +1,123 @@
+// Logo.module.scss
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  text-decoration: none;
+  flex-shrink: 0;
+  outline: none;
+
+  &:focus-visible .iconInner {
+    box-shadow: 0 0 0 3px rgba(59, 158, 221, 0.5);
+  }
+}
+
+// ── Icon ────────────────────────────────────────────────────────
+.iconWrap {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+// outer decorative ring
+.ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(201, 169, 110, 0.35);
+  transition: transform 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+}
+.logo:hover .ring {
+  transform: rotate(90deg) scale(1.1);
+}
+
+// filled circle
+.iconInner {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0b1929 0%, #162d4a 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 3px 14px rgba(11, 25, 41, 0.28),
+              inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  overflow: hidden;
+  transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.logo:hover .iconInner {
+  transform: translateY(-2px);
+}
+
+// shimmer sweep
+.shimmer {
+  position: absolute;
+  top: -100%;
+  left: -60%;
+  width: 60%;
+  height: 300%;
+  background: linear-gradient(
+    105deg,
+    transparent 40%,
+    rgba(201, 169, 110, 0.35) 50%,
+    transparent 60%
+  );
+  animation: shimmer 4s 1.2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes shimmer {
+  0%, 100% { transform: translateX(-100%); }
+  40%, 60%  { transform: translateX(300%); }
+}
+
+.plane {
+  color: #c9a96e; // gold
+  transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.logo:hover .plane {
+  transform: rotate(-15deg) translateX(2px);
+}
+
+// ── Wordmark ─────────────────────────────────────────────────────
+.wordmark {
+  display: flex;
+  flex-direction: column;
+  line-height: 1;
+}
+
+.name {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 1.52rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  transition: color 0.3s, text-shadow 0.3s;
+}
+
+.accent {
+  color: #3b9edd; // sky blue — same in both variants
+}
+
+// ── Variants ──────────────────────────────────────────────────────
+// dark variant: used on white/light backgrounds
+.dark .name {
+  color: #0f1f2e;
+}
+
+// light variant: used over hero images / dark backgrounds
+.light .name {
+  color: #ffffff;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.5), 0 0 2px rgba(0, 0, 0, 0.3);
+}
+
+.light .accent {
+  color: #8ecdf7;
+}

@@ -1,0 +1,701 @@
+/* ── Shared three-column search layout ── */
+
+.page {
+  min-height: 100vh;
+  background: var(--ivory, #fafaf8);
+  padding-top: calc(var(--navbar-h, 72px) + 24px);
+  padding-bottom: 40px;
+}
+
+.header {
+  max-width: 1280px;
+  margin: 0 auto 24px;
+  padding: 0 24px;
+}
+
+.title {
+  font-family: var(--font-display, "Cormorant Garamond", serif);
+  font-size: 1.9rem;
+  font-weight: 700;
+  color: var(--deep-navy, #0b1929);
+  margin-bottom: 4px;
+}
+
+.subtitle {
+  font-size: 0.88rem;
+  color: var(--text-muted, #6b7f93);
+}
+
+/* ── Grid: sidebar | results | booking ── */
+.grid {
+  display: grid;
+  grid-template-columns: 260px 1fr 300px;
+  gap: 24px;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 24px;
+  align-items: start;
+}
+
+/* ── Left sidebar filters ── */
+.filters {
+  background: #fff;
+  border: 1.5px solid var(--border-soft, rgba(59, 158, 221, 0.14));
+  border-radius: 16px;
+  padding: 20px 18px;
+  position: sticky;
+  top: 92px;
+}
+
+.filterTitle {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--deep-navy, #0b1929);
+  margin-bottom: 16px;
+}
+
+.filterGroup {
+  margin-bottom: 18px;
+}
+
+.filterGroupLabel {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted, #6b7f93);
+  margin-bottom: 8px;
+}
+
+.filterOption {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 0.85rem;
+  color: var(--text-dark, #0f1f2e);
+  cursor: pointer;
+}
+
+.filterOption input[type="checkbox"],
+.filterOption input[type="radio"] {
+  accent-color: var(--sky, #3b9edd);
+}
+
+.filterSelect {
+  width: 100%;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 0.85rem;
+  font-family: inherit;
+  outline: none;
+  background: #fff;
+  cursor: pointer;
+}
+
+.filterSelect:focus {
+  border-color: var(--sky, #3b9edd);
+}
+
+/* ── Results area ── */
+.results {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.sortBar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: #fff;
+  border: 1.5px solid var(--border-soft, rgba(59, 158, 221, 0.14));
+  border-radius: 12px;
+}
+
+.sortLabel {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-muted, #6b7f93);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.sortBtn {
+  border: 1.5px solid #e2e8f0;
+  background: #fff;
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--text-dark, #0f1f2e);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.sortBtn:hover { border-color: var(--sky, #3b9edd); color: var(--sky, #3b9edd); }
+
+.sortBtnActive {
+  background: var(--deep-navy, #0b1929);
+  color: #fff;
+  border-color: var(--deep-navy, #0b1929);
+}
+
+.noResults {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-muted, #6b7f93);
+  font-size: 1rem;
+}
+
+/* ── Generic result card ── */
+.card {
+  background: #fff;
+  border: 1.5px solid var(--border-soft, rgba(59, 158, 221, 0.14));
+  border-radius: 16px;
+  padding: 20px;
+  transition: box-shadow 0.2s, transform 0.15s;
+}
+
+.card:hover {
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+}
+
+/* ── Card row layout ── */
+.cardRow {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.cardMain {
+  flex: 1;
+  min-width: 0;
+}
+
+.cardRight {
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* ── Flight card specifics ── */
+.airline {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--deep-navy, #0b1929);
+}
+
+.flightCode {
+  font-size: 0.78rem;
+  color: var(--text-muted, #6b7f93);
+}
+
+.route {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.time {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-dark, #0f1f2e);
+}
+
+.cityCode {
+  font-size: 0.72rem;
+  color: var(--text-muted, #6b7f93);
+}
+
+.routeLine {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.duration {
+  font-size: 0.72rem;
+  color: var(--text-muted, #6b7f93);
+}
+
+.dashes {
+  width: 100%;
+  height: 1px;
+  border-top: 1.5px dashed var(--border-soft, rgba(59, 158, 221, 0.14));
+}
+
+.stops {
+  font-size: 0.68rem;
+  color: var(--sky, #3b9edd);
+  font-weight: 600;
+}
+
+/* Pricing */
+.originalPrice {
+  font-size: 0.82rem;
+  color: var(--text-muted, #6b7f93);
+  text-decoration: line-through;
+}
+
+.price {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--deep-navy, #0b1929);
+}
+
+.perPerson {
+  font-size: 0.68rem;
+  color: var(--text-muted, #6b7f93);
+}
+
+.seatsLeft {
+  font-size: 0.72rem;
+  color: #dc2626;
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+.tags {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.tag {
+  font-size: 0.7rem;
+  padding: 3px 10px;
+  border-radius: 20px;
+  background: #f1f5f9;
+  color: var(--text-muted, #6b7f93);
+  font-weight: 600;
+}
+
+.bookBtn {
+  margin-top: 10px;
+  border: none;
+  background: var(--deep-navy, #0b1929);
+  color: #fff;
+  border-radius: 10px;
+  padding: 9px 20px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.bookBtn:hover {
+  opacity: 0.85;
+}
+
+/* ── Train card specifics ── */
+.trainName {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--deep-navy, #0b1929);
+}
+
+.trainNumber {
+  font-size: 0.75rem;
+  color: var(--text-muted, #6b7f93);
+  font-weight: 600;
+}
+
+.trainType {
+  display: inline-block;
+  font-size: 0.68rem;
+  padding: 2px 10px;
+  border-radius: 20px;
+  background: var(--sky, #3b9edd);
+  color: #fff;
+  font-weight: 700;
+  margin-left: 8px;
+}
+
+.pnr {
+  font-size: 0.72rem;
+  color: var(--text-muted, #6b7f93);
+  margin-top: 4px;
+}
+
+.fareTable {
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.fareChip {
+  font-size: 0.72rem;
+  padding: 4px 10px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  color: var(--text-dark, #0f1f2e);
+  background: #fafafa;
+}
+
+.fareChip strong {
+  color: var(--deep-navy, #0b1929);
+}
+
+/* ── Hotel card specifics ── */
+.hotelCard {
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+}
+
+.hotelImg {
+  width: 200px;
+  height: 150px;
+  object-fit: cover;
+  border-radius: 12px;
+  flex-shrink: 0;
+  background: #e2e8f0;
+}
+
+.hotelInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.hotelName {
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--deep-navy, #0b1929);
+}
+
+.hotelCity {
+  font-size: 0.82rem;
+  color: var(--text-muted, #6b7f93);
+  margin-top: 2px;
+}
+
+.stars {
+  color: var(--gold, #c9a96e);
+  font-size: 0.85rem;
+  margin-top: 4px;
+}
+
+.amenities {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.amenity {
+  font-size: 0.7rem;
+  padding: 3px 10px;
+  border-radius: 20px;
+  background: #f0fdf4;
+  color: #16a34a;
+  font-weight: 600;
+}
+
+.hotelPricing {
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.foodBadge {
+  display: inline-block;
+  font-size: 0.68rem;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-weight: 600;
+  margin-top: 6px;
+}
+
+.foodIncluded {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.foodNone {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.detailsLink {
+  display: inline-block;
+  margin-top: 10px;
+  font-size: 0.82rem;
+  color: var(--sky, #3b9edd);
+  font-weight: 700;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.detailsLink:hover {
+  color: var(--deep-navy, #0b1929);
+}
+
+.rating {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #fff;
+  background: #16a34a;
+  border-radius: 6px;
+  padding: 2px 8px;
+}
+
+/* ── Inline search bar ── */
+.searchBar {
+  max-width: 1280px;
+  margin: 0 auto 20px;
+  padding: 0 24px;
+}
+
+.searchBarInner {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+  background: #fff;
+  border: 1.5px solid var(--border-soft, rgba(59, 158, 221, 0.14));
+  border-radius: 16px;
+  padding: 16px 20px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+}
+
+.searchFieldGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.searchFieldLabel {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-muted, #6b7f93);
+  padding-left: 2px;
+}
+
+.searchFieldInput {
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.88rem;
+  font-family: inherit;
+  color: var(--text-dark, #0f1f2e);
+  outline: none;
+  background: #fafafa;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  width: 100%;
+}
+
+.searchFieldInput::placeholder {
+  color: #94a3b8;
+}
+
+.searchFieldInput:focus {
+  border-color: var(--sky, #3b9edd);
+  box-shadow: 0 0 0 3px rgba(59, 158, 221, 0.12);
+  background: #fff;
+}
+
+.searchBarBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--deep-navy, #0b1929);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 22px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity 0.2s, transform 0.15s;
+  height: 42px;
+  flex-shrink: 0;
+}
+
+.searchBarBtn:hover {
+  opacity: 0.88;
+  transform: translateY(-1px);
+}
+
+/* ── Clear filters button ── */
+.clearBtn {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  padding: 9px 14px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+  color: #dc2626;
+  font-size: 0.78rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+}
+
+.clearBtn:hover {
+  background: #fef2f2;
+  border-color: #dc2626;
+}
+
+/* ── Cab card specifics ── */
+.cabCard {
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+}
+
+.cabImg {
+  width: 180px;
+  height: 130px;
+  object-fit: cover;
+  border-radius: 12px;
+  flex-shrink: 0;
+  background: #e2e8f0;
+}
+
+.cabInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.cabModel {
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--deep-navy, #0b1929);
+}
+
+.cabMeta {
+  font-size: 0.82rem;
+  color: var(--text-muted, #6b7f93);
+  margin-top: 2px;
+}
+
+.cabType {
+  display: inline-block;
+  font-size: 0.68rem;
+  padding: 2px 10px;
+  border-radius: 20px;
+  background: var(--sky, #3b9edd);
+  color: #fff;
+  font-weight: 700;
+  margin-top: 6px;
+}
+
+.cabFeatures {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.cabFeature {
+  font-size: 0.7rem;
+  padding: 3px 10px;
+  border-radius: 20px;
+  background: #f0fdf4;
+  color: #16a34a;
+  font-weight: 600;
+}
+
+.cabPricing {
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.cabPerKm {
+  font-size: 0.72rem;
+  color: var(--text-muted, #6b7f93);
+  margin-top: 2px;
+}
+
+/* ── Responsive ── */
+@media (max-width: 1024px) {
+  .grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .filters {
+    position: static;
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 14px;
+  }
+
+  .filterGroup {
+    margin-bottom: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .searchBarInner {
+    flex-direction: column;
+  }
+
+  .searchBarBtn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .hotelCard {
+    flex-direction: column;
+  }
+
+  .hotelImg {
+    width: 100%;
+    height: 180px;
+  }
+
+  .cabCard {
+    flex-direction: column;
+  }
+
+  .cabImg {
+    width: 100%;
+    height: 180px;
+  }
+
+  .cabPricing {
+    text-align: left;
+  }
+
+  .cardRow {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .cardRight {
+    text-align: left;
+  }
+
+  .hotelPricing {
+    text-align: left;
+  }
+
+  .title {
+    font-size: 1.5rem;
+  }
+}

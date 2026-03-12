@@ -1,0 +1,76 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  height: 100vh;
+  padding: 3rem 3.5rem;
+  max-width: 480px;
+  width: 100%;
+  margin: 0 auto;
+  position: relative;
+  z-index: 1;
+  animation: fadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.logo {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 0.9rem;
+  font-weight: 400;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  color: var(--blue);
+  margin: 0 0 3.5rem 0;
+
+  &::before { content: '✦ '; font-size: 0.6rem; vertical-align: middle; opacity: 0.6; }
+  &::after  { content: ' ✦'; font-size: 0.6rem; vertical-align: middle; opacity: 0.6; }
+}
+
+.title {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 2.75rem;
+  font-weight: 300;
+  line-height: 1.15;
+  color: var(--text-primary);
+  margin: 0 0 0.5rem 0;
+  letter-spacing: -0.01em;
+}
+
+.subtitle {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 300;
+  color: var(--text-muted);
+  margin: 0 0 2.5rem 0;
+  letter-spacing: 0.02em;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+.footer {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 300;
+  color: var(--text-muted);
+  margin: 1.75rem 0 0 0;
+  text-align: center;
+  letter-spacing: 0.02em;
+
+  a {
+    color: var(--blue);
+    text-decoration: none;
+    font-weight: 500;
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.2s ease;
+
+    &:hover { border-bottom-color: var(--blue); }
+  }
+}

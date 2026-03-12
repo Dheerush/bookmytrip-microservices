@@ -1,0 +1,369 @@
+.page {
+  min-height: 100vh;
+  background: var(--ivory, #fafaf8);
+  padding-top: calc(var(--navbar-h, 72px) + 24px);
+  padding-bottom: 48px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 28px;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 24px;
+  align-items: start;
+}
+
+/* ── Gallery ── */
+.gallery {
+  margin-bottom: 24px;
+}
+
+.mainImage {
+  width: 100%;
+  height: 420px;
+  object-fit: cover;
+  border-radius: 16px;
+  background: #e2e8f0;
+}
+
+.thumbStrip {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.thumb {
+  width: 80px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: 10px;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 0.2s, box-shadow 0.2s;
+  flex-shrink: 0;
+  background: #e2e8f0;
+}
+
+.thumb:hover {
+  opacity: 0.9;
+}
+
+.thumbActive {
+  opacity: 1;
+  box-shadow: 0 0 0 2.5px var(--sky, #3b9edd);
+}
+
+/* ── Header ── */
+.header {
+  margin-bottom: 20px;
+}
+
+.name {
+  font-family: var(--font-display, "Cormorant Garamond", serif);
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--deep-navy, #0b1929);
+  margin-bottom: 4px;
+}
+
+.city {
+  font-size: 0.88rem;
+  color: var(--text-muted, #6b7f93);
+  margin-bottom: 8px;
+}
+
+.starRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.stars {
+  color: var(--gold, #c9a96e);
+  font-size: 1rem;
+}
+
+.ratingBadge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #fff;
+  background: #16a34a;
+  border-radius: 6px;
+  padding: 2px 8px;
+}
+
+.reviewCount {
+  font-size: 0.82rem;
+  color: var(--text-muted, #6b7f93);
+}
+
+/* ── Sections ── */
+.section {
+  margin-bottom: 28px;
+}
+
+.sectionTitle {
+  font-family: var(--font-display, "Cormorant Garamond", serif);
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--deep-navy, #0b1929);
+  margin-bottom: 12px;
+}
+
+.description {
+  font-size: 0.92rem;
+  line-height: 1.65;
+  color: var(--text-dark, #0f1f2e);
+}
+
+/* Amenities */
+.amenitiesGrid {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.amenityChip {
+  font-size: 0.78rem;
+  padding: 5px 14px;
+  border-radius: 20px;
+  background: #f0fdf4;
+  color: #16a34a;
+  font-weight: 600;
+}
+
+/* Rooms */
+.roomCards {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.roomCard {
+  flex: 1;
+  min-width: 200px;
+  border: 1.5px solid var(--border-soft, rgba(59, 158, 221, 0.14));
+  background: #fff;
+  border-radius: 14px;
+  padding: 16px;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.roomCard:hover {
+  border-color: var(--sky, #3b9edd);
+}
+
+.roomActive {
+  border-color: var(--deep-navy, #0b1929);
+  box-shadow: 0 0 0 2px var(--deep-navy, #0b1929);
+}
+
+.roomType {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--deep-navy, #0b1929);
+  margin-bottom: 4px;
+}
+
+.roomMeta {
+  font-size: 0.78rem;
+  color: var(--text-muted, #6b7f93);
+  margin-bottom: 8px;
+}
+
+.roomPrice {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.roomOriginal {
+  font-size: 0.82rem;
+  color: var(--text-muted, #6b7f93);
+  text-decoration: line-through;
+}
+
+.roomCurrent {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--deep-navy, #0b1929);
+}
+
+.roomUnit {
+  font-size: 0.72rem;
+  color: var(--text-muted, #6b7f93);
+}
+
+.roomAvail {
+  font-size: 0.72rem;
+  color: #dc2626;
+  font-weight: 600;
+  margin-top: 6px;
+}
+
+/* Refund */
+.policyBadge {
+  display: inline-block;
+  font-size: 0.82rem;
+  padding: 5px 14px;
+  border-radius: 8px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.policyFull { background: #dcfce7; color: #166534; }
+.policyPartial { background: #fef9c3; color: #854d0e; }
+.policyNone { background: #fee2e2; color: #991b1b; }
+
+.policyText {
+  font-size: 0.88rem;
+  color: var(--text-dark, #0f1f2e);
+}
+
+.timings {
+  font-size: 0.88rem;
+  color: var(--text-dark, #0f1f2e);
+}
+
+/* Offers */
+.offers {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.offerCard {
+  flex: 1;
+  min-width: 240px;
+  background: linear-gradient(135deg, #fdf4ff, #faf5ff);
+  border: 1.5px solid #e9d5ff;
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.offerTitle {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #7c3aed;
+  margin-bottom: 4px;
+}
+
+.offerDesc {
+  font-size: 0.82rem;
+  color: var(--text-dark, #0f1f2e);
+  margin-bottom: 8px;
+  line-height: 1.5;
+}
+
+.offerCode {
+  font-size: 0.78rem;
+  color: var(--text-muted, #6b7f93);
+}
+
+.offerCode strong {
+  color: #7c3aed;
+  font-family: monospace;
+}
+
+/* Tags */
+.tags {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.tag {
+  font-size: 0.72rem;
+  padding: 4px 12px;
+  border-radius: 20px;
+  background: #f1f5f9;
+  color: var(--text-muted, #6b7f93);
+  font-weight: 600;
+}
+
+/* ── Booking column ── */
+.bookingCol {
+  position: sticky;
+  top: 92px;
+}
+
+.nightsSelector {
+  background: #fff;
+  border: 1.5px solid var(--border-soft, rgba(59, 158, 221, 0.14));
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.nightsLabel {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted, #6b7f93);
+  margin-bottom: 6px;
+}
+
+.nightsInput {
+  width: 100%;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 1rem;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.nightsInput:focus {
+  border-color: var(--sky, #3b9edd);
+}
+
+/* ── Responsive ── */
+@media (max-width: 900px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .bookingCol {
+    position: static;
+  }
+
+  .mainImage {
+    height: 260px;
+  }
+}
+
+@media (max-width: 640px) {
+  .name {
+    font-size: 1.5rem;
+  }
+
+  .roomCards {
+    flex-direction: column;
+  }
+
+  .offers {
+    flex-direction: column;
+  }
+
+  .mainImage {
+    height: 200px;
+  }
+
+  .thumb {
+    width: 60px;
+    height: 42px;
+  }
+}

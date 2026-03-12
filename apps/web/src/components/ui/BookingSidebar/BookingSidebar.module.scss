@@ -1,0 +1,136 @@
+.sidebar {
+  background: #fff;
+  border: 1.5px solid var(--border-soft, rgba(59, 158, 221, 0.14));
+  border-radius: 16px;
+  padding: 24px 20px;
+  position: sticky;
+  top: 92px;
+}
+
+.title {
+  font-family: var(--font-display, "Cormorant Garamond", serif);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--deep-navy, #0b1929);
+  margin-bottom: 18px;
+}
+
+.lines {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-bottom: 16px;
+  border-bottom: 1px dashed var(--border-soft, rgba(59, 158, 221, 0.14));
+  margin-bottom: 16px;
+}
+
+.line {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.88rem;
+  color: var(--text-dark, #0f1f2e);
+}
+
+.discount span:last-child {
+  color: #16a34a;
+  font-weight: 600;
+}
+
+/* Coupon */
+.couponBox {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.couponInput {
+  flex: 1;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 9px 12px;
+  font-size: 0.85rem;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.couponInput:focus {
+  border-color: var(--sky, #3b9edd);
+}
+
+.couponBtn {
+  border: none;
+  background: var(--deep-navy, #0b1929);
+  color: #fff;
+  border-radius: 10px;
+  padding: 9px 16px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  white-space: nowrap;
+}
+
+.couponBtn:hover {
+  opacity: 0.85;
+}
+
+.couponMsg {
+  font-size: 0.78rem;
+  margin-bottom: 14px;
+}
+
+.couponSuccess {
+  color: #16a34a;
+}
+
+.couponError {
+  color: #dc2626;
+}
+
+/* Net amount */
+.netRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 18px 0;
+  padding-top: 14px;
+  border-top: 2px solid var(--deep-navy, #0b1929);
+}
+
+.netRow span:first-child {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--deep-navy, #0b1929);
+}
+
+.netAmount {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--deep-navy, #0b1929);
+}
+
+/* CTA */
+.cta {
+  width: 100%;
+  border: none;
+  background: linear-gradient(135deg, var(--gold, #c9a96e), var(--gold-light, #e8c98a));
+  color: var(--deep-navy, #0b1929);
+  border-radius: 12px;
+  padding: 14px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.cta:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(201, 169, 110, 0.45);
+}
+
+.cta:active {
+  transform: translateY(0);
+}

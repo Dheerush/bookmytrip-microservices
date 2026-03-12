@@ -1,0 +1,81 @@
+/* ══════════════════════════════════════════════════
+   globals.scss — BookMyTrip
+   ══════════════════════════════════════════════════ */
+
+/* Cormorant Garamond loaded here (Jost via next/font in layout.tsx) */
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,500&display=swap');
+
+/* ── Design tokens ── */
+:root {
+  /* palette */
+  --ivory:         #fafaf8;
+  --deep-navy:     #0b1929;
+  --mid-navy:      #162d4a;
+  --sky:           #3b9edd;
+  --sky-light:     #6ab8ef;
+  --sky-pale:      rgba(59, 158, 221, 0.10);
+  --gold:          #c9a96e;
+  --gold-light:    #e8c98a;
+  --gold-pale:     rgba(201, 169, 110, 0.15);
+
+  /* text */
+  --text-dark:     #0f1f2e;
+  --text-muted:    #6b7f93;
+  --text-light:    #a8bdd1;
+
+  /* borders */
+  --border-soft:   rgba(59,  158, 221, 0.14);
+  --border-gold:   rgba(201, 169, 110, 0.26);
+
+  /* typography */
+  --font-display:  'Cormorant Garamond', Georgia, serif;
+  --font-body:     'Jost', system-ui, sans-serif;
+
+  /* layout — keep in sync with Navbar height */
+  --navbar-h: 72px;
+
+  /* Added for AuthForms and buttons */
+  --blue: #2a5bd7;
+  --blue-mid: #1e3a8a;
+  --blue-shadow: rgba(42,91,215,0.15);
+  --blue-glow: rgba(42,91,215,0.18);
+  --input-bg: #fff;
+  --input-border: #e0e7ef;
+  --input-bg-focus: #f5f8fd;
+  --text-primary: #0f1f2e;
+  --text-placeholder: #a8bdd1;
+}
+
+/* ── Reset ── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--text-dark);
+  background: var(--ivory);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+img, video { display: block; max-width: 100%; }
+a { color: inherit; text-decoration: none; }
+button { font-family: inherit; cursor: pointer; }
+ul, ol { list-style: none; }
+
+/* ── Accessibility ── */
+.sr-only {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
