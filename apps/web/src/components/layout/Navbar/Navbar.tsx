@@ -1,9 +1,11 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Home, Plane, Hotel, Package, LogOut, LayoutGrid, Settings } from "lucide-react";
+import { Home, Plane, Hotel, Package, LogOut, LayoutGrid } from "lucide-react";
 import Logo from "@/components/ui/Logo/Logo";
+import { useAuth } from "@/services/auth/context";
 import styles from "./Navbar.module.scss";
 
 const TrainIcon = () => (
@@ -52,7 +54,15 @@ const NavLink = ({
   );
 };
 
-const ProfileDropdown = ({ user }: { user: { name: string; avatarUrl?: string } }) => {
+const ProfileDropdown = ({
+  user,
+  onDashboard,
+  onLogout,
+}: {
+  user: { name: string; avatarUrl?: string };
+  onDashboard: () => void;
+  onLogout: () => void;
+}) => {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -67,7 +77,7 @@ const ProfileDropdown = ({ user }: { user: { name: string; avatarUrl?: string } 
         whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
         <div className={styles.avatarRing}>
           {user.avatarUrl
-            ? <img src={user.avatarUrl} alt={user.name} className={styles.avatarImg} />
+            ? <img src={user.avatarUrl} alt={user.name} className={styles.avatarImg} /> // eslint-disable-line @next/next/no-img-element
             : <span className={styles.avatarInitial}>{user.name[0]}</span>}
           <span className={styles.onlineDot} />
         </div>
@@ -89,19 +99,16 @@ const ProfileDropdown = ({ user }: { user: { name: string; avatarUrl?: string } 
               <div className={styles.dropdownName}>{user.name}</div>
               <div className={styles.dropdownTag}>✦ Gold Member</div>
             </div>
-            {[
-              { icon: <LayoutGrid size={13} strokeWidth={1.8} />, label: "Dashboard" },
-              { icon: <Settings size={13} strokeWidth={1.8} />, label: "Settings" },
-            ].map(item => (
-              <motion.button key={item.label} className={styles.dropdownItem}
-                whileHover={{ paddingLeft: "18px" }} transition={{ duration: 0.14 }}>
-                {item.icon}{item.label}
-              </motion.button>
-            ))}
+            <motion.button className={styles.dropdownItem}
+              onClick={() => { setOpen(false); onDashboard(); }}
+              whileHover={{ paddingLeft: "18px" }} transition={{ duration: 0.14 }}>
+              <LayoutGrid size={13} strokeWidth={1.8} />My Dashboard
+            </motion.button>
             <div className={styles.dropdownSep} />
             <motion.button className={`${styles.dropdownItem} ${styles.danger}`}
+              onClick={() => { setOpen(false); onLogout(); }}
               whileHover={{ paddingLeft: "18px" }} transition={{ duration: 0.14 }}>
-              <LogOut size={13} strokeWidth={1.8} />Sign Out
+              <LogOut size={13} strokeWidth={1.8} />Log Out
             </motion.button>
           </motion.div>
         )}
@@ -110,12 +117,9 @@ const ProfileDropdown = ({ user }: { user: { name: string; avatarUrl?: string } 
   );
 };
 
-interface NavbarProps {
-  isLoggedIn?: boolean;
-  user?: { name: string; avatarUrl?: string };
-}
-
-export default function Navbar({ isLoggedIn = false, user = { name: "Alex" } }: NavbarProps) {
+export default function Navbar() {
+  const { user, isAuthenticated, hydrated, logout } = useAuth();
+  const router = useRouter();
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -126,6 +130,17 @@ export default function Navbar({ isLoggedIn = false, user = { name: "Alex" } }: 
   }, []);
 
   const transparent = !scrolled;
+
+  const handleLogout = () => {
+    logout();
+    router.push("/");
+  };
+
+  const handleDashboard = () => {
+    router.push("/dashboard");
+  };
+
+  const displayName = user?.fullName || user?.email?.split("@")[0] || "User";
 
   return (
     <>
@@ -148,8 +163,12 @@ export default function Navbar({ isLoggedIn = false, user = { name: "Alex" } }: 
           initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.5, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}>
           <div className={`${styles.divider} ${transparent ? styles.dividerLight : ""}`} />
-          {isLoggedIn ? (
-            <ProfileDropdown user={user} />
+          {hydrated && isAuthenticated ? (
+            <ProfileDropdown
+              user={{ name: displayName, avatarUrl: user?.avatarUrl }}
+              onDashboard={handleDashboard}
+              onLogout={handleLogout}
+            />
           ) : (
             <motion.a href="/login"
               className={`${styles.loginBtn} ${transparent ? styles.loginBtnLight : ""}`}
@@ -187,7 +206,22 @@ export default function Navbar({ isLoggedIn = false, user = { name: "Alex" } }: 
                 {item.icon}{item.label}
               </motion.a>
             ))}
-            {!isLoggedIn && (
+            {hydrated && isAuthenticated ? (
+              <>
+                <motion.button className={styles.mobileLink}
+                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.25 }}
+                  onClick={() => { setMobileOpen(false); handleDashboard(); }}
+                  style={{ border: "none", background: "transparent", width: "100%", textAlign: "left" }}>
+                  <LayoutGrid size={13} strokeWidth={1.8} />My Dashboard
+                </motion.button>
+                <motion.button className={styles.mobileLogin}
+                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}
+                  onClick={() => { setMobileOpen(false); handleLogout(); }}
+                  style={{ border: "none" }}>
+                  <LogOut size={13} strokeWidth={1.8} style={{ marginRight: 8 }} />Log Out
+                </motion.button>
+              </>
+            ) : (
               <motion.a href="/login" className={styles.mobileLogin}
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}>
                 Sign In

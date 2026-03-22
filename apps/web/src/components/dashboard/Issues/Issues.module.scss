@@ -1,0 +1,305 @@
+// ════════════════════════════════════════════════════
+// Issues.module.scss
+// ════════════════════════════════════════════════════
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 400;
+  color: var(--text-dark);
+}
+
+.subtitle {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.newBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: linear-gradient(135deg, var(--deep-navy), var(--mid-navy));
+  color: var(--gold-light);
+  border: none;
+  border-radius: 6px;
+  font-family: var(--font-body);
+  font-size: 0.76rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: box-shadow 0.25s;
+  white-space: nowrap;
+
+  &:hover {
+    box-shadow: 0 4px 16px rgba(11, 25, 41, 0.18);
+  }
+}
+
+.backBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  color: var(--sky);
+  cursor: pointer;
+  letter-spacing: 0.04em;
+
+  &:hover { text-decoration: underline; }
+}
+
+// ── Issue List ──────────────────────────────────────
+.issueList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.issueCard {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 20px;
+  background: white;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  transition: box-shadow 0.2s;
+
+  &:hover {
+    box-shadow: 0 4px 16px rgba(11, 25, 41, 0.05);
+  }
+}
+
+.issueTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.issueId {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--text-light);
+  font-family: monospace;
+}
+
+.statusBadge {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.66rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 12px;
+
+  &.open {
+    background: rgba(245, 158, 11, 0.1);
+    color: #d97706;
+  }
+  &.inprogress {
+    background: rgba(59, 158, 221, 0.1);
+    color: var(--sky);
+  }
+  &.resolved {
+    background: rgba(34, 197, 94, 0.1);
+    color: #16a34a;
+  }
+  &.closed {
+    background: rgba(107, 127, 147, 0.1);
+    color: var(--text-muted);
+  }
+}
+
+.issueSubject {
+  font-family: var(--font-body);
+  font-size: 0.92rem;
+  font-weight: 500;
+  color: var(--text-dark);
+}
+
+.issueDesc {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.issueMeta {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.metaItem {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.7rem;
+  color: var(--text-light);
+  letter-spacing: 0.03em;
+}
+
+.viewBtn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font-family: var(--font-body);
+  font-size: 0.76rem;
+  font-weight: 500;
+  color: var(--sky);
+  cursor: pointer;
+  width: fit-content;
+  letter-spacing: 0.04em;
+
+  &:hover { text-decoration: underline; }
+}
+
+// ── New Complaint Form ──────────────────────────────
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 600px;
+  background: white;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  padding: 24px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label {
+  font-size: 0.74rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.input {
+  padding: 10px 14px;
+  border: 1px solid var(--input-border);
+  border-radius: 6px;
+  font-family: var(--font-body);
+  font-size: 0.86rem;
+  color: var(--text-dark);
+  background: var(--input-bg);
+  transition: border-color 0.2s, background 0.2s;
+
+  &:focus {
+    outline: none;
+    border-color: var(--sky);
+    background: var(--input-bg-focus);
+  }
+
+  &::placeholder { color: var(--text-placeholder); }
+}
+
+.textarea {
+  padding: 12px 14px;
+  border: 1px solid var(--input-border);
+  border-radius: 6px;
+  font-family: var(--font-body);
+  font-size: 0.86rem;
+  color: var(--text-dark);
+  background: var(--input-bg);
+  resize: vertical;
+  min-height: 100px;
+  transition: border-color 0.2s, background 0.2s;
+
+  &:focus {
+    outline: none;
+    border-color: var(--sky);
+    background: var(--input-bg-focus);
+  }
+
+  &::placeholder { color: var(--text-placeholder); }
+}
+
+.submitBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background: linear-gradient(135deg, var(--deep-navy), var(--mid-navy));
+  color: var(--gold-light);
+  border: none;
+  border-radius: 6px;
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  width: fit-content;
+  transition: box-shadow 0.25s;
+
+  &:hover {
+    box-shadow: 0 4px 16px rgba(11, 25, 41, 0.18);
+  }
+}
+
+// ── Success Card ────────────────────────────────────
+.successCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 48px 24px;
+  background: white;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  text-align: center;
+  color: #16a34a;
+
+  h3 {
+    font-family: var(--font-display);
+    font-size: 1.2rem;
+    font-weight: 500;
+    color: var(--text-dark);
+  }
+
+  p {
+    font-size: 0.84rem;
+    color: var(--text-muted);
+  }
+}
+
+// ── Responsive ──────────────────────────────────────
+@media (max-width: 480px) {
+  .header { flex-direction: column; }
+  .issueCard { padding: 16px; }
+  .issueMeta { gap: 10px; }
+  .form { padding: 16px; }
+}

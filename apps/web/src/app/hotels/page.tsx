@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useMemo, Suspense } from "react";
+import { useState, useMemo, Suspense, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { parseApiResponse } from "@/lib/http";
 import s from "@/styles/search.module.scss";
 import { hotels } from "@/data/hotels";
 import Pagination from "@/components/ui/Pagination/Pagination";
@@ -26,6 +27,10 @@ function HotelsContent() {
   const [wifiOnly, setWifiOnly] = useState(false);
   const [foodOnly, setFoodOnly] = useState(false);
   const [poolOnly, setPoolOnly] = useState(false);
+  const [apiResults, setApiResults] = useState<typeof hotels | null>(null);
+  const [apiTotalPages, setApiTotalPages] = useState<number | null>(null);
+  const [apiError, setApiError] = useState<string | null>(null);
+  const [apiLoading, setApiLoading] = useState(false);
 
   const toggleSet = <T,>(set: Set<T>, val: T) => {
     const next = new Set(set);
@@ -65,14 +70,90 @@ function HotelsContent() {
     return list;
   }, [selectedCities, wifiOnly, foodOnly, poolOnly, sort]);
 
-  const totalPages = Math.ceil(filtered.length / PER_PAGE);
-  const paged = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+  useEffect(() => {
+    const canUseApi = Boolean(city && checkin && checkout);
+    if (!canUseApi) {
+      setApiResults(null);
+      setApiTotalPages(null);
+      setApiError(null);
+      return;
+    }
+
+    const sortMap: Record<SortKey, string> = {
+      "price-asc": "price_asc",
+      "price-desc": "price_desc",
+      rating: "rating",
+      stars: "stars",
+    };
+
+    const params = new URLSearchParams({
+      city,
+      checkIn: checkin,
+      checkOut: checkout,
+      sort: sortMap[sort],
+      page: String(page),
+      limit: String(PER_PAGE),
+    });
+
+    if (wifiOnly) params.set("wifi", "true");
+    if (foodOnly) params.set("foodIncluded", "breakfast");
+    if (poolOnly) params.set("pool", "true");
+
+    let mounted = true;
+    const run = async () => {
+      try {
+        setApiLoading(true);
+        setApiError(null);
+
+        const res = await fetch(`/api/hotels/search?${params.toString()}`);
+        const parsed = await parseApiResponse<{
+          results: Array<{ hotel: (typeof hotels)[number] & { _id?: string } }>;
+          totalPages: number;
+        }>(
+          res,
+          "Unable to fetch hotels right now.",
+        );
+
+        if (!mounted) return;
+
+        if (!parsed.ok || !parsed.payload?.data) {
+          throw new Error(parsed.payload?.message || "Unable to fetch hotels right now.");
+        }
+
+        const normalized = (parsed.payload.data.results || []).map((entry) => {
+          const hotel = entry.hotel;
+          return {
+            ...hotel,
+            id: hotel.id || hotel._id || "",
+          };
+        });
+
+        setApiResults(normalized);
+        setApiTotalPages(parsed.payload.data.totalPages || 1);
+      } catch (error) {
+        if (!mounted) return;
+        setApiError(error instanceof Error ? error.message : "Unable to fetch hotels right now.");
+        setApiResults(null);
+        setApiTotalPages(null);
+      } finally {
+        if (mounted) setApiLoading(false);
+      }
+    };
+
+    void run();
+    return () => {
+      mounted = false;
+    };
+  }, [city, checkin, checkout, sort, wifiOnly, foodOnly, poolOnly, page]);
+
+  const totalPages = apiTotalPages ?? Math.ceil(filtered.length / PER_PAGE);
+  const paged = apiResults ?? filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
 
   return (
     <div className={s.page}>
       <div className={s.header}>
         <h1 className={s.title}>Hotel Search Results</h1>
-        <p className={s.subtitle}>{filtered.length} hotels found</p>
+        <p className={s.subtitle}>{apiResults ? `${apiResults.length} hotels on this page` : `${filtered.length} hotels found`}</p>
       </div>
 
       {/* ── Inline search bar ── */}
@@ -163,6 +244,8 @@ function HotelsContent() {
           </div>
 
           {paged.length === 0 && <div className={s.noResults}>No hotels match your filters.</div>}
+          {apiError && <div className={s.noResults}>{apiError} Showing offline results instead.</div>}
+          {apiLoading && <div className={s.noResults}>Fetching latest hotels…</div>}
 
           {paged.map((hotel) => (
             <div key={hotel.id} className={s.card}>

@@ -1,0 +1,243 @@
+// ════════════════════════════════════════════════════
+// DashboardHome.module.scss
+// ════════════════════════════════════════════════════
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+// ── Welcome ──────────────────────────────────────────
+.welcome {
+  padding-bottom: 4px;
+}
+
+.greeting {
+  font-family: var(--font-display);
+  font-size: 1.65rem;
+  font-weight: 400;
+  color: var(--text-dark);
+  letter-spacing: 0.01em;
+  line-height: 1.3;
+}
+
+.name {
+  color: var(--sky);
+}
+
+.subtitle {
+  font-size: 0.84rem;
+  color: var(--text-muted);
+  letter-spacing: 0.03em;
+  margin-top: 4px;
+}
+
+// ── Stats Grid ──────────────────────────────────────
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.statCard {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 20px;
+  background: white;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  overflow: hidden;
+  transition: box-shadow 0.25s;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+  }
+
+  &.sky::before {
+    background: linear-gradient(90deg, var(--sky), var(--sky-light));
+  }
+
+  &.gold::before {
+    background: linear-gradient(90deg, var(--gold), var(--gold-light));
+  }
+}
+
+.statIcon {
+  color: var(--text-light);
+  display: flex;
+  align-items: center;
+}
+
+.statValue {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 500;
+  color: var(--text-dark);
+  letter-spacing: 0.01em;
+}
+
+.statLabel {
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+// ── Sections ────────────────────────────────────────
+.section {
+  background: white;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.sectionTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dark);
+}
+
+// ── Bookings List ───────────────────────────────────
+.bookingsList {
+  display: flex;
+  flex-direction: column;
+}
+
+.bookingRow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 20px;
+  border-bottom: 1px solid rgba(59, 158, 221, 0.06);
+  transition: background 0.15s;
+
+  &:last-child { border-bottom: none; }
+}
+
+.bookingIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: var(--sky-pale);
+  color: var(--sky);
+  flex-shrink: 0;
+}
+
+.bookingInfo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.bookingTitle {
+  font-size: 0.86rem;
+  font-weight: 500;
+  color: var(--text-dark);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bookingDate {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  letter-spacing: 0.03em;
+}
+
+.bookingStatus {
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 12px;
+
+  &.confirmed {
+    background: rgba(34, 197, 94, 0.1);
+    color: #16a34a;
+  }
+  &.completed {
+    background: rgba(59, 158, 221, 0.1);
+    color: var(--sky);
+  }
+  &.cancelled {
+    background: rgba(184, 92, 92, 0.1);
+    color: #b85c5c;
+  }
+}
+
+.bookingAmount {
+  font-family: var(--font-body);
+  font-size: 0.84rem;
+  font-weight: 500;
+  color: var(--text-dark);
+  white-space: nowrap;
+}
+
+// ── Saved Places ────────────────────────────────────
+.placesGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 16px 20px;
+}
+
+.placeChip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 1px solid var(--border-soft);
+  border-radius: 20px;
+  font-size: 0.78rem;
+  font-weight: 400;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+  transition: border-color 0.2s, color 0.2s, background 0.2s;
+
+  &:hover {
+    border-color: var(--sky);
+    color: var(--sky);
+    background: var(--sky-pale);
+  }
+}
+
+// ── Responsive ──────────────────────────────────────
+@media (max-width: 900px) {
+  .statsGrid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 480px) {
+  .statsGrid { grid-template-columns: 1fr; }
+  .greeting { font-size: 1.35rem; }
+  .bookingRow { flex-wrap: wrap; gap: 8px; }
+  .bookingAmount { margin-left: auto; }
+}

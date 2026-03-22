@@ -5,7 +5,7 @@ import Navbar from "@/components/layout/Navbar/Navbar";
 // import Footer from "@/components/layout/Footer/Footer"; // uncomment when ready
 
 // Pages that should NOT have the Navbar / Footer
-const AUTH_ROUTES = ["/login", "/register", "/forgot-password", "/reset-password", "/otp"];
+const HIDDEN_NAV_ROUTES = ["/login", "/register", "/forgot-password", "/reset-password", "/otp", "/dashboard"];
 
 export default function ConditionalLayout({
   children,
@@ -13,13 +13,13 @@ export default function ConditionalLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const isAuthPage = AUTH_ROUTES.some((route) => pathname.startsWith(route));
+  const hideNav = HIDDEN_NAV_ROUTES.some((route) => pathname.startsWith(route));
 
   return (
     <>
-      {!isAuthPage && <Navbar />}
+      {!hideNav && <Navbar />}
       {children}
-      {/* {!isAuthPage && <Footer />} */}
+      {/* {!hideNav && <Footer />} */}
     </>
   );
 }

@@ -1,7 +1,11 @@
 "use client";
 
-import { useState, useMemo, Suspense } from "react";
+import { useState, useMemo, Suspense, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import { useBookingFlow } from "@/hooks/useBookingFlow";
+import { useBookingGuard } from "@/hooks/useBookingGuard";
+import { useAuth } from "@/services/auth/context";
+import { parseApiResponse } from "@/lib/http";
 import s from "@/styles/search.module.scss";
 import { trains, type Train } from "@/data/trains";
 import BookingSidebar from "@/components/ui/BookingSidebar/BookingSidebar";
@@ -15,6 +19,9 @@ function TrainsContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const page = Number(searchParams.get("page") || "1");
+  const { guardAction } = useBookingGuard();
+  const { processBookingAndPayment } = useBookingFlow();
+  const { user } = useAuth();
 
   const [from, setFrom] = useState(searchParams.get("from") || "");
   const [to, setTo] = useState(searchParams.get("to") || "");
@@ -24,6 +31,10 @@ function TrainsContent() {
   const [selectedTypes, setSelectedTypes] = useState<Set<string>>(new Set());
   const [selectedClass, setSelectedClass] = useState<"sleeper" | "ac3Tier" | "ac2Tier" | "ac1st">("sleeper");
   const [selected, setSelected] = useState<Train | null>(null);
+  const [apiResults, setApiResults] = useState<Train[] | null>(null);
+  const [apiTotalPages, setApiTotalPages] = useState<number | null>(null);
+  const [apiLoading, setApiLoading] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   const toggleSet = <T,>(set: Set<T>, val: T) => {
     const next = new Set(set);
@@ -58,8 +69,83 @@ function TrainsContent() {
     return list;
   }, [selectedTypes, sort, selectedClass]);
 
-  const totalPages = Math.ceil(filtered.length / PER_PAGE);
-  const paged = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+  useEffect(() => {
+    const canUseApi = Boolean(from && to && date);
+    if (!canUseApi) {
+      setApiResults(null);
+      setApiTotalPages(null);
+      setApiError(null);
+      return;
+    }
+
+    const sortMap: Record<SortKey, string> = {
+      "price-asc": "price_asc",
+      "price-desc": "price_desc",
+      duration: "duration",
+      rating: "rating",
+    };
+
+    const params = new URLSearchParams({
+      from: from.toUpperCase(),
+      to: to.toUpperCase(),
+      date,
+      class: selectedClass,
+      sort: sortMap[sort],
+      page: String(page),
+      limit: String(PER_PAGE),
+    });
+
+    const selectedType = Array.from(selectedTypes)[0];
+    if (selectedType) {
+      params.set("trainType", selectedType);
+    }
+
+    let mounted = true;
+    const run = async () => {
+      try {
+        setApiLoading(true);
+        setApiError(null);
+        const res = await fetch(`/api/trains/search?${params.toString()}`);
+        const parsed = await parseApiResponse<{ results: Array<{ train: Train & { _id?: string } }>; totalPages: number }>(
+          res,
+          "Unable to fetch trains right now.",
+        );
+
+        if (!mounted) return;
+
+        if (!parsed.ok || !parsed.payload?.data) {
+          throw new Error(parsed.payload?.message || "Unable to fetch trains right now.");
+        }
+
+        const normalized = (parsed.payload.data.results || []).map((entry) => {
+          const train = entry.train;
+          return {
+            ...train,
+            id: train.id || train._id || "",
+          } as Train;
+        });
+
+        setApiResults(normalized);
+        setApiTotalPages(parsed.payload.data.totalPages || 1);
+      } catch (error) {
+        if (!mounted) return;
+        const message = error instanceof Error ? error.message : "Unable to fetch trains right now.";
+        setApiError(message);
+        setApiResults(null);
+        setApiTotalPages(null);
+      } finally {
+        if (mounted) setApiLoading(false);
+      }
+    };
+
+    void run();
+    return () => {
+      mounted = false;
+    };
+  }, [from, to, date, selectedClass, sort, page, selectedTypes]);
+
+  const totalPages = apiTotalPages ?? Math.ceil(filtered.length / PER_PAGE);
+  const paged = apiResults ?? filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
 
   const classLabel: Record<string, string> = {
     sleeper: "Sleeper",
@@ -69,12 +155,42 @@ function TrainsContent() {
   };
 
   const current = selected ?? paged[0] ?? null;
+  const baseFare = current?.fare[selectedClass] ?? 0;
+  const taxes = Math.round(baseFare * 0.05);
+  const serviceFee = 149;
+  const netAmount = baseFare + taxes + serviceFee;
+
+  const handleProceedToPayment = (netAmount: number) => {
+    if (!current) return;
+    guardAction(async () => {
+      if (!user) return;
+      await processBookingAndPayment(
+        {
+          itemId: current.id,
+          type: 'train',
+          title: `${current.name} (${current.trainNumber})`,
+          fromCode: current.fromCode,
+          toCode: current.toCode,
+          startDate: date,
+          quantity: 1,
+          amount: baseFare,
+          contact: {
+            name: user.fullName || 'Guest',
+            email: user.email || '',
+            phone: '',
+          },
+          passengers: [],
+        },
+        netAmount,
+      );
+    });
+  };
 
   return (
     <div className={s.page}>
       <div className={s.header}>
         <h1 className={s.title}>Train Search Results</h1>
-        <p className={s.subtitle}>{filtered.length} trains found</p>
+        <p className={s.subtitle}>{apiResults ? `${apiResults.length} trains on this page` : `${filtered.length} trains found`}</p>
       </div>
 
       {/* ── Inline search bar ── */}
@@ -166,6 +282,8 @@ function TrainsContent() {
           </div>
 
           {paged.length === 0 && <div className={s.noResults}>No trains match your filters.</div>}
+          {apiError && <div className={s.noResults}>{apiError} Showing offline results instead.</div>}
+          {apiLoading && <div className={s.noResults}>Fetching latest trains…</div>}
 
           {paged.map((train) => (
             <div key={train.id} className={s.card}>
@@ -243,10 +361,11 @@ function TrainsContent() {
 
         {/* ── Right: Booking sidebar ── */}
         <BookingSidebar
-          baseFare={current?.fare[selectedClass] ?? 0}
-          taxes={Math.round((current?.fare[selectedClass] ?? 0) * 0.05)}
-          serviceFee={149}
+          baseFare={baseFare}
+          taxes={taxes}
+          serviceFee={serviceFee}
           ctaLabel="Proceed to Payment"
+          onProceed={handleProceedToPayment}
         />
       </div>
     </div>

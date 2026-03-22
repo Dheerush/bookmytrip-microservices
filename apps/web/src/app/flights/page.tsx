@@ -1,7 +1,11 @@
 "use client";
 
-import { useState, useMemo, Suspense } from "react";
+import { useState, useMemo, Suspense, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import { useBookingFlow } from "@/hooks/useBookingFlow";
+import { useBookingGuard } from "@/hooks/useBookingGuard";
+import { useAuth } from "@/services/auth/context";
+import { parseApiResponse } from "@/lib/http";
 import s from "@/styles/search.module.scss";
 import { flights, type Flight } from "@/data/flights";
 import BookingSidebar from "@/components/ui/BookingSidebar/BookingSidebar";
@@ -19,6 +23,10 @@ function FlightsContent() {
   const router = useRouter();
   const page = Number(searchParams.get("page") || "1");
 
+  const { guardAction } = useBookingGuard();
+  const { processBookingAndPayment } = useBookingFlow();
+  const { user } = useAuth();
+
   const [from, setFrom] = useState(searchParams.get("from") || "");
   const [to, setTo] = useState(searchParams.get("to") || "");
   const [date, setDate] = useState(searchParams.get("date") || "");
@@ -27,6 +35,10 @@ function FlightsContent() {
   const [selectedAirlines, setSelectedAirlines] = useState<Set<string>>(new Set());
   const [selectedStops, setSelectedStops] = useState<Set<string>>(new Set());
   const [selected, setSelected] = useState<Flight | null>(null);
+  const [apiResults, setApiResults] = useState<Flight[] | null>(null);
+  const [apiTotalPages, setApiTotalPages] = useState<number | null>(null);
+  const [apiLoading, setApiLoading] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   const toggleSet = <T,>(set: Set<T>, val: T) => {
     const next = new Set(set);
@@ -72,14 +84,128 @@ function FlightsContent() {
     return list;
   }, [selectedAirlines, selectedStops, sort]);
 
-  const totalPages = Math.ceil(filtered.length / PER_PAGE);
-  const paged = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+  useEffect(() => {
+    const canUseApi = Boolean(from && to && date);
+    if (!canUseApi) {
+      setApiResults(null);
+      setApiTotalPages(null);
+      setApiError(null);
+      return;
+    }
+
+    const sortMap: Record<SortKey, string> = {
+      "price-asc": "price_asc",
+      "price-desc": "price_desc",
+      duration: "duration",
+      rating: "rating",
+    };
+
+    const params = new URLSearchParams({
+      from: from.toUpperCase(),
+      to: to.toUpperCase(),
+      date,
+      sort: sortMap[sort],
+      page: String(page),
+      limit: String(PER_PAGE),
+    });
+
+    if (selectedAirlines.size) {
+      params.set("airlines", Array.from(selectedAirlines).join(","));
+    }
+    if (selectedStops.size === 1) {
+      const only = Array.from(selectedStops)[0];
+      const stopValue = only === "Non-stop" ? 0 : only === "1 Stop" ? 1 : 2;
+      params.set("stops", String(stopValue));
+    }
+
+    let mounted = true;
+    const run = async () => {
+      try {
+        setApiLoading(true);
+        setApiError(null);
+
+        const res = await fetch(`/api/flights/search?${params.toString()}`);
+        const parsed = await parseApiResponse<{
+          results: Array<{ flight: Flight & { _id?: string } }>;
+          totalPages: number;
+        }>(
+          res,
+          "Unable to fetch flights right now.",
+        );
+
+        if (!mounted) return;
+
+        if (!parsed.ok || !parsed.payload?.data) {
+          throw new Error(parsed.payload?.message || "Unable to fetch flights right now.");
+        }
+
+        const normalized = (parsed.payload.data.results || []).map((entry) => {
+          const flight = entry.flight;
+          return {
+            ...flight,
+            id: flight.id || flight._id || "",
+          } as Flight;
+        });
+
+        setApiResults(normalized);
+        setApiTotalPages(parsed.payload.data.totalPages || 1);
+      } catch (error) {
+        if (!mounted) return;
+        setApiError(error instanceof Error ? error.message : "Unable to fetch flights right now.");
+        setApiResults(null);
+        setApiTotalPages(null);
+      } finally {
+        if (mounted) setApiLoading(false);
+      }
+    };
+
+    void run();
+    return () => {
+      mounted = false;
+    };
+  }, [from, to, date, sort, selectedAirlines, selectedStops, page]);
+
+  const totalPages = apiTotalPages ?? Math.ceil(filtered.length / PER_PAGE);
+  const paged = apiResults ?? filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+
+  const selectedFlight = selected ?? paged[0];
+  const baseFare = selectedFlight?.discountedPrice ?? 0;
+  const taxes = Math.round(baseFare * 0.05);
+  const serviceFee = 249;
+  const discount = selectedFlight ? selectedFlight.originalPrice - selectedFlight.discountedPrice : 0;
+  const netAmount = baseFare + taxes + serviceFee - discount;
+
+  const handleProceedToPayment = (netAmount: number) => {
+    if (!selectedFlight) return;
+    guardAction(async () => {
+      if (!user) return;
+      await processBookingAndPayment(
+        {
+          itemId: selectedFlight.id,
+          type: 'flight',
+          title: `${selectedFlight.fromCode} → ${selectedFlight.toCode} (${selectedFlight.airline})`,
+          fromCode: selectedFlight.fromCode,
+          toCode: selectedFlight.toCode,
+          startDate: date,
+          quantity: 1,
+          amount: selectedFlight.discountedPrice,
+          contact: {
+            name: user.fullName || 'Guest',
+            email: user.email || '',
+            phone: '',
+          },
+          passengers: [],
+        },
+        netAmount,
+      );
+    });
+  };
 
   return (
     <div className={s.page}>
       <div className={s.header}>
         <h1 className={s.title}>Flight Search Results</h1>
-        <p className={s.subtitle}>{filtered.length} flights found</p>
+        <p className={s.subtitle}>{apiResults ? `${apiResults.length} flights on this page` : `${filtered.length} flights found`}</p>
       </div>
 
       {/* ── Inline search bar ── */}
@@ -170,6 +296,8 @@ function FlightsContent() {
           </div>
 
           {paged.length === 0 && <div className={s.noResults}>No flights match your filters.</div>}
+          {apiError && <div className={s.noResults}>{apiError} Showing offline results instead.</div>}
+          {apiLoading && <div className={s.noResults}>Fetching latest flights…</div>}
 
           {paged.map((flight) => (
             <div key={flight.id} className={s.card}>
@@ -226,17 +354,12 @@ function FlightsContent() {
 
         {/* ── Right: Booking sidebar ── */}
         <BookingSidebar
-          baseFare={selected?.discountedPrice ?? paged[0]?.discountedPrice ?? 0}
-          taxes={Math.round((selected?.discountedPrice ?? paged[0]?.discountedPrice ?? 0) * 0.05)}
-          serviceFee={249}
-          discount={
-            selected
-              ? selected.originalPrice - selected.discountedPrice
-              : paged[0]
-                ? paged[0].originalPrice - paged[0].discountedPrice
-                : 0
-          }
+          baseFare={baseFare}
+          taxes={taxes}
+          serviceFee={serviceFee}
+          discount={discount}
           ctaLabel="Proceed to Payment"
+          onProceed={handleProceedToPayment}
         />
       </div>
     </div>

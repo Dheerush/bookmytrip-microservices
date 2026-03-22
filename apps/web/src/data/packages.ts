@@ -270,8 +270,8 @@ export const packages: Package[] = [
       { user: 'Amit S.', rating: 5, comment: 'Amazing experience, great hospitality!', date: '2024-11-12' },
       { user: 'Priya K.', rating: 4, comment: 'Loved the folk concert and food.', date: '2024-10-05' }
     ],
-    images: ['/packages/rajasthan1.jpg', '/packages/rajasthan2.jpg'],
-    heroImage: '/packages/rajasthan1.jpg',
+    images: ['/travel-packages/india/jodhpur1.jpg', '/travel-packages/india/udaipur1.jpg'],
+    heroImage: '/travel-packages/india/jodhpur1.jpg',
     description: 'Explore the royal heritage, forts, and vibrant culture of Rajasthan with expert guides. From the pink city of Jaipur to the golden dunes of Jaisalmer, every moment is steeped in royalty.',
     highlights: [
       'Private access to heritage forts at golden hour',
@@ -320,8 +320,8 @@ export const packages: Package[] = [
       { user: 'Marco T.', rating: 5, comment: 'The Taj at sunrise was life-changing. Arjun\'s stories made everything come alive.', date: '2024-12-10' },
       { user: 'Yuki N.', rating: 5, comment: 'Best organised trip. Every detail was perfect.', date: '2024-11-22' }
     ],
-    images: ['/packages/golden-triangle1.jpg', '/packages/golden-triangle2.jpg'],
-    heroImage: '/packages/golden-triangle1.jpg',
+    images: ['/travel-packages/india/taj1.jpg', '/travel-packages/india/lotus1.jpeg'],
+    heroImage: '/travel-packages/india/jodhpur1.jpg',
     description: 'India\'s most iconic circuit — the Mughal grandeur of Delhi and Agra, and the royal pink lanes of Jaipur. Witness the Taj Mahal at sunrise, explore medieval forts, and taste the richest cuisine India offers.',
     highlights: [
       'Taj Mahal at sunrise — the most iconic image in the world',
@@ -370,7 +370,7 @@ export const packages: Package[] = [
       { user: 'Anita M.', rating: 5, comment: 'The Sunderbans boat safari was incredible. Saw a Royal Bengal Tiger!', date: '2024-11-30' },
       { user: 'James H.', rating: 4, comment: 'Kolkata surprised me — so much history and the food was extraordinary.', date: '2024-10-18' }
     ],
-    images: ['/packages/kolkata1.jpg', '/packages/kolkata2.jpg'],
+    images: ['/travel-packages/india/sundar1.jpeg', '/travel-packages/india/victoria1.jpeg'],
     heroImage: '/packages/kolkata1.jpg',
     description: 'Discover Kolkata — India\'s most intellectually alive city — then venture into the Sunderbans, the world\'s largest mangrove delta and home to the Royal Bengal Tiger. Culture, wildlife, and soul in one journey.',
     highlights: [
@@ -420,7 +420,7 @@ export const packages: Package[] = [
       { user: 'Robert F.', rating: 5, comment: 'Kavitha\'s knowledge of temple architecture was astounding. A truly spiritual journey.', date: '2024-12-05' },
       { user: 'Meena K.', rating: 5, comment: 'Best tour of South India I\'ve ever taken. Mahabalipuram at dawn was ethereal.', date: '2024-11-14' }
     ],
-    images: ['/packages/south-india1.jpg', '/packages/south-india2.jpg'],
+    images: ['/travel-packages/india/temple1.jpeg', '/travel-packages/india/pondi1.jpeg'],
     heroImage: '/packages/south-india1.jpg',
     description: 'Journey through the Dravidian heartland — ancient temples carved from stone, French colonial boulevards, crashing Bay of Bengal waves, and some of the world\'s most complex religious architecture.',
     highlights: [
@@ -472,7 +472,7 @@ export const packages: Package[] = [
       { user: 'John D.', rating: 5, comment: 'Best trip ever, loved the activities!', date: '2024-09-20' },
       { user: 'Sara M.', rating: 4, comment: 'Great guides and food.', date: '2024-08-14' }
     ],
-    images: ['/packages/europe1.jpg', '/packages/europe2.jpg'],
+    images: ['/travel-packages/abroad/europe1.jpeg', '/packages/europe2.jpg'],
     heroImage: '/packages/europe1.jpg',
     description: 'Discover the best of Europe — from the romantic streets of Paris to the canals of Amsterdam. Curated experiences, world-class hotels, and expert local guides make every day unforgettable.',
     highlights: [
@@ -525,8 +525,8 @@ export const packages: Package[] = [
       { user: 'Priya S.', rating: 5, comment: 'Japan was everything I dreamed of. The ryokan experience was unforgettable.', date: '2024-11-05' },
       { user: 'Carlos M.', rating: 5, comment: 'Yuki is the best guide I\'ve ever had. Deep knowledge, warm personality.', date: '2024-10-12' }
     ],
-    images: ['/packages/japan1.jpg', '/packages/japan2.jpg'],
-    heroImage: '/packages/japan1.jpg',
+    images: ['/travel-packages/abroad/fuji1.jpeg', '/travel-packages/abroad/japan1.jpeg'],
+    heroImage: '/travel-packages/abroad/fuji1.jpeg',
     description: 'Japan is unlike anywhere on earth — neon-lit Tokyo alongside 1,000-year-old temples, bullet trains past snow-capped Fuji, geisha streets in Kyoto, and the world\'s most extraordinary food culture. This is Japan at its full depth.',
     highlights: [
       'Sleep in a traditional ryokan with onsen bath',
@@ -576,7 +576,7 @@ export const packages: Package[] = [
       { user: 'Rahul K.', rating: 5, comment: 'The elephant sanctuary was the highlight of our lives. Absolutely ethical and beautiful.', date: '2024-12-14' },
       { user: 'Sophie L.', rating: 4, comment: 'Thailand is stunning. Phi Phi Islands snorkelling was breathtaking.', date: '2024-11-08' }
     ],
-    images: ['/packages/thailand1.jpg', '/packages/thailand2.jpg'],
+    images: ['/travel-packages/abroad/thailand1.jpg', '/travel-packages/abroad/thailand2.jpg'],
     heroImage: '/packages/thailand1.jpg',
     description: 'From Bangkok\'s glittering temples to Chiang Mai\'s misty mountains to the turquoise waters of Phuket — Thailand delivers an extraordinary mix of culture, nature, and flavour in one of Southeast Asia\'s most accessible countries.',
     highlights: [
@@ -627,8 +627,8 @@ export const packages: Package[] = [
       { user: 'Neha R.', rating: 5, comment: 'The desert safari and the Burj Khalifa at night — surreal experiences.', date: '2024-12-20' },
       { user: 'Tom W.', rating: 5, comment: 'Pure luxury from start to finish. Omar made everything seamless.', date: '2024-11-28' }
     ],
-    images: ['/packages/dubai1.jpg', '/packages/dubai2.jpg'],
-    heroImage: '/packages/dubai1.jpg',
+    images: ['/travel-packages/abroad/dubai1.jpg', '/travel-packages/abroad/dubai2.jpg'],
+    heroImage: '/travel-packages/abroad/dubai1.jpg',
     description: 'Dubai is humanity\'s most audacious city — the world\'s tallest building, the world\'s largest mall, artificial islands, and then just 45 minutes away: vast silent desert under a billion stars. This package shows you both worlds.',
     highlights: [
       'Burj Khalifa 148th floor At the Top SKY experience',
@@ -678,8 +678,8 @@ export const packages: Package[] = [
       { user: 'Vikram P.', rating: 5, comment: 'The Great Barrier Reef was a religious experience. Sarah\'s marine biology knowledge made it extraordinary.', date: '2024-11-15' },
       { user: 'Claire B.', rating: 5, comment: 'Uluru at sunrise. I cried. Enough said.', date: '2024-10-22' }
     ],
-    images: ['/packages/australia1.jpg', '/packages/australia2.jpg'],
-    heroImage: '/packages/australia1.jpg',
+    images: ['/travel-packages/abroad/aus1.jpg', '/travel-packages/abroad/aus2.jpg'],
+    heroImage: '/travel-packages/abroad/aus1.jpg',
     description: 'Australia is a continent of extremes — neon coral reefs, sandstone monoliths glowing red at dusk, penguins waddling up beaches, and cities ranked the world\'s most liveable. This journey covers the best of all of it.',
     highlights: [
       'Great Barrier Reef — the world\'s largest living organism',
@@ -728,8 +728,8 @@ export const packages: Package[] = [
       { user: 'Divya R.', rating: 5, comment: 'Singapore with kids was perfect. Clean, safe, and incredible food. Universal Studios was a dream!', date: '2024-12-08' },
       { user: 'Adrian K.', rating: 4, comment: 'Compact but extraordinary. Gardens by the Bay at night is pure magic.', date: '2024-10-30' }
     ],
-    images: ['/packages/singapore1.jpg', '/packages/singapore2.jpg'],
-    heroImage: '/packages/singapore1.jpg',
+    images: ['/travel-packages/abroad/singapore1.jpg', '/travel-packages/abroad/singapore2.jpg'],
+    heroImage: '/travel-packages/abroad/singapore1.jpg',
     description: 'Singapore is 720 square kilometres of extraordinary urban achievement — supertrees that generate solar power, an airport that is a tourist destination in itself, a hawker food culture declared UNESCO heritage, and a skyline that glows gold every night.',
     highlights: [
       'Marina Bay Sands SkyPark — iconic Singapore view',

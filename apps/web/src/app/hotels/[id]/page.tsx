@@ -2,6 +2,9 @@
 
 import { useState, use } from "react";
 import { notFound } from "next/navigation";
+import { useBookingFlow } from "@/hooks/useBookingFlow";
+import { useBookingGuard } from "@/hooks/useBookingGuard";
+import { useAuth } from "@/services/auth/context";
 import { hotels } from "@/data/hotels";
 import BookingSidebar from "@/components/ui/BookingSidebar/BookingSidebar";
 import styles from "./page.module.scss";
@@ -17,12 +20,43 @@ export default function HotelDetailPage({ params }: Props) {
   const [activeImg, setActiveImg] = useState(0);
   const [selectedRoom, setSelectedRoom] = useState(0);
   const [nights, setNights] = useState(1);
+  const { guardAction } = useBookingGuard();
+  const { processBookingAndPayment } = useBookingFlow();
+  const { user } = useAuth();
 
   if (!hotel) return notFound();
 
   const room = hotel.rooms[selectedRoom];
   const baseTotal = room.price * nights;
   const discount = (room.originalPrice - room.price) * nights;
+  const taxes = Math.round(baseTotal * 0.12);
+  const serviceFee = 399;
+  const netAmount = baseTotal + taxes + serviceFee - discount;
+
+  const handleProceedToPayment = (netAmount: number) => {
+    guardAction(async () => {
+      if (!user) return;
+      await processBookingAndPayment(
+        {
+          itemId: hotel.id,
+          type: 'hotel',
+          title: hotel.name,
+          city: hotel.address,
+          startDate: new Date().toISOString().split('T')[0],
+          endDate: new Date(Date.now() + nights * 86400000).toISOString().split('T')[0],
+          quantity: nights,
+          amount: baseTotal,
+          contact: {
+            name: user.name || 'Guest',
+            email: user.email || '',
+            phone: user.phone || '',
+          },
+          passengers: [],
+        },
+        netAmount,
+      );
+    });
+  };
 
   return (
     <div className={styles.page}>
@@ -165,13 +199,14 @@ export default function HotelDetailPage({ params }: Props) {
           </div>
           <BookingSidebar
             baseFare={baseTotal}
-            taxes={Math.round(baseTotal * 0.12)}
-            serviceFee={399}
+            taxes={taxes}
+            serviceFee={serviceFee}
             discount={discount}
             extraLines={[
               { label: `${room.type} × ${nights} night${nights > 1 ? "s" : ""}`, amount: 0 },
             ]}
             ctaLabel="Proceed to Payment"
+            onProceed={handleProceedToPayment}
           />
         </div>
       </div>

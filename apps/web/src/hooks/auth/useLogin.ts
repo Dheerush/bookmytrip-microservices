@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { authService } from '@/services/auth';
 import type { LoginRequest } from '@/services/auth';
+import { useAuth } from '@/services/auth/context';
 import { showToast } from '@/lib/toast';
 
 interface UseLoginReturn {
@@ -11,20 +12,21 @@ interface UseLoginReturn {
 
 /**
  * Handles login flow including unverified-email redirect.
- * On success: stores accessToken, redirects to home.
+ * On success: stores accessToken + user in auth context, redirects to home.
  * On EMAIL_UNVERIFIED: stores session, redirects to /otp.
  */
 export function useLogin(): UseLoginReturn {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const { setAuth } = useAuth();
 
   const handleLogin = useCallback(async (data: LoginRequest) => {
     setLoading(true);
     try {
       const result = await authService.login(data);
 
-      // Store access token for subsequent API calls
-      sessionStorage.setItem('accessToken', result.data.accessToken);
+      // Update auth context (sets React state + persists to sessionStorage)
+      setAuth(result.data);
 
       showToast.success('Login successful!');
       router.replace('/');
@@ -41,7 +43,7 @@ export function useLogin(): UseLoginReturn {
     } finally {
       setLoading(false);
     }
-  }, [router]);
+  }, [router, setAuth]);
 
   return { handleLogin, loading };
 }

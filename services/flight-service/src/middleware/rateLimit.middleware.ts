@@ -1,0 +1,33 @@
+import rateLimit from 'express-rate-limit';
+import RedisStore from 'rate-limit-redis';
+import { redisClient } from '../config/redis';
+import { Request } from 'express';
+
+const makeStore = (prefix: string) =>
+  new RedisStore({
+    // @ts-expect-error — rate-limit-redis sendCommand signature
+    sendCommand: (...args: string[]) => redisClient.call(...args),
+    prefix: `rl:flight-svc:${prefix}:`,
+  });
+
+/** Public search — 60 req/min per IP */
+export const searchLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  keyGenerator: (req: Request) => `ip:${req.ip}`,
+  store: makeStore('search'),
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many requests', code: 'RATE_LIMIT_EXCEEDED' },
+});
+
+/** Authenticated mutations — 30 req/min per user */
+export const mutationLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  keyGenerator: (req: Request) => `user:${req.user?.id ?? req.ip}`,
+  store: makeStore('mutation'),
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many requests', code: 'RATE_LIMIT_EXCEEDED' },
+});

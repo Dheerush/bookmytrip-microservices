@@ -1,7 +1,11 @@
 "use client";
 
-import { useState, useMemo, Suspense } from "react";
+import { useState, useMemo, Suspense, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import { useBookingFlow } from "@/hooks/useBookingFlow";
+import { useBookingGuard } from "@/hooks/useBookingGuard";
+import { useAuth } from "@/services/auth/context";
+import { parseApiResponse } from "@/lib/http";
 import s from "@/styles/search.module.scss";
 import { cabs, type Cab } from "@/data/cabs";
 import BookingSidebar from "@/components/ui/BookingSidebar/BookingSidebar";
@@ -16,6 +20,9 @@ function CabsContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const page = Number(searchParams.get("page") || "1");
+  const { guardAction } = useBookingGuard();
+  const { processBookingAndPayment } = useBookingFlow();
+  const { user } = useAuth();
 
   const [pickup, setPickup] = useState(searchParams.get("pickup") || "");
   const [drop, setDrop] = useState(searchParams.get("drop") || "");
@@ -26,6 +33,10 @@ function CabsContent() {
   const [selectedFuel, setSelectedFuel] = useState<Set<string>>(new Set());
   const [acOnly, setAcOnly] = useState(false);
   const [selected, setSelected] = useState<Cab | null>(null);
+  const [apiResults, setApiResults] = useState<Cab[] | null>(null);
+  const [apiTotalPages, setApiTotalPages] = useState<number | null>(null);
+  const [apiLoading, setApiLoading] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   const toggleSet = <T,>(set: Set<T>, val: T) => {
     const next = new Set(set);
@@ -48,6 +59,32 @@ function CabsContent() {
     router.push(`/cabs${params.toString() ? `?${params.toString()}` : ""}`);
   };
 
+  const handleProceedToPayment = (netAmount: number) => {
+    if (!selected) return;
+    guardAction(async () => {
+      if (!user) return;
+      await processBookingAndPayment(
+        {
+          itemId: selected.id,
+          type: 'cab',
+          title: `${selected.carModel} (${selected.type})`,
+          fromCode: pickup,
+          toCode: drop,
+          startDate: date,
+          quantity: 1,
+          amount: selected.baseFare,
+          contact: {
+            name: user.fullName || 'Guest',
+            email: user.email || '',
+            phone: '',
+          },
+          passengers: [],
+        },
+        netAmount,
+      );
+    });
+  };
+
   const filtered = useMemo(() => {
     let list = [...cabs];
     if (selectedTypes.size) list = list.filter((c) => selectedTypes.has(c.type));
@@ -63,14 +100,93 @@ function CabsContent() {
     return list;
   }, [selectedTypes, selectedFuel, acOnly, sort]);
 
-  const totalPages = Math.ceil(filtered.length / PER_PAGE);
-  const paged = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+  useEffect(() => {
+    if (!pickup) {
+      setApiResults(null);
+      setApiTotalPages(null);
+      setApiError(null);
+      return;
+    }
+
+    const sortMap: Record<SortKey, string> = {
+      "price-asc": "price_asc",
+      "price-desc": "price_desc",
+      rating: "rating",
+      seats: "driver_rating",
+    };
+
+    const distanceKm = Number(searchParams.get("distanceKm") || "20");
+    const params = new URLSearchParams({
+      city: pickup,
+      distanceKm: String(distanceKm > 0 ? distanceKm : 20),
+      sort: sortMap[sort],
+      page: String(page),
+      limit: String(PER_PAGE),
+    });
+
+    const selectedType = Array.from(selectedTypes)[0];
+    if (selectedType) params.set("type", selectedType);
+
+    const selectedFuelType = Array.from(selectedFuel)[0];
+    if (selectedFuelType) params.set("fuelType", selectedFuelType);
+
+    if (acOnly) params.set("ac", "true");
+
+    let mounted = true;
+    const run = async () => {
+      try {
+        setApiLoading(true);
+        setApiError(null);
+
+        const res = await fetch(`/api/cabs/search?${params.toString()}`);
+        const parsed = await parseApiResponse<{
+          results: Array<{ cab: Cab & { _id?: string } }>;
+          totalPages: number;
+        }>(
+          res,
+          "Unable to fetch cabs right now.",
+        );
+
+        if (!mounted) return;
+
+        if (!parsed.ok || !parsed.payload?.data) {
+          throw new Error(parsed.payload?.message || "Unable to fetch cabs right now.");
+        }
+
+        const normalized = (parsed.payload.data.results || []).map((entry) => {
+          const cab = entry.cab;
+          return {
+            ...cab,
+            id: cab.id || cab._id || "",
+          } as Cab;
+        });
+
+        setApiResults(normalized);
+        setApiTotalPages(parsed.payload.data.totalPages || 1);
+      } catch (error) {
+        if (!mounted) return;
+        setApiError(error instanceof Error ? error.message : "Unable to fetch cabs right now.");
+        setApiResults(null);
+        setApiTotalPages(null);
+      } finally {
+        if (mounted) setApiLoading(false);
+      }
+    };
+
+    void run();
+    return () => {
+      mounted = false;
+    };
+  }, [pickup, sort, page, selectedTypes, selectedFuel, acOnly, searchParams]);
+
+  const totalPages = apiTotalPages ?? Math.ceil(filtered.length / PER_PAGE);
+  const paged = apiResults ?? filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
 
   return (
     <div className={s.page}>
       <div className={s.header}>
         <h1 className={s.title}>Cab Search Results</h1>
-        <p className={s.subtitle}>{filtered.length} cabs available</p>
+        <p className={s.subtitle}>{apiResults ? `${apiResults.length} cabs on this page` : `${filtered.length} cabs available`}</p>
       </div>
 
       {/* ── Inline search bar ── */}
@@ -169,6 +285,8 @@ function CabsContent() {
           </div>
 
           {paged.length === 0 && <div className={s.noResults}>No cabs match your filters.</div>}
+          {apiError && <div className={s.noResults}>{apiError} Showing offline results instead.</div>}
+          {apiLoading && <div className={s.noResults}>Fetching latest cabs…</div>}
 
           {paged.map((cab) => (
             <div key={cab.id} className={s.card}>
@@ -218,8 +336,8 @@ function CabsContent() {
           baseFare={selected?.baseFare ?? paged[0]?.baseFare ?? 0}
           taxes={Math.round((selected?.baseFare ?? paged[0]?.baseFare ?? 0) * 0.05)}
           serviceFee={49}
-          discount={0}
           ctaLabel="Confirm Booking"
+          onProceed={handleProceedToPayment}
         />
       </div>
     </div>
