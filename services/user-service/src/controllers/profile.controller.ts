@@ -13,14 +13,18 @@ export const profileController = {
   // ── GET /users/me ─────────────────────────────────────────────────────
   getMe: async (req: Request, res: Response): Promise<void> => {
     const authId = requireUser(req);
+    if (!req.user?.email) {
+      throw new AppError('Email missing in token. Please log in again.', 401, 'UNAUTHORIZED');
+    }
     const profile = await profileService.getOrCreate(authId, {
-      email:    req.user?.email || '',
-      fullName: '',
+      email:    req.user.email,
+      fullName: req.user.fullName || req.user.email.split('@')[0],
+      role:     req.user.role,
     });
     res.status(200).json(apiResponse(profile, 'Profile fetched'));
   },
 
-  // ── PATCH /users/me ───────────────────────────────────────────────────
+  // ── PATCH /users/update-me ───────────────────────────────────────────────────
   updateMe: async (req: Request, res: Response): Promise<void> => {
     const authId = requireUser(req);
     const profile = await profileService.updateProfile(authId, req.body);
@@ -28,11 +32,11 @@ export const profileController = {
     res.status(200).json(apiResponse(profile, 'Profile updated'));
   },
 
-  // ── GET /users/me/travelers ───────────────────────────────────────────
+  // ── GET /users/me/all-travelers ───────────────────────────────────────────
   getTravelers: async (req: Request, res: Response): Promise<void> => {
     const authId = requireUser(req);
     const profile = await profileService.getByAuthId(authId);
-    res.status(200).json(apiResponse(profile.travelers, 'Travelers fetched'));
+    res.status(200).json(apiResponse(profile.travelers, 'All Travelers fetched successfully'));
   },
 
   // ── POST /users/me/travelers ──────────────────────────────────────────

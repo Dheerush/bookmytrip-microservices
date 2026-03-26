@@ -64,11 +64,7 @@ const Hero = () => {
         </div>
       </div>
 
-      {/* Scroll indicator */}
-      <div className={styles.scrollHint} aria-hidden="true">
-        <span className={styles.scrollLine} />
-        Scroll
-      </div>
+
     </section>
   );
 };

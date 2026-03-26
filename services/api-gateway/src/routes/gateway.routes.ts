@@ -1,6 +1,6 @@
 import { IncomingMessage } from "http";
 import { NextFunction, Request, Response, Router } from "express";
-import { createProxyMiddleware } from "http-proxy-middleware";
+import { createProxyMiddleware, fixRequestBody } from "http-proxy-middleware";
 import { env } from "../config/env";
 import { getServiceTarget, ServiceName } from "../config/services";
 import { authenticate } from "../middleware/auth.middleware";
@@ -33,6 +33,10 @@ const buildProxy = (serviceName: ServiceName) => {
     proxyTimeout: env.REQUEST_TIMEOUT_MS,
     timeout: env.REQUEST_TIMEOUT_MS,
     router: () => getServiceTarget(serviceName),
+    pathRewrite: (path, req) => {
+      const request = req as Request;
+      return `${request.baseUrl}${path}`;
+    },
     on: {
       proxyReq: (proxyReq, req: IncomingMessage) => {
         const request = req as Request;
@@ -49,9 +53,16 @@ const buildProxy = (serviceName: ServiceName) => {
           proxyReq.setHeader("x-user-email", request.user.email);
         }
 
+        if (request.user?.fullName) {
+          proxyReq.setHeader("x-user-full-name", request.user.fullName);
+        }
+
         if (request.user?.role) {
           proxyReq.setHeader("x-user-role", request.user.role);
         }
+
+        // Re-stream parsed JSON/urlencoded bodies so upstream services receive POST payloads.
+        fixRequestBody(proxyReq, request);
       },
       proxyRes: (proxyRes) => {
         if (proxyRes.statusCode && proxyRes.statusCode >= 500) {

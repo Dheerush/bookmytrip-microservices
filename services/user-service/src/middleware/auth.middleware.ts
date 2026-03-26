@@ -7,6 +7,7 @@ interface JwtPayload {
   id?: string;
   sub?: string;
   email?: string;
+  fullName?: string;
   role?: string;
 }
 
@@ -23,6 +24,7 @@ export const authenticate = (req: Request, _res: Response, next: NextFunction): 
     req.user = {
       id: headerUserId,
       email: req.headers['x-user-email'] as string | undefined,
+      fullName: req.headers['x-user-full-name'] as string | undefined,
       role:  (req.headers['x-user-role'] as string | undefined) ?? 'user',
     };
     return next();
@@ -40,6 +42,7 @@ export const authenticate = (req: Request, _res: Response, next: NextFunction): 
     req.user = {
       id:    (decoded.id ?? decoded.sub) as string,
       email: decoded.email,
+      fullName: decoded.fullName,
       role:  decoded.role ?? 'user',
     };
     next();

@@ -9,6 +9,7 @@ export const connectRabbit = async (): Promise<void> => {
 
   // Use ONLY ONE queue name
   await channel.assertQueue('notification_events', { durable: true });
+  await channel.assertQueue('user_profile_events', { durable: true });
 
   console.log('✅ RabbitMQ connected (auth)');
 };
@@ -20,6 +21,18 @@ export const publishEvent = async (event: any): Promise<void> => {
 
   channel.sendToQueue(
     'notification_events',
+    Buffer.from(JSON.stringify(event)),
+    { persistent: true }
+  );
+};
+
+export const publishUserProfileEvent = async (event: any): Promise<void> => {
+  if (!channel) {
+    throw new Error('RabbitMQ channel not initialized');
+  }
+
+  channel.sendToQueue(
+    'user_profile_events',
     Buffer.from(JSON.stringify(event)),
     { persistent: true }
   );

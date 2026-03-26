@@ -20,7 +20,7 @@ import {
   resolveSession,
 } from '../services/otp.service';
 import { User } from '../models/User';
-import { publishEvent } from '../config/rabbitmq';
+import { publishEvent, publishUserProfileEvent } from '../config/rabbitmq';
 import { redisClient } from '../config/redis';
 import { hashPassword } from '../utils/hash';
 import { v4 as uuidv4 } from 'uuid';
@@ -162,10 +162,18 @@ export const verifyEmailOtp = asyncHandler(async (req: Request, res: Response) =
   // Delete OTP + session (single use — can never be replayed)
   await deleteOtp(userId, sessionToken);
 
-  await publishEvent({
+  const verifiedEvent = {
     type: 'USER_VERIFIED',
-    data: { email: user.email },
-  });
+    data: {
+      userId: user.id,
+      email: user.email,
+      fullName: user.fullName,
+      role: user.role,
+    },
+  };
+
+  await publishEvent(verifiedEvent);
+  await publishUserProfileEvent(verifiedEvent);
 
   res.json(
     apiResponse(null, 'Email verified successfully. You can now log in.')
@@ -251,7 +259,7 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
     );
   }
 
-  const accessToken  = generateAccessToken(user.id, user.role);
+  const accessToken  = generateAccessToken(user.id, user.role, user.email, user.fullName);
   const refreshToken = await generateRefreshToken(user.id);
 
   await publishEvent({
@@ -312,7 +320,7 @@ export const refresh = asyncHandler(async (req: Request, res: Response) => {
     throw new AppError('User not found', 404);
   }
 
-  const accessToken = generateAccessToken(user.id, user.role);
+  const accessToken = generateAccessToken(user.id, user.role, user.email, user.fullName);
 
   res
     .cookie('refreshToken', newRefreshToken, {

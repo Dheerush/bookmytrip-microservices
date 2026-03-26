@@ -4,8 +4,8 @@ import { env } from '../config/env';
 import { RefreshToken } from '../models/RefreshToken';
 import { UserRole } from '../types/auth.types';
 
-export const generateAccessToken = (id: string, role: UserRole) => {
-  return jwt.sign({ id, role }, env.JWT_ACCESS_SECRET, {
+export const generateAccessToken = (id: string, role: UserRole, email?: string, fullName?: string) => {
+  return jwt.sign({ id, role, email, fullName }, env.JWT_ACCESS_SECRET, {
     expiresIn: '15m'
   });
 };

@@ -8,6 +8,7 @@ declare global {
         sub?: string;
         id?: string;
         email?: string;
+        fullName?: string;
         role?: string;
       };
     }

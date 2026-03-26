@@ -21,7 +21,7 @@ export const createApp = (): Express => {
     origin: env.CORS_ORIGINS,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'x-request-id', 'x-user-id', 'x-user-email', 'x-user-role'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-request-id', 'x-user-id', 'x-user-email', 'x-user-full-name', 'x-user-role'],
     exposedHeaders: ['x-request-id'],
   }));
 

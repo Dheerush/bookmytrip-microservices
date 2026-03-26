@@ -69,13 +69,13 @@ router.get('/me', generalLimiter, asyncHandler(profileController.getMe));
  *       200:
  *         description: Updated profile
  */
-router.patch('/me', mutationLimiter, validate(updateProfileSchema), asyncHandler(profileController.updateMe));
+router.patch('/update-me', mutationLimiter, validate(updateProfileSchema), asyncHandler(profileController.updateMe));
 
 // ── Travelers ──────────────────────────────────────────────────────────────
-router.get('/me/travelers', generalLimiter, asyncHandler(profileController.getTravelers));
+router.get('/me/all-travelers', generalLimiter, asyncHandler(profileController.getTravelers));
 router.post('/me/travelers', mutationLimiter, validate(addTravelerSchema), asyncHandler(profileController.addTraveler));
 router.patch('/me/travelers/:travelerId', mutationLimiter, validate(updateTravelerSchema), asyncHandler(profileController.updateTraveler));
-router.delete('/me/travelers/:travelerId', mutationLimiter, asyncHandler(profileController.deleteTraveler));
+router.delete('/me/delete/travelers/:travelerId', mutationLimiter, asyncHandler(profileController.deleteTraveler));
 
 // ── Addresses ──────────────────────────────────────────────────────────────
 router.get('/me/addresses', generalLimiter, asyncHandler(profileController.getAddresses));

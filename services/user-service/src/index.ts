@@ -1,6 +1,7 @@
 import { createApp } from './app';
 import { connectMongoDB, disconnectMongoDB } from './config/db';
 import { connectRabbit } from './config/rabbitmq';
+import { startAuthEventsConsumer } from './consumers/authEvents.consumer';
 import { redisClient } from './config/redis';
 import { env } from './config/env';
 import logger from './utils/logger';
@@ -13,6 +14,7 @@ const bootstrap = async (): Promise<void> => {
     logger.info('✅ Redis connected');
 
     await connectRabbit();
+    await startAuthEventsConsumer();
 
     const app = createApp();
 

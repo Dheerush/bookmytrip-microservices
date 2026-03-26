@@ -2,12 +2,48 @@ import { Types } from 'mongoose';
 import { UserProfile, IUserProfile } from '../models/UserProfile';
 import { AppError } from '../utils/AppError';
 import { publishEvent } from '../config/rabbitmq';
+import { UserRole } from '../types/user.types';
 
 type ProfileUpdate = Partial<Pick<IUserProfile,
   'fullName' | 'phone' | 'avatarUrl' | 'gender' | 'dateOfBirth' | 'nationality'
 >>;
 
 export const profileService = {
+  async provisionFromVerifiedUser(data: {
+    authId: string;
+    email: string;
+    fullName: string;
+    role?: string;
+  }): Promise<IUserProfile> {
+    const profile = await this.getOrCreate(data.authId, {
+      email: data.email,
+      fullName: data.fullName,
+      role: data.role,
+    });
+
+    if (data.role && profile.role !== data.role) {
+      profile.role = data.role as UserRole;
+      await profile.save();
+    }
+
+    if (profile.travelers.length === 0) {
+      const parts = data.fullName.trim().split(/\s+/).filter(Boolean);
+      const firstName = parts[0] || data.email.split('@')[0] || 'Traveler';
+      const lastName = parts.slice(1).join(' ') || 'Self';
+
+      profile.travelers.push({
+        firstName,
+        lastName,
+        gender: 'prefer_not_to_say',
+        dateOfBirth: new Date('1970-01-01'),
+        nationality: 'Unknown',
+      } as any);
+      await profile.save();
+    }
+
+    return profile;
+  },
+
   /**
    * Get profile by authId.
    * Creates a minimal profile on first access (lazy provision pattern).
@@ -25,6 +61,27 @@ export const profileService = {
         fullName: seed.fullName,
         role:     seed.role || 'user',
       });
+    } else if (seed) {
+      let isDirty = false;
+
+      if (seed.email && profile.email !== seed.email) {
+        profile.email = seed.email;
+        isDirty = true;
+      }
+
+      if (seed.fullName && profile.fullName !== seed.fullName) {
+        profile.fullName = seed.fullName;
+        isDirty = true;
+      }
+
+      if (seed.role && profile.role !== seed.role) {
+        profile.role = seed.role as any;
+        isDirty = true;
+      }
+
+      if (isDirty) {
+        await profile.save();
+      }
     }
 
     return profile;
