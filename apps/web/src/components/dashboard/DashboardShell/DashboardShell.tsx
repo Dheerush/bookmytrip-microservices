@@ -46,6 +46,7 @@ const VENDOR_NAV_ITEMS: SidebarItem[] = [
 
 const ADMIN_NAV_ITEMS: SidebarItem[] = [
   { label: "Admin Dashboard", href: "/dashboard/admin", icon: <LayoutDashboard size={18} strokeWidth={1.6} /> },
+  { label: "Inventory", href: "/dashboard/admin/inventory", icon: <Database size={18} strokeWidth={1.6} /> },
   { label: "Requests", href: "/dashboard/admin/requests", icon: <FileClock size={18} strokeWidth={1.6} /> },
   { label: "Notifications", href: "/dashboard/notifications", icon: <Bell size={18} strokeWidth={1.6} />, badge: 5 },
   { label: "Complaints", href: "/dashboard/issues", icon: <AlertTriangle size={18} strokeWidth={1.6} /> },

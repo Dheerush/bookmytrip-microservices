@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { SortOrder } from 'mongoose';
 import slugify from 'slugify';
 import { z } from 'zod';
 import { authenticate, authorizeRoles } from '../middleware/auth.middleware';
@@ -49,7 +50,12 @@ router.get('/search', async (req, res, next) => {
       };
     }
 
-    const sortRule = sort === 'price_desc' ? { basePrice: -1 } : sort === 'duration' ? { durationDays: 1 } : { basePrice: 1 };
+    const sortRule: Record<string, SortOrder> =
+      sort === 'price_desc'
+        ? { basePrice: -1 }
+        : sort === 'duration'
+          ? { durationDays: 1 }
+          : { basePrice: 1 };
 
     const [items, total] = await Promise.all([
       Tour.find(filter).sort(sortRule).skip((page - 1) * limit).limit(limit).lean(),
@@ -72,7 +78,7 @@ router.get('/:tourId', async (req, res, next) => {
   }
 });
 
-router.post('/', authenticate, authorizeRoles('admin'), async (req, res, next) => {
+router.post('/create-tour', authenticate, authorizeRoles('admin'), async (req, res, next) => {
   try {
     const parsed = tourSchema.safeParse(req.body);
     if (!parsed.success) throw new AppError('Validation failed', 400, 'VALIDATION_ERROR');
@@ -85,7 +91,7 @@ router.post('/', authenticate, authorizeRoles('admin'), async (req, res, next) =
   }
 });
 
-router.patch('/:tourId', authenticate, authorizeRoles('admin'), async (req, res, next) => {
+router.patch('/update-tour/:tourId', authenticate, authorizeRoles('admin'), async (req, res, next) => {
   try {
     const parsed = tourSchema.partial().safeParse(req.body);
     if (!parsed.success) throw new AppError('Validation failed', 400, 'VALIDATION_ERROR');
@@ -102,7 +108,7 @@ router.patch('/:tourId', authenticate, authorizeRoles('admin'), async (req, res,
   }
 });
 
-router.delete('/:tourId', authenticate, authorizeRoles('admin'), async (req, res, next) => {
+router.delete('/delete-tour/:tourId', authenticate, authorizeRoles('admin'), async (req, res, next) => {
   try {
     const item = await Tour.findByIdAndUpdate(req.params.tourId, { $set: { isActive: false } }, { new: true }).lean();
     if (!item) throw new AppError('Tour not found', 404, 'NOT_FOUND');

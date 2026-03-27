@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, Suspense, useEffect } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { parseApiResponse } from "@/lib/http";
 import s from "@/styles/search.module.scss";
@@ -16,21 +16,48 @@ const CITIES = [...new Set(hotels.map((h) => h.city))];
 function HotelsContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const pathname = usePathname();
   const page = Number(searchParams.get("page") || "1");
 
   const [city, setCity] = useState(searchParams.get("city") || "");
   const [checkin, setCheckin] = useState(searchParams.get("checkin") || "");
   const [checkout, setCheckout] = useState(searchParams.get("checkout") || "");
 
-  const [sort, setSort] = useState<SortKey>("price-asc");
-  const [selectedCities, setSelectedCities] = useState<Set<string>>(new Set());
-  const [wifiOnly, setWifiOnly] = useState(false);
-  const [foodOnly, setFoodOnly] = useState(false);
-  const [poolOnly, setPoolOnly] = useState(false);
+  const [sort, setSort] = useState<SortKey>((searchParams.get("sort") as SortKey) || "price-asc");
+  const [selectedCities, setSelectedCities] = useState<Set<string>>(
+    new Set((searchParams.get("cities") || "").split(",").map((item) => item.trim()).filter(Boolean)),
+  );
+  const [wifiOnly, setWifiOnly] = useState(searchParams.get("wifi") === "true");
+  const [foodOnly, setFoodOnly] = useState(searchParams.get("food") === "true");
+  const [poolOnly, setPoolOnly] = useState(searchParams.get("pool") === "true");
   const [apiResults, setApiResults] = useState<typeof hotels | null>(null);
   const [apiTotalPages, setApiTotalPages] = useState<number | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
   const [apiLoading, setApiLoading] = useState(false);
+
+  const updateQuery = (next: Record<string, string | null>, resetPage = true) => {
+    const params = new URLSearchParams(searchParams.toString());
+    Object.entries(next).forEach(([key, value]) => {
+      if (value === null || value === "") {
+        params.delete(key);
+      } else {
+        params.set(key, value);
+      }
+    });
+    if (resetPage) params.delete("page");
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname);
+  };
+
+  useEffect(() => {
+    setSort((searchParams.get("sort") as SortKey) || "price-asc");
+    setSelectedCities(
+      new Set((searchParams.get("cities") || "").split(",").map((item) => item.trim()).filter(Boolean)),
+    );
+    setWifiOnly(searchParams.get("wifi") === "true");
+    setFoodOnly(searchParams.get("food") === "true");
+    setPoolOnly(searchParams.get("pool") === "true");
+  }, [searchParams]);
 
   const toggleSet = <T,>(set: Set<T>, val: T) => {
     const next = new Set(set);
@@ -44,6 +71,7 @@ function HotelsContent() {
     setFoodOnly(false);
     setPoolOnly(false);
     setSort("price-asc");
+    updateQuery({ cities: null, wifi: null, food: null, pool: null, sort: null });
   };
 
   const handleSearch = () => {
@@ -51,6 +79,11 @@ function HotelsContent() {
     if (city) params.set("city", city);
     if (checkin) params.set("checkin", checkin);
     if (checkout) params.set("checkout", checkout);
+    if (sort !== "price-asc") params.set("sort", sort);
+    if (selectedCities.size) params.set("cities", Array.from(selectedCities).join(","));
+    if (wifiOnly) params.set("wifi", "true");
+    if (foodOnly) params.set("food", "true");
+    if (poolOnly) params.set("pool", "true");
     router.push(`/hotels${params.toString() ? `?${params.toString()}` : ""}`);
   };
 
@@ -187,7 +220,11 @@ function HotelsContent() {
                 <input
                   type="checkbox"
                   checked={selectedCities.has(c)}
-                  onChange={() => setSelectedCities(toggleSet(selectedCities, c))}
+                  onChange={() => {
+                    const next = toggleSet(selectedCities, c);
+                    setSelectedCities(next);
+                    updateQuery({ cities: next.size ? Array.from(next).join(",") : null });
+                  }}
                 />
                 {c}
               </label>
@@ -197,15 +234,39 @@ function HotelsContent() {
           <div className={s.filterGroup}>
             <span className={s.filterGroupLabel}>Amenities</span>
             <label className={s.filterOption}>
-              <input type="checkbox" checked={wifiOnly} onChange={() => setWifiOnly(!wifiOnly)} />
+              <input
+                type="checkbox"
+                checked={wifiOnly}
+                onChange={() => {
+                  const next = !wifiOnly;
+                  setWifiOnly(next);
+                  updateQuery({ wifi: next ? "true" : null });
+                }}
+              />
               Free WiFi
             </label>
             <label className={s.filterOption}>
-              <input type="checkbox" checked={foodOnly} onChange={() => setFoodOnly(!foodOnly)} />
+              <input
+                type="checkbox"
+                checked={foodOnly}
+                onChange={() => {
+                  const next = !foodOnly;
+                  setFoodOnly(next);
+                  updateQuery({ food: next ? "true" : null });
+                }}
+              />
               Meals Included
             </label>
             <label className={s.filterOption}>
-              <input type="checkbox" checked={poolOnly} onChange={() => setPoolOnly(!poolOnly)} />
+              <input
+                type="checkbox"
+                checked={poolOnly}
+                onChange={() => {
+                  const next = !poolOnly;
+                  setPoolOnly(next);
+                  updateQuery({ pool: next ? "true" : null });
+                }}
+              />
               Pool
             </label>
           </div>
@@ -215,7 +276,11 @@ function HotelsContent() {
             <select
               className={s.filterSelect}
               value={sort}
-              onChange={(e) => setSort(e.target.value as SortKey)}
+              onChange={(e) => {
+                const value = e.target.value as SortKey;
+                setSort(value);
+                updateQuery({ sort: value === "price-asc" ? null : value });
+              }}
             >
               <option value="price-asc">Price: Low → High</option>
               <option value="price-desc">Price: High → Low</option>
@@ -236,7 +301,10 @@ function HotelsContent() {
                 key={k}
                 type="button"
                 className={`${s.sortBtn} ${sort === k ? s.sortBtnActive : ""}`}
-                onClick={() => setSort(k)}
+                onClick={() => {
+                  setSort(k);
+                  updateQuery({ sort: k === "price-asc" ? null : k });
+                }}
               >
                 {k === "price-asc" ? "Price ↑" : k === "price-desc" ? "Price ↓" : k === "rating" ? "Rating" : "Stars"}
               </button>

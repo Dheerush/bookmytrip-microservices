@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, Suspense, useEffect } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useBookingFlow } from "@/hooks/useBookingFlow";
 import { useBookingGuard } from "@/hooks/useBookingGuard";
 import { useAuth } from "@/services/auth/context";
@@ -21,6 +21,7 @@ const STOP_OPTIONS = ["Non-stop", "1 Stop", "2+ Stops"];
 function FlightsContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const pathname = usePathname();
   const page = Number(searchParams.get("page") || "1");
 
   const { guardAction } = useBookingGuard();
@@ -31,14 +32,42 @@ function FlightsContent() {
   const [to, setTo] = useState(searchParams.get("to") || "");
   const [date, setDate] = useState(searchParams.get("date") || "");
 
-  const [sort, setSort] = useState<SortKey>("price-asc");
-  const [selectedAirlines, setSelectedAirlines] = useState<Set<string>>(new Set());
-  const [selectedStops, setSelectedStops] = useState<Set<string>>(new Set());
+  const [sort, setSort] = useState<SortKey>((searchParams.get("sort") as SortKey) || "price-asc");
+  const [selectedAirlines, setSelectedAirlines] = useState<Set<string>>(
+    new Set((searchParams.get("airlines") || "").split(",").map((item) => item.trim()).filter(Boolean)),
+  );
+  const [selectedStops, setSelectedStops] = useState<Set<string>>(
+    new Set((searchParams.get("stopsLabel") || "").split(",").map((item) => item.trim()).filter(Boolean)),
+  );
   const [selected, setSelected] = useState<Flight | null>(null);
   const [apiResults, setApiResults] = useState<Flight[] | null>(null);
   const [apiTotalPages, setApiTotalPages] = useState<number | null>(null);
   const [apiLoading, setApiLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
+
+  const updateQuery = (next: Record<string, string | null>, resetPage = true) => {
+    const params = new URLSearchParams(searchParams.toString());
+    Object.entries(next).forEach(([key, value]) => {
+      if (value === null || value === "") {
+        params.delete(key);
+      } else {
+        params.set(key, value);
+      }
+    });
+    if (resetPage) params.delete("page");
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname);
+  };
+
+  useEffect(() => {
+    setSort((searchParams.get("sort") as SortKey) || "price-asc");
+    setSelectedAirlines(
+      new Set((searchParams.get("airlines") || "").split(",").map((item) => item.trim()).filter(Boolean)),
+    );
+    setSelectedStops(
+      new Set((searchParams.get("stopsLabel") || "").split(",").map((item) => item.trim()).filter(Boolean)),
+    );
+  }, [searchParams]);
 
   const toggleSet = <T,>(set: Set<T>, val: T) => {
     const next = new Set(set);
@@ -50,6 +79,7 @@ function FlightsContent() {
     setSelectedAirlines(new Set());
     setSelectedStops(new Set());
     setSort("price-asc");
+    updateQuery({ airlines: null, stopsLabel: null, sort: null });
   };
 
   const handleSearch = () => {
@@ -57,6 +87,9 @@ function FlightsContent() {
     if (from) params.set("from", from);
     if (to) params.set("to", to);
     if (date) params.set("date", date);
+    if (sort !== "price-asc") params.set("sort", sort);
+    if (selectedAirlines.size) params.set("airlines", Array.from(selectedAirlines).join(","));
+    if (selectedStops.size) params.set("stopsLabel", Array.from(selectedStops).join(","));
     router.push(`/flights${params.toString() ? `?${params.toString()}` : ""}`);
   };
 
@@ -239,7 +272,11 @@ function FlightsContent() {
                 <input
                   type="checkbox"
                   checked={selectedAirlines.has(a)}
-                  onChange={() => setSelectedAirlines(toggleSet(selectedAirlines, a))}
+                  onChange={() => {
+                    const next = toggleSet(selectedAirlines, a);
+                    setSelectedAirlines(next);
+                    updateQuery({ airlines: next.size ? Array.from(next).join(",") : null });
+                  }}
                 />
                 {a}
               </label>
@@ -253,7 +290,11 @@ function FlightsContent() {
                 <input
                   type="checkbox"
                   checked={selectedStops.has(o)}
-                  onChange={() => setSelectedStops(toggleSet(selectedStops, o))}
+                  onChange={() => {
+                    const next = toggleSet(selectedStops, o);
+                    setSelectedStops(next);
+                    updateQuery({ stopsLabel: next.size ? Array.from(next).join(",") : null });
+                  }}
                 />
                 {o}
               </label>
@@ -265,7 +306,11 @@ function FlightsContent() {
             <select
               className={s.filterSelect}
               value={sort}
-              onChange={(e) => setSort(e.target.value as SortKey)}
+              onChange={(e) => {
+                const value = e.target.value as SortKey;
+                setSort(value);
+                updateQuery({ sort: value === "price-asc" ? null : value });
+              }}
             >
               <option value="price-asc">Price: Low → High</option>
               <option value="price-desc">Price: High → Low</option>
@@ -288,7 +333,10 @@ function FlightsContent() {
                 key={k}
                 type="button"
                 className={`${s.sortBtn} ${sort === k ? s.sortBtnActive : ""}`}
-                onClick={() => setSort(k)}
+                onClick={() => {
+                  setSort(k);
+                  updateQuery({ sort: k === "price-asc" ? null : k });
+                }}
               >
                 {k === "price-asc" ? "Price ↑" : k === "price-desc" ? "Price ↓" : k === "duration" ? "Duration" : "Rating"}
               </button>

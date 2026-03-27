@@ -1,6 +1,7 @@
 import axios from 'axios';
+import { GATEWAY_API_BASE } from './api-config';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || GATEWAY_API_BASE;
 
 /**
  * Pre-configured Axios instance for all API calls.

@@ -79,13 +79,13 @@ router.delete('/me/delete/travelers/:travelerId', mutationLimiter, asyncHandler(
 
 // ── Addresses ──────────────────────────────────────────────────────────────
 router.get('/me/addresses', generalLimiter, asyncHandler(profileController.getAddresses));
-router.post('/me/addresses', mutationLimiter, validate(addAddressSchema), asyncHandler(profileController.addAddress));
-router.patch('/me/addresses/:addressId', mutationLimiter, validate(updateAddressSchema), asyncHandler(profileController.updateAddress));
+router.post('/me/add-addresses', mutationLimiter, validate(addAddressSchema), asyncHandler(profileController.addAddress));
+router.patch('/me/update-addresses/:addressId', mutationLimiter, validate(updateAddressSchema), asyncHandler(profileController.updateAddress));
 router.delete('/me/addresses/:addressId', mutationLimiter, asyncHandler(profileController.deleteAddress));
 
 // ── Preferences ────────────────────────────────────────────────────────────
 router.get('/me/preferences', generalLimiter, asyncHandler(profileController.getPreferences));
-router.patch('/me/preferences', mutationLimiter, validate(updatePreferencesSchema), asyncHandler(profileController.updatePreferences));
+router.patch('/me/update-preferences', mutationLimiter, validate(updatePreferencesSchema), asyncHandler(profileController.updatePreferences));
 
 // ── Admin-only ─────────────────────────────────────────────────────────────
 router.get('/:profileId', authorizeRoles('admin'), generalLimiter, asyncHandler(profileController.getByIdAdmin));

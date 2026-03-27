@@ -8,10 +8,12 @@ import { createHotelSchema, searchHotelsSchema, updateHotelSchema } from '../val
 const router: Router = Router();
 
 router.get('/search', searchLimiter, validate(searchHotelsSchema, 'query'), searchHotelsHandler);
+router.get('/all-hotels', authenticate, authorizeRoles('admin'), listAllHotelsHandler);
+router.post('/create-hotel', authenticate, authorizeRoles('admin'), mutationLimiter, validate(createHotelSchema), createHotelHandler);
+router.patch('/update-hotel/:hotelId', authenticate, authorizeRoles('admin'), mutationLimiter, validate(updateHotelSchema), updateHotelHandler);
+router.delete('/delete-hotel/:hotelId', authenticate, authorizeRoles('admin'), mutationLimiter, deleteHotelHandler);
+
 router.get('/:hotelId', searchLimiter, getHotelByIdHandler);
-router.get('/', authenticate, authorizeRoles('admin'), listAllHotelsHandler);
-router.post('/', authenticate, authorizeRoles('admin'), mutationLimiter, validate(createHotelSchema), createHotelHandler);
-router.patch('/:hotelId', authenticate, authorizeRoles('admin'), mutationLimiter, validate(updateHotelSchema), updateHotelHandler);
-router.delete('/:hotelId', authenticate, authorizeRoles('admin'), mutationLimiter, deleteHotelHandler);
+
 
 export default router;

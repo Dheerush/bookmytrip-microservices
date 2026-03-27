@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, Suspense, useEffect } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useBookingFlow } from "@/hooks/useBookingFlow";
 import { useBookingGuard } from "@/hooks/useBookingGuard";
 import { useAuth } from "@/services/auth/context";
@@ -19,6 +19,7 @@ const FUEL_TYPES: Cab["fuelType"][] = ["Petrol", "Diesel", "CNG", "Electric"];
 function CabsContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const pathname = usePathname();
   const page = Number(searchParams.get("page") || "1");
   const { guardAction } = useBookingGuard();
   const { processBookingAndPayment } = useBookingFlow();
@@ -28,15 +29,44 @@ function CabsContent() {
   const [drop, setDrop] = useState(searchParams.get("drop") || "");
   const [date, setDate] = useState(searchParams.get("date") || "");
 
-  const [sort, setSort] = useState<SortKey>("price-asc");
-  const [selectedTypes, setSelectedTypes] = useState<Set<string>>(new Set());
-  const [selectedFuel, setSelectedFuel] = useState<Set<string>>(new Set());
-  const [acOnly, setAcOnly] = useState(false);
+  const [sort, setSort] = useState<SortKey>((searchParams.get("sort") as SortKey) || "price-asc");
+  const [selectedTypes, setSelectedTypes] = useState<Set<string>>(
+    new Set((searchParams.get("types") || "").split(",").map((item) => item.trim()).filter(Boolean)),
+  );
+  const [selectedFuel, setSelectedFuel] = useState<Set<string>>(
+    new Set((searchParams.get("fuel") || "").split(",").map((item) => item.trim()).filter(Boolean)),
+  );
+  const [acOnly, setAcOnly] = useState(searchParams.get("ac") === "true");
   const [selected, setSelected] = useState<Cab | null>(null);
   const [apiResults, setApiResults] = useState<Cab[] | null>(null);
   const [apiTotalPages, setApiTotalPages] = useState<number | null>(null);
   const [apiLoading, setApiLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
+
+  const updateQuery = (next: Record<string, string | null>, resetPage = true) => {
+    const params = new URLSearchParams(searchParams.toString());
+    Object.entries(next).forEach(([key, value]) => {
+      if (value === null || value === "") {
+        params.delete(key);
+      } else {
+        params.set(key, value);
+      }
+    });
+    if (resetPage) params.delete("page");
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname);
+  };
+
+  useEffect(() => {
+    setSort((searchParams.get("sort") as SortKey) || "price-asc");
+    setSelectedTypes(
+      new Set((searchParams.get("types") || "").split(",").map((item) => item.trim()).filter(Boolean)),
+    );
+    setSelectedFuel(
+      new Set((searchParams.get("fuel") || "").split(",").map((item) => item.trim()).filter(Boolean)),
+    );
+    setAcOnly(searchParams.get("ac") === "true");
+  }, [searchParams]);
 
   const toggleSet = <T,>(set: Set<T>, val: T) => {
     const next = new Set(set);
@@ -49,6 +79,7 @@ function CabsContent() {
     setSelectedFuel(new Set());
     setAcOnly(false);
     setSort("price-asc");
+    updateQuery({ types: null, fuel: null, ac: null, sort: null });
   };
 
   const handleSearch = () => {
@@ -56,6 +87,10 @@ function CabsContent() {
     if (pickup) params.set("pickup", pickup);
     if (drop) params.set("drop", drop);
     if (date) params.set("date", date);
+    if (sort !== "price-asc") params.set("sort", sort);
+    if (selectedTypes.size) params.set("types", Array.from(selectedTypes).join(","));
+    if (selectedFuel.size) params.set("fuel", Array.from(selectedFuel).join(","));
+    if (acOnly) params.set("ac", "true");
     router.push(`/cabs${params.toString() ? `?${params.toString()}` : ""}`);
   };
 
@@ -220,7 +255,11 @@ function CabsContent() {
                 <input
                   type="checkbox"
                   checked={selectedTypes.has(t)}
-                  onChange={() => setSelectedTypes(toggleSet(selectedTypes, t))}
+                  onChange={() => {
+                    const next = toggleSet(selectedTypes, t);
+                    setSelectedTypes(next);
+                    updateQuery({ types: next.size ? Array.from(next).join(",") : null });
+                  }}
                 />
                 {t}
               </label>
@@ -234,7 +273,11 @@ function CabsContent() {
                 <input
                   type="checkbox"
                   checked={selectedFuel.has(f)}
-                  onChange={() => setSelectedFuel(toggleSet(selectedFuel, f))}
+                  onChange={() => {
+                    const next = toggleSet(selectedFuel, f);
+                    setSelectedFuel(next);
+                    updateQuery({ fuel: next.size ? Array.from(next).join(",") : null });
+                  }}
                 />
                 {f}
               </label>
@@ -244,7 +287,15 @@ function CabsContent() {
           <div className={s.filterGroup}>
             <span className={s.filterGroupLabel}>Amenities</span>
             <label className={s.filterOption}>
-              <input type="checkbox" checked={acOnly} onChange={() => setAcOnly(!acOnly)} />
+              <input
+                type="checkbox"
+                checked={acOnly}
+                onChange={() => {
+                  const next = !acOnly;
+                  setAcOnly(next);
+                  updateQuery({ ac: next ? "true" : null });
+                }}
+              />
               AC Only
             </label>
           </div>
@@ -254,7 +305,11 @@ function CabsContent() {
             <select
               className={s.filterSelect}
               value={sort}
-              onChange={(e) => setSort(e.target.value as SortKey)}
+              onChange={(e) => {
+                const value = e.target.value as SortKey;
+                setSort(value);
+                updateQuery({ sort: value === "price-asc" ? null : value });
+              }}
             >
               <option value="price-asc">Price: Low → High</option>
               <option value="price-desc">Price: High → Low</option>
@@ -277,7 +332,10 @@ function CabsContent() {
                 key={k}
                 type="button"
                 className={`${s.sortBtn} ${sort === k ? s.sortBtnActive : ""}`}
-                onClick={() => setSort(k)}
+                onClick={() => {
+                  setSort(k);
+                  updateQuery({ sort: k === "price-asc" ? null : k });
+                }}
               >
                 {k === "price-asc" ? "Price ↑" : k === "price-desc" ? "Price ↓" : k === "rating" ? "Rating" : "Seats"}
               </button>

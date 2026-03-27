@@ -1,4 +1,4 @@
-export const AUTH_API_BASE = 'http://localhost:5001/api/auth';
+import { AUTH_API_BASE } from '@/lib/api-config';
 
 export const ENDPOINTS = {
   login: `${AUTH_API_BASE}/login`,

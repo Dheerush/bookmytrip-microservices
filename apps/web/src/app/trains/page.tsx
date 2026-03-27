@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, Suspense, useEffect } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useBookingFlow } from "@/hooks/useBookingFlow";
 import { useBookingGuard } from "@/hooks/useBookingGuard";
 import { useAuth } from "@/services/auth/context";
@@ -18,6 +18,7 @@ const TYPES = [...new Set(trains.map((t) => t.type))];
 function TrainsContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const pathname = usePathname();
   const page = Number(searchParams.get("page") || "1");
   const { guardAction } = useBookingGuard();
   const { processBookingAndPayment } = useBookingFlow();
@@ -27,14 +28,42 @@ function TrainsContent() {
   const [to, setTo] = useState(searchParams.get("to") || "");
   const [date, setDate] = useState(searchParams.get("date") || "");
 
-  const [sort, setSort] = useState<SortKey>("price-asc");
-  const [selectedTypes, setSelectedTypes] = useState<Set<string>>(new Set());
-  const [selectedClass, setSelectedClass] = useState<"sleeper" | "ac3Tier" | "ac2Tier" | "ac1st">("sleeper");
+  const [sort, setSort] = useState<SortKey>((searchParams.get("sort") as SortKey) || "price-asc");
+  const [selectedTypes, setSelectedTypes] = useState<Set<string>>(
+    new Set((searchParams.get("types") || "").split(",").map((item) => item.trim()).filter(Boolean)),
+  );
+  const [selectedClass, setSelectedClass] = useState<"sleeper" | "ac3Tier" | "ac2Tier" | "ac1st">(
+    (searchParams.get("class") as "sleeper" | "ac3Tier" | "ac2Tier" | "ac1st") || "sleeper",
+  );
   const [selected, setSelected] = useState<Train | null>(null);
   const [apiResults, setApiResults] = useState<Train[] | null>(null);
   const [apiTotalPages, setApiTotalPages] = useState<number | null>(null);
   const [apiLoading, setApiLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
+
+  const updateQuery = (next: Record<string, string | null>, resetPage = true) => {
+    const params = new URLSearchParams(searchParams.toString());
+    Object.entries(next).forEach(([key, value]) => {
+      if (value === null || value === "") {
+        params.delete(key);
+      } else {
+        params.set(key, value);
+      }
+    });
+    if (resetPage) params.delete("page");
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname);
+  };
+
+  useEffect(() => {
+    setSort((searchParams.get("sort") as SortKey) || "price-asc");
+    setSelectedTypes(
+      new Set((searchParams.get("types") || "").split(",").map((item) => item.trim()).filter(Boolean)),
+    );
+    setSelectedClass(
+      (searchParams.get("class") as "sleeper" | "ac3Tier" | "ac2Tier" | "ac1st") || "sleeper",
+    );
+  }, [searchParams]);
 
   const toggleSet = <T,>(set: Set<T>, val: T) => {
     const next = new Set(set);
@@ -46,6 +75,7 @@ function TrainsContent() {
     setSelectedTypes(new Set());
     setSelectedClass("sleeper");
     setSort("price-asc");
+    updateQuery({ types: null, class: null, sort: null });
   };
 
   const handleSearch = () => {
@@ -53,6 +83,9 @@ function TrainsContent() {
     if (from) params.set("from", from);
     if (to) params.set("to", to);
     if (date) params.set("date", date);
+    if (sort !== "price-asc") params.set("sort", sort);
+    if (selectedClass !== "sleeper") params.set("class", selectedClass);
+    if (selectedTypes.size) params.set("types", Array.from(selectedTypes).join(","));
     router.push(`/trains${params.toString() ? `?${params.toString()}` : ""}`);
   };
 
@@ -224,7 +257,11 @@ function TrainsContent() {
                 <input
                   type="checkbox"
                   checked={selectedTypes.has(t)}
-                  onChange={() => setSelectedTypes(toggleSet(selectedTypes, t))}
+                  onChange={() => {
+                    const next = toggleSet(selectedTypes, t);
+                    setSelectedTypes(next);
+                    updateQuery({ types: next.size ? Array.from(next).join(",") : null });
+                  }}
                 />
                 {t}
               </label>
@@ -239,7 +276,10 @@ function TrainsContent() {
                   type="radio"
                   name="class"
                   checked={selectedClass === c}
-                  onChange={() => setSelectedClass(c)}
+                  onChange={() => {
+                    setSelectedClass(c);
+                    updateQuery({ class: c === "sleeper" ? null : c });
+                  }}
                 />
                 {classLabel[c]}
               </label>
@@ -251,7 +291,11 @@ function TrainsContent() {
             <select
               className={s.filterSelect}
               value={sort}
-              onChange={(e) => setSort(e.target.value as SortKey)}
+              onChange={(e) => {
+                const value = e.target.value as SortKey;
+                setSort(value);
+                updateQuery({ sort: value === "price-asc" ? null : value });
+              }}
             >
               <option value="price-asc">Price: Low → High</option>
               <option value="price-desc">Price: High → Low</option>
@@ -274,7 +318,10 @@ function TrainsContent() {
                 key={k}
                 type="button"
                 className={`${s.sortBtn} ${sort === k ? s.sortBtnActive : ""}`}
-                onClick={() => setSort(k)}
+                onClick={() => {
+                  setSort(k);
+                  updateQuery({ sort: k === "price-asc" ? null : k });
+                }}
               >
                 {k === "price-asc" ? "Price ↑" : k === "price-desc" ? "Price ↓" : k === "duration" ? "Duration" : "Rating"}
               </button>

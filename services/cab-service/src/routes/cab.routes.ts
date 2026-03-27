@@ -8,10 +8,11 @@ import { createCabSchema, searchCabsSchema, updateCabSchema } from '../validator
 const router: Router = Router();
 
 router.get('/search', searchLimiter, validate(searchCabsSchema, 'query'), searchCabsHandler);
+router.get('/all-cabs', authenticate, authorizeRoles('admin'), listAllCabsHandler);
+router.post('/create-cab', authenticate, authorizeRoles('admin'), mutationLimiter, validate(createCabSchema), createCabHandler);
+router.patch('/update-cab/:cabId', authenticate, authorizeRoles('admin'), mutationLimiter, validate(updateCabSchema), updateCabHandler);
 router.get('/:cabId', searchLimiter, getCabByIdHandler);
-router.get('/', authenticate, authorizeRoles('admin'), listAllCabsHandler);
-router.post('/', authenticate, authorizeRoles('admin'), mutationLimiter, validate(createCabSchema), createCabHandler);
-router.patch('/:cabId', authenticate, authorizeRoles('admin'), mutationLimiter, validate(updateCabSchema), updateCabHandler);
-router.delete('/:cabId', authenticate, authorizeRoles('admin'), mutationLimiter, deleteCabHandler);
+router.delete('/delete-cab/:cabId', authenticate, authorizeRoles('admin'), mutationLimiter, deleteCabHandler);
+
 
 export default router;
