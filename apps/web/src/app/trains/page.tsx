@@ -6,6 +6,7 @@ import { useBookingFlow } from "@/hooks/useBookingFlow";
 import { useBookingGuard } from "@/hooks/useBookingGuard";
 import { useAuth } from "@/services/auth/context";
 import { parseApiResponse } from "@/lib/http";
+import { showToast } from "@/lib/toast";
 import s from "@/styles/search.module.scss";
 import { trains, type Train } from "@/data/trains";
 import BookingSidebar from "@/components/ui/BookingSidebar/BookingSidebar";
@@ -13,7 +14,38 @@ import Pagination from "@/components/ui/Pagination/Pagination";
 
 const PER_PAGE = 10;
 type SortKey = "price-asc" | "price-desc" | "duration" | "rating";
-const TYPES = [...new Set(trains.map((t) => t.type))];
+
+type TrainLocationOption = {
+  station: string;
+  code: string;
+};
+
+const trainLocationOptions: TrainLocationOption[] = Array.from(
+  new Map(
+    trains
+      .flatMap((train) => [
+        { station: train.from, code: train.fromCode },
+        { station: train.to, code: train.toCode },
+      ])
+      .map((option) => [`${option.station.toLowerCase()}-${option.code.toUpperCase()}`, option]),
+  ).values(),
+);
+
+const resolveTrainCode = (value: string): string | null => {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  const upper = trimmed.toUpperCase();
+  if (/^[A-Z]{3,4}$/.test(upper)) return upper;
+
+  const byStation = trainLocationOptions.find((option) => option.station.toLowerCase() === trimmed.toLowerCase());
+  if (byStation) return byStation.code.toUpperCase();
+
+  const byCode = trainLocationOptions.find((option) => option.code.toUpperCase() === upper);
+  if (byCode) return byCode.code.toUpperCase();
+
+  return null;
+};
 
 function TrainsContent() {
   const searchParams = useSearchParams();
@@ -27,6 +59,8 @@ function TrainsContent() {
   const [from, setFrom] = useState(searchParams.get("from") || "");
   const [to, setTo] = useState(searchParams.get("to") || "");
   const [date, setDate] = useState(searchParams.get("date") || "");
+  const [tripType, setTripType] = useState((searchParams.get("trip") as "one-way" | "round-trip") || "one-way");
+  const [returnDate, setReturnDate] = useState(searchParams.get("return") || "");
 
   const [sort, setSort] = useState<SortKey>((searchParams.get("sort") as SortKey) || "price-asc");
   const [selectedTypes, setSelectedTypes] = useState<Set<string>>(
@@ -36,6 +70,7 @@ function TrainsContent() {
     (searchParams.get("class") as "sleeper" | "ac3Tier" | "ac2Tier" | "ac1st") || "sleeper",
   );
   const [selected, setSelected] = useState<Train | null>(null);
+  const [activeField, setActiveField] = useState<"from" | "to" | null>(null);
   const [apiResults, setApiResults] = useState<Train[] | null>(null);
   const [apiTotalPages, setApiTotalPages] = useState<number | null>(null);
   const [apiLoading, setApiLoading] = useState(false);
@@ -56,6 +91,8 @@ function TrainsContent() {
   };
 
   useEffect(() => {
+    setTripType((searchParams.get("trip") as "one-way" | "round-trip") || "one-way");
+    setReturnDate(searchParams.get("return") || "");
     setSort((searchParams.get("sort") as SortKey) || "price-asc");
     setSelectedTypes(
       new Set((searchParams.get("types") || "").split(",").map((item) => item.trim()).filter(Boolean)),
@@ -79,19 +116,50 @@ function TrainsContent() {
   };
 
   const handleSearch = () => {
+    if (!resolveTrainCode(from) || !resolveTrainCode(to)) {
+      showToast.error("Select valid From and To stations from suggestions (or use station codes like NDLS, BCT).");
+      return;
+    }
+
     const params = new URLSearchParams();
     if (from) params.set("from", from);
     if (to) params.set("to", to);
     if (date) params.set("date", date);
+    if (tripType === "round-trip") params.set("trip", "round-trip");
+    if (tripType === "round-trip" && returnDate) params.set("return", returnDate);
     if (sort !== "price-asc") params.set("sort", sort);
     if (selectedClass !== "sleeper") params.set("class", selectedClass);
     if (selectedTypes.size) params.set("types", Array.from(selectedTypes).join(","));
     router.push(`/trains${params.toString() ? `?${params.toString()}` : ""}`);
   };
 
+  const fromSuggestions = useMemo(() => {
+    const term = from.trim().toLowerCase();
+    if (!term) return [] as TrainLocationOption[];
+
+    return trainLocationOptions
+      .filter((option) => option.station.toLowerCase().includes(term) || option.code.toLowerCase().includes(term))
+      .slice(0, 6);
+  }, [from]);
+
+  const toSuggestions = useMemo(() => {
+    const term = to.trim().toLowerCase();
+    if (!term) return [] as TrainLocationOption[];
+
+    return trainLocationOptions
+      .filter((option) => option.station.toLowerCase().includes(term) || option.code.toLowerCase().includes(term))
+      .slice(0, 6);
+  }, [to]);
+
+  const applySuggestion = (field: "from" | "to", option: TrainLocationOption) => {
+    if (field === "from") setFrom(option.station);
+    if (field === "to") setTo(option.station);
+    setActiveField(null);
+  };
+
   const filtered = useMemo(() => {
-    let list = [...trains];
-    if (selectedTypes.size) list = list.filter((t) => selectedTypes.has(t.type));
+    let list = [...(apiResults || [])];
+    if (selectedTypes.size) list = list.filter((train) => selectedTypes.has(train.type));
 
     switch (sort) {
       case "price-asc":  list.sort((a, b) => a.fare[selectedClass] - b.fare[selectedClass]); break;
@@ -100,7 +168,11 @@ function TrainsContent() {
       case "rating":     list.sort((a, b) => b.rating - a.rating); break;
     }
     return list;
-  }, [selectedTypes, sort, selectedClass]);
+  }, [apiResults, selectedTypes, sort, selectedClass]);
+
+  const trainTypes = useMemo(() => {
+    return Array.from(new Set((apiResults || []).map((train) => train.type)));
+  }, [apiResults]);
 
   useEffect(() => {
     const canUseApi = Boolean(from && to && date);
@@ -119,14 +191,21 @@ function TrainsContent() {
     };
 
     const params = new URLSearchParams({
-      from: from.toUpperCase(),
-      to: to.toUpperCase(),
+      from: resolveTrainCode(from) || "",
+      to: resolveTrainCode(to) || "",
       date,
       class: selectedClass,
       sort: sortMap[sort],
       page: String(page),
       limit: String(PER_PAGE),
     });
+
+    if (!params.get("from") || !params.get("to")) {
+      setApiError("Select valid From and To stations from suggestions (or use station codes like NDLS, BCT).");
+      setApiResults(null);
+      setApiTotalPages(null);
+      return;
+    }
 
     const selectedType = Array.from(selectedTypes)[0];
     if (selectedType) {
@@ -177,8 +256,14 @@ function TrainsContent() {
     };
   }, [from, to, date, selectedClass, sort, page, selectedTypes]);
 
-  const totalPages = apiTotalPages ?? Math.ceil(filtered.length / PER_PAGE);
-  const paged = apiResults ?? filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+  useEffect(() => {
+    if (apiError) {
+      showToast.error(apiError);
+    }
+  }, [apiError]);
+
+  const totalPages = apiTotalPages ?? Math.max(1, Math.ceil(filtered.length / PER_PAGE));
+  const paged = filtered;
 
   const classLabel: Record<string, string> = {
     sleeper: "Sleeper",
@@ -191,7 +276,6 @@ function TrainsContent() {
   const baseFare = current?.fare[selectedClass] ?? 0;
   const taxes = Math.round(baseFare * 0.05);
   const serviceFee = 149;
-  const netAmount = baseFare + taxes + serviceFee;
 
   const handleProceedToPayment = (netAmount: number) => {
     if (!current) return;
@@ -223,7 +307,7 @@ function TrainsContent() {
     <div className={s.page}>
       <div className={s.header}>
         <h1 className={s.title}>Train Search Results</h1>
-        <p className={s.subtitle}>{apiResults ? `${apiResults.length} trains on this page` : `${filtered.length} trains found`}</p>
+        <p className={s.subtitle}>{from && to && date ? `${filtered.length} trains on this page` : "Search to load live trains"}</p>
       </div>
 
       {/* ── Inline search bar ── */}
@@ -231,16 +315,73 @@ function TrainsContent() {
         <div className={s.searchBarInner}>
           <div className={s.searchFieldGroup}>
             <label className={s.searchFieldLabel}>🚉 From</label>
-            <input className={s.searchFieldInput} placeholder="New Delhi…" value={from} onChange={(e) => setFrom(e.target.value)} />
+            <input
+              className={s.searchFieldInput}
+              placeholder="New Delhi…"
+              value={from}
+              onFocus={() => setActiveField("from")}
+              onBlur={() => setTimeout(() => setActiveField(null), 120)}
+              onChange={(e) => setFrom(e.target.value)}
+            />
+            {activeField === "from" && fromSuggestions.length > 0 && (
+              <div className={s.suggestions}>
+                {fromSuggestions.map((option) => (
+                  <button
+                    key={`from-${option.station}-${option.code}`}
+                    type="button"
+                    className={s.suggestionItem}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => applySuggestion("from", option)}
+                  >
+                    {option.station} ({option.code})
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <div className={s.searchFieldGroup}>
             <label className={s.searchFieldLabel}>🚉 To</label>
-            <input className={s.searchFieldInput} placeholder="Mumbai CST…" value={to} onChange={(e) => setTo(e.target.value)} />
+            <input
+              className={s.searchFieldInput}
+              placeholder="Mumbai Central…"
+              value={to}
+              onFocus={() => setActiveField("to")}
+              onBlur={() => setTimeout(() => setActiveField(null), 120)}
+              onChange={(e) => setTo(e.target.value)}
+            />
+            {activeField === "to" && toSuggestions.length > 0 && (
+              <div className={s.suggestions}>
+                {toSuggestions.map((option) => (
+                  <button
+                    key={`to-${option.station}-${option.code}`}
+                    type="button"
+                    className={s.suggestionItem}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => applySuggestion("to", option)}
+                  >
+                    {option.station} ({option.code})
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <div className={s.searchFieldGroup}>
             <label className={s.searchFieldLabel}>📅 Journey</label>
             <input className={s.searchFieldInput} type="date" value={date} onChange={(e) => setDate(e.target.value)} />
           </div>
+          <div className={s.searchFieldGroup}>
+            <label className={s.searchFieldLabel}>↔ Trip</label>
+            <select className={s.searchFieldInput} value={tripType} onChange={(e) => setTripType(e.target.value as "one-way" | "round-trip")}>
+              <option value="one-way">One Way</option>
+              <option value="round-trip">Round Trip</option>
+            </select>
+          </div>
+          {tripType === "round-trip" && (
+            <div className={s.searchFieldGroup}>
+              <label className={s.searchFieldLabel}>📅 Return</label>
+              <input className={s.searchFieldInput} type="date" value={returnDate} onChange={(e) => setReturnDate(e.target.value)} />
+            </div>
+          )}
           <button className={s.searchBarBtn} type="button" onClick={handleSearch}>🔍 Search</button>
         </div>
       </div>
@@ -252,7 +393,7 @@ function TrainsContent() {
 
           <div className={s.filterGroup}>
             <span className={s.filterGroupLabel}>Train Type</span>
-            {TYPES.map((t) => (
+            {trainTypes.map((t) => (
               <label key={t} className={s.filterOption}>
                 <input
                   type="checkbox"
@@ -328,8 +469,8 @@ function TrainsContent() {
             ))}
           </div>
 
-          {paged.length === 0 && <div className={s.noResults}>No trains match your filters.</div>}
-          {apiError && <div className={s.noResults}>{apiError} Showing offline results instead.</div>}
+          {paged.length === 0 && <div className={s.noResults}>{from && to && date ? "No trains match your filters." : "Enter From, To and Date to load live trains."}</div>}
+          {apiError && <div className={s.noResults}>{apiError}</div>}
           {apiLoading && <div className={s.noResults}>Fetching latest trains…</div>}
 
           {paged.map((train) => (

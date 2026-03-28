@@ -53,6 +53,7 @@ export const createFlightSchema = z.object({
   duration:       z.string().min(2),
   stops:          z.number().int().min(0).default(0),
   stopCities:     z.array(z.string()).optional().default([]),
+  operatingDays:  z.array(z.string()).optional().default(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']),
   originalPrice:  z.number().int().min(0),
   discountedPrice:z.number().int().min(0),
   fare:           fareSchema,

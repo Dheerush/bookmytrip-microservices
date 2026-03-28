@@ -1,6 +1,15 @@
 "use client";
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import type { LoginData } from './auth.types';
+import {
+  clearAccessToken,
+  clearSessionActivity,
+  getAccessToken,
+  getLastSessionActivity,
+  refreshAccessToken,
+  setAccessToken,
+  touchSessionActivity,
+} from '@/lib/auth-session';
 
 export interface AuthUser {
   id: string;
@@ -21,33 +30,119 @@ interface AuthContextType {
   checkSession: () => boolean;
 }
 
-const SESSION_TIMEOUT = 60 * 60 * 1000; // 1 hour
+const ACTIVE_WINDOW_MS = 15 * 60 * 1000; // refresh only when user was active recently
+const KEEP_ALIVE_INTERVAL_MS = 5 * 60 * 1000;
+const AUTH_USER_KEY = 'user';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const readStoredAuth = (): { user: AuthUser | null; token: string | null } => {
+  if (typeof window === 'undefined') return { user: null, token: null };
+
+  const storedToken = getAccessToken();
+  const storedUser = localStorage.getItem(AUTH_USER_KEY);
+  if (!storedToken || !storedUser) return { user: null, token: null };
+
+  try {
+    const parsedUser = JSON.parse(storedUser) as AuthUser;
+    touchSessionActivity();
+    return { user: parsedUser, token: storedToken };
+  } catch {
+    return { user: null, token: null };
+  }
+};
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [token, setToken] = useState<string | null>(null);
+  const initialAuth = readStoredAuth();
+  const [user, setUser] = useState<AuthUser | null>(initialAuth.user);
+  const [token, setToken] = useState<string | null>(initialAuth.token);
   const [hydrated, setHydrated] = useState(false);
 
-  // Hydrate from sessionStorage on mount
   useEffect(() => {
-    const storedToken = sessionStorage.getItem('accessToken');
-    const storedUser = sessionStorage.getItem('user');
-    const loginTime = sessionStorage.getItem('loginTime');
+    let active = true;
 
-    if (storedToken && storedUser) {
-      // Check session expiration
-      if (loginTime && Date.now() - Number(loginTime) > SESSION_TIMEOUT) {
-        sessionStorage.removeItem('accessToken');
-        sessionStorage.removeItem('user');
-        sessionStorage.removeItem('loginTime');
-      } else {
-        setToken(storedToken);
-        try { setUser(JSON.parse(storedUser)); } catch { /* skip */ }
+    const bootstrapAuth = async () => {
+      const storedUserRaw = localStorage.getItem(AUTH_USER_KEY);
+      const storedToken = getAccessToken();
+
+      if (!storedUserRaw) {
+        if (active) setHydrated(true);
+        return;
       }
-    }
-    setHydrated(true);
+
+      try {
+        const parsedUser = JSON.parse(storedUserRaw) as AuthUser;
+        if (active) {
+          setUser(parsedUser);
+        }
+
+        const refreshedToken = await refreshAccessToken().catch(() => null);
+        if (active && refreshedToken) {
+          setToken(refreshedToken);
+        } else if (active && !storedToken) {
+          // No usable token and refresh also failed: clear stale user shell.
+          setUser(null);
+          localStorage.removeItem(AUTH_USER_KEY);
+        }
+      } catch {
+        if (active) {
+          setUser(null);
+          localStorage.removeItem(AUTH_USER_KEY);
+        }
+      } finally {
+        if (active) setHydrated(true);
+      }
+    };
+
+    void bootstrapAuth();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!token) return;
+
+    const activityHandler = () => touchSessionActivity();
+    window.addEventListener('mousemove', activityHandler);
+    window.addEventListener('keydown', activityHandler);
+    window.addEventListener('click', activityHandler);
+    window.addEventListener('scroll', activityHandler, { passive: true });
+
+    const intervalId = window.setInterval(() => {
+      const lastActiveAt = getLastSessionActivity();
+      const isRecentlyActive = lastActiveAt > 0 && Date.now() - lastActiveAt <= ACTIVE_WINDOW_MS;
+      if (!isRecentlyActive) return;
+      void refreshAccessToken().then((nextToken) => {
+        if (nextToken) {
+          setToken(nextToken);
+        }
+      });
+    }, KEEP_ALIVE_INTERVAL_MS);
+
+    return () => {
+      window.removeEventListener('mousemove', activityHandler);
+      window.removeEventListener('keydown', activityHandler);
+      window.removeEventListener('click', activityHandler);
+      window.removeEventListener('scroll', activityHandler);
+      window.clearInterval(intervalId);
+    };
+  }, [token]);
+
+  useEffect(() => {
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key !== AUTH_USER_KEY && event.key !== 'accessToken') return;
+
+      const next = readStoredAuth();
+      setUser(next.user);
+      setToken(next.token);
+    };
+
+    window.addEventListener('storage', handleStorage);
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+    };
   }, []);
 
   const setAuth = useCallback((data: LoginData) => {
@@ -58,28 +153,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
     setUser(authUser);
     setToken(data.accessToken);
-    sessionStorage.setItem('accessToken', data.accessToken);
-    sessionStorage.setItem('user', JSON.stringify(authUser));
-    sessionStorage.setItem('loginTime', String(Date.now()));
+    setAccessToken(data.accessToken);
+    localStorage.setItem(AUTH_USER_KEY, JSON.stringify(authUser));
+    touchSessionActivity();
   }, []);
 
   const logout = useCallback(() => {
     setUser(null);
     setToken(null);
-    sessionStorage.removeItem('accessToken');
-    sessionStorage.removeItem('user');
-    sessionStorage.removeItem('loginTime');
+    clearAccessToken();
+    localStorage.removeItem(AUTH_USER_KEY);
+    clearSessionActivity();
   }, []);
 
   const checkSession = useCallback(() => {
-    const loginTime = sessionStorage.getItem('loginTime');
-    if (!token || !loginTime) return false;
-    if (Date.now() - Number(loginTime) > SESSION_TIMEOUT) {
-      logout();
-      return false;
-    }
+    if (!token) return false;
+    touchSessionActivity();
     return true;
-  }, [token, logout]);
+  }, [token]);
 
   return (
     <AuthContext.Provider value={{ user, token, isAuthenticated: !!user && !!token, hydrated, setAuth, logout, checkSession }}>

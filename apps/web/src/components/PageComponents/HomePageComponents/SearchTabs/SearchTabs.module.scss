@@ -106,6 +106,7 @@
   gap: 5px;
   flex: 1;
   min-width: 0;
+  position: relative;
 }
 
 .fieldLabel {
@@ -137,6 +138,36 @@
 .fieldInput:focus {
   border-color: #3b82f6;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.14);
+}
+
+.suggestions {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  display: grid;
+  gap: 2px;
+  padding: 6px;
+  border-radius: 10px;
+  border: 1px solid #dbeafe;
+  background: #ffffff;
+  box-shadow: 0 14px 24px rgba(15, 23, 42, 0.12);
+}
+
+.suggestionItem {
+  text-align: left;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  padding: 7px 8px;
+  font-size: 0.82rem;
+  color: #1e293b;
+  cursor: pointer;
+}
+
+.suggestionItem:hover {
+  background: #eff6ff;
 }
 
 /* ── Search button ── */

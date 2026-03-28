@@ -1,0 +1,174 @@
+.page {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 1.6rem 1rem 2.2rem;
+  display: grid;
+  gap: 1rem;
+}
+
+.hero {
+  border-radius: 22px;
+  border: 1px solid rgba(31, 48, 84, 0.15);
+  padding: 1.2rem;
+  background:
+    radial-gradient(circle at 10% 20%, rgba(255, 210, 147, 0.34), transparent 34%),
+    linear-gradient(155deg, #faf6ef 0%, #eef5ff 100%);
+
+  h1 {
+    margin: 0.25rem 0;
+    color: #1a2a4c;
+    font-size: clamp(1.45rem, 3vw, 2rem);
+  }
+
+  p {
+    margin: 0;
+    color: #53617b;
+    max-width: 62ch;
+  }
+}
+
+.eyebrow {
+  margin: 0;
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  color: #6d5935;
+}
+
+.testimonialGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.72rem;
+}
+
+.testimonialCard {
+  border: 1px solid rgba(31, 48, 84, 0.14);
+  border-radius: 14px;
+  padding: 0.9rem;
+  background: #ffffff;
+  display: grid;
+  gap: 0.5rem;
+
+  strong {
+    color: #1f3257;
+  }
+
+  p {
+    margin: 0;
+    color: #5f6d87;
+    font-size: 0.9rem;
+  }
+
+  span {
+    color: #bc8a24;
+    font-size: 0.88rem;
+    letter-spacing: 0.06em;
+  }
+}
+
+.panel {
+  border: 1px solid rgba(31, 48, 84, 0.14);
+  border-radius: 14px;
+  padding: 0.95rem;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  display: grid;
+  gap: 0.72rem;
+
+  h2 {
+    margin: 0;
+    color: #1f3257;
+    font-size: 1.04rem;
+  }
+}
+
+.filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.6rem;
+
+  select,
+  input {
+    border: 1px solid rgba(31, 48, 84, 0.16);
+    border-radius: 10px;
+    padding: 0.55rem 0.7rem;
+    font-size: 0.86rem;
+    color: #25385f;
+    background: #ffffff;
+  }
+}
+
+.reviewList {
+  display: grid;
+  gap: 0.55rem;
+
+  h2 {
+    margin: 0;
+    color: #1f3257;
+    font-size: 1.06rem;
+  }
+}
+
+.muted {
+  color: #66748f;
+  font-size: 0.84rem;
+}
+
+.reviewCard {
+  border: 1px solid rgba(31, 48, 84, 0.14);
+  border-radius: 12px;
+  padding: 0.82rem;
+  background: #ffffff;
+
+  p {
+    margin: 0.45rem 0;
+    color: #53627d;
+  }
+}
+
+.reviewTop {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  align-items: center;
+
+  strong {
+    color: #1c3158;
+  }
+
+  span {
+    color: #bf8c25;
+    letter-spacing: 0.06em;
+  }
+}
+
+.reviewMeta {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.45rem;
+  color: #6a7791;
+  font-size: 0.76rem;
+
+  span:last-child {
+    text-transform: capitalize;
+  }
+}
+
+.input,
+.textarea {
+  border: 1px solid rgba(31, 48, 84, 0.16);
+  border-radius: 10px;
+  padding: 0.55rem 0.7rem;
+  font-size: 0.86rem;
+  color: #25385f;
+  background: #ffffff;
+}
+
+.textarea {
+  resize: vertical;
+}
+
+.submitRow {
+  display: flex;
+  justify-content: flex-end;
+}

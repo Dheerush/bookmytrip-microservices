@@ -6,6 +6,7 @@ import { useBookingFlow } from "@/hooks/useBookingFlow";
 import { useBookingGuard } from "@/hooks/useBookingGuard";
 import { useAuth } from "@/services/auth/context";
 import { parseApiResponse } from "@/lib/http";
+import { showToast } from "@/lib/toast";
 import s from "@/styles/search.module.scss";
 import { flights, type Flight } from "@/data/flights";
 import BookingSidebar from "@/components/ui/BookingSidebar/BookingSidebar";
@@ -15,8 +16,39 @@ const PER_PAGE = 10;
 
 type SortKey = "price-asc" | "price-desc" | "duration" | "rating";
 
-const AIRLINES = [...new Set(flights.map((f) => f.airline))];
 const STOP_OPTIONS = ["Non-stop", "1 Stop", "2+ Stops"];
+
+type FlightLocationOption = {
+  city: string;
+  code: string;
+};
+
+const flightLocationOptions: FlightLocationOption[] = Array.from(
+  new Map(
+    flights
+      .flatMap((flight) => [
+        { city: flight.from, code: flight.fromCode },
+        { city: flight.to, code: flight.toCode },
+      ])
+      .map((option) => [`${option.city.toLowerCase()}-${option.code.toUpperCase()}`, option]),
+  ).values(),
+);
+
+const resolveFlightCode = (value: string): string | null => {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  const upper = trimmed.toUpperCase();
+  if (/^[A-Z]{3}$/.test(upper)) return upper;
+
+  const byCity = flightLocationOptions.find((option) => option.city.toLowerCase() === trimmed.toLowerCase());
+  if (byCity) return byCity.code.toUpperCase();
+
+  const byCode = flightLocationOptions.find((option) => option.code.toUpperCase() === upper);
+  if (byCode) return byCode.code.toUpperCase();
+
+  return null;
+};
 
 function FlightsContent() {
   const searchParams = useSearchParams();
@@ -31,6 +63,8 @@ function FlightsContent() {
   const [from, setFrom] = useState(searchParams.get("from") || "");
   const [to, setTo] = useState(searchParams.get("to") || "");
   const [date, setDate] = useState(searchParams.get("date") || "");
+  const [tripType, setTripType] = useState((searchParams.get("trip") as "one-way" | "round-trip") || "one-way");
+  const [returnDate, setReturnDate] = useState(searchParams.get("return") || "");
 
   const [sort, setSort] = useState<SortKey>((searchParams.get("sort") as SortKey) || "price-asc");
   const [selectedAirlines, setSelectedAirlines] = useState<Set<string>>(
@@ -40,6 +74,7 @@ function FlightsContent() {
     new Set((searchParams.get("stopsLabel") || "").split(",").map((item) => item.trim()).filter(Boolean)),
   );
   const [selected, setSelected] = useState<Flight | null>(null);
+  const [activeField, setActiveField] = useState<"from" | "to" | null>(null);
   const [apiResults, setApiResults] = useState<Flight[] | null>(null);
   const [apiTotalPages, setApiTotalPages] = useState<number | null>(null);
   const [apiLoading, setApiLoading] = useState(false);
@@ -60,6 +95,8 @@ function FlightsContent() {
   };
 
   useEffect(() => {
+    setTripType((searchParams.get("trip") as "one-way" | "round-trip") || "one-way");
+    setReturnDate(searchParams.get("return") || "");
     setSort((searchParams.get("sort") as SortKey) || "price-asc");
     setSelectedAirlines(
       new Set((searchParams.get("airlines") || "").split(",").map((item) => item.trim()).filter(Boolean)),
@@ -83,27 +120,59 @@ function FlightsContent() {
   };
 
   const handleSearch = () => {
+    if (!resolveFlightCode(from) || !resolveFlightCode(to)) {
+      showToast.error("Select valid From and To values from suggestions (or use airport codes like DEL, BOM).");
+      return;
+    }
+
     const params = new URLSearchParams();
     if (from) params.set("from", from);
     if (to) params.set("to", to);
     if (date) params.set("date", date);
+    if (tripType === "round-trip") params.set("trip", "round-trip");
+    if (tripType === "round-trip" && returnDate) params.set("return", returnDate);
     if (sort !== "price-asc") params.set("sort", sort);
     if (selectedAirlines.size) params.set("airlines", Array.from(selectedAirlines).join(","));
     if (selectedStops.size) params.set("stopsLabel", Array.from(selectedStops).join(","));
     router.push(`/flights${params.toString() ? `?${params.toString()}` : ""}`);
   };
 
-  const filtered = useMemo(() => {
-    let list = [...flights];
+  const fromSuggestions = useMemo(() => {
+    const term = from.trim().toLowerCase();
+    if (!term) return [] as FlightLocationOption[];
 
-    if (selectedAirlines.size)
-      list = list.filter((f) => selectedAirlines.has(f.airline));
+    return flightLocationOptions
+      .filter((option) => option.city.toLowerCase().includes(term) || option.code.toLowerCase().includes(term))
+      .slice(0, 6);
+  }, [from]);
+
+  const toSuggestions = useMemo(() => {
+    const term = to.trim().toLowerCase();
+    if (!term) return [] as FlightLocationOption[];
+
+    return flightLocationOptions
+      .filter((option) => option.city.toLowerCase().includes(term) || option.code.toLowerCase().includes(term))
+      .slice(0, 6);
+  }, [to]);
+
+  const applySuggestion = (field: "from" | "to", option: FlightLocationOption) => {
+    if (field === "from") setFrom(option.city);
+    if (field === "to") setTo(option.city);
+    setActiveField(null);
+  };
+
+  const filtered = useMemo(() => {
+    let list = [...(apiResults || [])];
+
+    if (selectedAirlines.size) {
+      list = list.filter((flight) => selectedAirlines.has(flight.airline));
+    }
 
     if (selectedStops.size) {
-      list = list.filter((f) => {
-        if (selectedStops.has("Non-stop") && f.stops === 0) return true;
-        if (selectedStops.has("1 Stop") && f.stops === 1) return true;
-        if (selectedStops.has("2+ Stops") && f.stops >= 2) return true;
+      list = list.filter((flight) => {
+        if (selectedStops.has("Non-stop") && flight.stops === 0) return true;
+        if (selectedStops.has("1 Stop") && flight.stops === 1) return true;
+        if (selectedStops.has("2+ Stops") && flight.stops >= 2) return true;
         return false;
       });
     }
@@ -114,8 +183,13 @@ function FlightsContent() {
       case "duration":   list.sort((a, b) => a.duration.localeCompare(b.duration)); break;
       case "rating":     list.sort((a, b) => b.rating - a.rating); break;
     }
+
     return list;
-  }, [selectedAirlines, selectedStops, sort]);
+  }, [apiResults, selectedAirlines, selectedStops, sort]);
+
+  const airlines = useMemo(() => {
+    return Array.from(new Set((apiResults || []).map((flight) => flight.airline)));
+  }, [apiResults]);
 
   useEffect(() => {
     const canUseApi = Boolean(from && to && date);
@@ -134,13 +208,20 @@ function FlightsContent() {
     };
 
     const params = new URLSearchParams({
-      from: from.toUpperCase(),
-      to: to.toUpperCase(),
+      from: resolveFlightCode(from) || "",
+      to: resolveFlightCode(to) || "",
       date,
       sort: sortMap[sort],
       page: String(page),
       limit: String(PER_PAGE),
     });
+
+    if (!params.get("from") || !params.get("to")) {
+      setApiError("Select valid From and To values from suggestions (or use airport codes like DEL, BOM).");
+      setApiResults(null);
+      setApiTotalPages(null);
+      return;
+    }
 
     if (selectedAirlines.size) {
       params.set("airlines", Array.from(selectedAirlines).join(","));
@@ -198,15 +279,20 @@ function FlightsContent() {
     };
   }, [from, to, date, sort, selectedAirlines, selectedStops, page]);
 
-  const totalPages = apiTotalPages ?? Math.ceil(filtered.length / PER_PAGE);
-  const paged = apiResults ?? filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+  useEffect(() => {
+    if (apiError) {
+      showToast.error(apiError);
+    }
+  }, [apiError]);
+
+  const totalPages = apiTotalPages ?? Math.max(1, Math.ceil(filtered.length / PER_PAGE));
+  const paged = filtered;
 
   const selectedFlight = selected ?? paged[0];
   const baseFare = selectedFlight?.discountedPrice ?? 0;
   const taxes = Math.round(baseFare * 0.05);
   const serviceFee = 249;
   const discount = selectedFlight ? selectedFlight.originalPrice - selectedFlight.discountedPrice : 0;
-  const netAmount = baseFare + taxes + serviceFee - discount;
 
   const handleProceedToPayment = (netAmount: number) => {
     if (!selectedFlight) return;
@@ -238,7 +324,7 @@ function FlightsContent() {
     <div className={s.page}>
       <div className={s.header}>
         <h1 className={s.title}>Flight Search Results</h1>
-        <p className={s.subtitle}>{apiResults ? `${apiResults.length} flights on this page` : `${filtered.length} flights found`}</p>
+        <p className={s.subtitle}>{from && to && date ? `${filtered.length} flights on this page` : "Search to load live flights"}</p>
       </div>
 
       {/* ── Inline search bar ── */}
@@ -246,16 +332,73 @@ function FlightsContent() {
         <div className={s.searchBarInner}>
           <div className={s.searchFieldGroup}>
             <label className={s.searchFieldLabel}>📍 From</label>
-            <input className={s.searchFieldInput} placeholder="Delhi, Mumbai…" value={from} onChange={(e) => setFrom(e.target.value)} />
+            <input
+              className={s.searchFieldInput}
+              placeholder="Delhi, Mumbai…"
+              value={from}
+              onFocus={() => setActiveField("from")}
+              onBlur={() => setTimeout(() => setActiveField(null), 120)}
+              onChange={(e) => setFrom(e.target.value)}
+            />
+            {activeField === "from" && fromSuggestions.length > 0 && (
+              <div className={s.suggestions}>
+                {fromSuggestions.map((option) => (
+                  <button
+                    key={`from-${option.city}-${option.code}`}
+                    type="button"
+                    className={s.suggestionItem}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => applySuggestion("from", option)}
+                  >
+                    {option.city} ({option.code})
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <div className={s.searchFieldGroup}>
             <label className={s.searchFieldLabel}>📍 To</label>
-            <input className={s.searchFieldInput} placeholder="Goa, Jaipur…" value={to} onChange={(e) => setTo(e.target.value)} />
+            <input
+              className={s.searchFieldInput}
+              placeholder="Goa, Jaipur…"
+              value={to}
+              onFocus={() => setActiveField("to")}
+              onBlur={() => setTimeout(() => setActiveField(null), 120)}
+              onChange={(e) => setTo(e.target.value)}
+            />
+            {activeField === "to" && toSuggestions.length > 0 && (
+              <div className={s.suggestions}>
+                {toSuggestions.map((option) => (
+                  <button
+                    key={`to-${option.city}-${option.code}`}
+                    type="button"
+                    className={s.suggestionItem}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => applySuggestion("to", option)}
+                  >
+                    {option.city} ({option.code})
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <div className={s.searchFieldGroup}>
             <label className={s.searchFieldLabel}>📅 Depart</label>
             <input className={s.searchFieldInput} type="date" value={date} onChange={(e) => setDate(e.target.value)} />
           </div>
+          <div className={s.searchFieldGroup}>
+            <label className={s.searchFieldLabel}>↔ Trip</label>
+            <select className={s.searchFieldInput} value={tripType} onChange={(e) => setTripType(e.target.value as "one-way" | "round-trip")}>
+              <option value="one-way">One Way</option>
+              <option value="round-trip">Round Trip</option>
+            </select>
+          </div>
+          {tripType === "round-trip" && (
+            <div className={s.searchFieldGroup}>
+              <label className={s.searchFieldLabel}>📅 Return</label>
+              <input className={s.searchFieldInput} type="date" value={returnDate} onChange={(e) => setReturnDate(e.target.value)} />
+            </div>
+          )}
           <button className={s.searchBarBtn} type="button" onClick={handleSearch}>🔍 Search</button>
         </div>
       </div>
@@ -267,7 +410,7 @@ function FlightsContent() {
 
           <div className={s.filterGroup}>
             <span className={s.filterGroupLabel}>Airlines</span>
-            {AIRLINES.map((a) => (
+            {airlines.map((a) => (
               <label key={a} className={s.filterOption}>
                 <input
                   type="checkbox"
@@ -343,8 +486,8 @@ function FlightsContent() {
             ))}
           </div>
 
-          {paged.length === 0 && <div className={s.noResults}>No flights match your filters.</div>}
-          {apiError && <div className={s.noResults}>{apiError} Showing offline results instead.</div>}
+          {paged.length === 0 && <div className={s.noResults}>{from && to && date ? "No flights match your filters." : "Enter From, To and Date to load live flights."}</div>}
+          {apiError && <div className={s.noResults}>{apiError}</div>}
           {apiLoading && <div className={s.noResults}>Fetching latest flights…</div>}
 
           {paged.map((flight) => (

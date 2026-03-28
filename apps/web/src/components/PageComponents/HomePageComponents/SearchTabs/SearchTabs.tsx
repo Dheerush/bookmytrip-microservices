@@ -1,8 +1,12 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import styles from "./SearchTabs.module.scss";
+import { flights } from "@/data/flights";
+import { trains } from "@/data/trains";
+import { hotels } from "@/data/hotels";
+import { cabs } from "@/data/cabs";
 
 // ─── Tab config ───────────────────────────────────────────
 type TabId = "flights" | "hotels" | "trains" | "cabs";
@@ -72,6 +76,16 @@ export default function SearchTabs() {
   const [activeTab, setActiveTab] = useState<TabId>("flights");
   const [tripType, setTripType] = useState<TripType>("one-way");
   const [values, setValues] = useState<Record<string, string>>({});
+  const [focusedField, setFocusedField] = useState<string | null>(null);
+  const [debouncedTerm, setDebouncedTerm] = useState("");
+
+  useEffect(() => {
+    const rawTerm = focusedField ? values[focusedField] || "" : "";
+    const timeout = setTimeout(() => {
+      setDebouncedTerm(rawTerm.trim().toLowerCase());
+    }, 250);
+    return () => clearTimeout(timeout);
+  }, [focusedField, values]);
 
   const showTripToggle = activeTab === "flights" || activeTab === "trains";
 
@@ -102,6 +116,44 @@ export default function SearchTabs() {
     const qs = params.toString();
     router.push(`/${activeTab}${qs ? `?${qs}` : ""}`);
   }, [activeTab, values, tripType, showTripToggle, router]);
+
+  const suggestions = useMemo(() => {
+    if (!debouncedTerm || !focusedField) return [] as string[];
+
+    if (activeTab === "flights") {
+      const pool = flights.flatMap((flight) => [
+        `${flight.from} (${flight.fromCode})`,
+        `${flight.to} (${flight.toCode})`,
+        flight.flightCode,
+        flight.airline,
+      ]);
+      return Array.from(new Set(pool.filter((entry) => entry.toLowerCase().includes(debouncedTerm)))).slice(0, 6);
+    }
+
+    if (activeTab === "trains") {
+      const pool = trains.flatMap((train) => [
+        `${train.from} (${train.fromCode})`,
+        `${train.to} (${train.toCode})`,
+        train.trainNumber,
+        train.name,
+      ]);
+      return Array.from(new Set(pool.filter((entry) => entry.toLowerCase().includes(debouncedTerm)))).slice(0, 6);
+    }
+
+    if (activeTab === "hotels") {
+      const pool = hotels.flatMap((hotel) => [hotel.city, hotel.name]);
+      return Array.from(new Set(pool.filter((entry) => entry.toLowerCase().includes(debouncedTerm)))).slice(0, 6);
+    }
+
+    const pool = cabs.flatMap((cab) => [cab.city, cab.carModel, cab.brand]);
+    return Array.from(new Set(pool.filter((entry) => entry.toLowerCase().includes(debouncedTerm)))).slice(0, 6);
+  }, [activeTab, debouncedTerm, focusedField]);
+
+  const applySuggestion = (value: string) => {
+    if (!focusedField) return;
+    handleChange(focusedField, value.split("(")[0].trim());
+    setFocusedField(null);
+  };
 
   return (
     <div className={styles.searchCard}>
@@ -150,13 +202,45 @@ export default function SearchTabs() {
               type={field.type ?? "text"}
               placeholder={field.placeholder}
               value={values[field.key] ?? ""}
+              onFocus={() => setFocusedField(field.key)}
               onChange={(e) => handleChange(field.key, e.target.value)}
             />
+            {focusedField === field.key && suggestions.length > 0 && (
+              <div className={styles.suggestions}>
+                {suggestions.map((suggestion) => (
+                  <button
+                    key={suggestion}
+                    type="button"
+                    className={styles.suggestionItem}
+                    onClick={() => applySuggestion(suggestion)}
+                  >
+                    {suggestion}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         ))}
 
         <button className={styles.searchBtn} type="button" onClick={handleSearch}>
           🔍 Search
+        </button>
+        <button
+          className={styles.searchBtn}
+          type="button"
+          onClick={() => {
+            const params = new URLSearchParams();
+            if (values.from) params.set("from", values.from.toUpperCase());
+            if (values.to) params.set("to", values.to.toUpperCase());
+            if (values.date) params.set("date", values.date);
+            if (values.city) params.set("city", values.city);
+            if (values.checkin) params.set("checkIn", values.checkin);
+            if (values.checkout) params.set("checkOut", values.checkout);
+            if (values.pickup) params.set("cabCity", values.pickup);
+            router.push(`/search/aggregate${params.toString() ? `?${params.toString()}` : ""}`);
+          }}
+        >
+          ⚡ Aggregate
         </button>
       </div>
     </div>

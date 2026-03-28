@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { packages } from "../../data/packages";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import styles from "./page.module.scss";
+import { parseApiResponse } from "@/lib/http";
+import { showToast } from "@/lib/toast";
 
 const TABS = [
   { label: "All", value: "all" },
@@ -16,15 +18,109 @@ const REGION_EMOJI: Record<string, string> = {
   Abroad: "✈️",
 };
 
+interface NormalizedPackage {
+  id: string;
+  name: string;
+  region: string;
+  cities?: string[];
+  countries?: string[];
+  duration: string;
+  activities: string[];
+  price: number;
+  images: string[];
+  reviews: Array<unknown>;
+  guide: { rating: number; name: string };
+}
+
+interface TourApiItem {
+  _id: string;
+  title: string;
+  city: string;
+  country: string;
+  durationDays: number;
+  basePrice: number;
+  discountPrice?: number;
+  heroImage: string;
+  images?: string[];
+  tags?: string[];
+}
+
 export default function PackagesPage() {
-  const [activeTab, setActiveTab] = useState("all");
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const [activeTab, setActiveTab] = useState(searchParams.get("region") || "all");
+  const [sort, setSort] = useState(searchParams.get("sort") || "price_asc");
+  const [city, setCity] = useState(searchParams.get("city") || "");
+  const [apiTours, setApiTours] = useState<TourApiItem[]>([]);
   const [showAll, setShowAll] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [imgErrors, setImgErrors] = useState<Record<string, boolean>>({});
+
+  const updateQuery = (next: Record<string, string | null>) => {
+    const params = new URLSearchParams(searchParams.toString());
+    Object.entries(next).forEach(([key, value]) => {
+      if (!value) params.delete(key);
+      else params.set(key, value);
+    });
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname);
+  };
+
+  useEffect(() => {
+    const params = new URLSearchParams();
+    params.set("page", "1");
+    params.set("limit", "30");
+    params.set("sort", sort);
+    if (city) params.set("city", city);
+
+    let mounted = true;
+    const run = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch(`/api/tours/search?${params.toString()}`);
+        const parsed = await parseApiResponse<{ items: TourApiItem[] }>(response, "Unable to fetch packages.");
+        if (!mounted) return;
+        if (!parsed.ok || !parsed.payload?.data) {
+          throw new Error(parsed.payload?.message || "Unable to fetch packages.");
+        }
+        setApiTours(parsed.payload.data.items || []);
+      } catch (error) {
+        if (!mounted) return;
+        showToast.error(error instanceof Error ? error.message : "Unable to fetch packages.");
+        setApiTours([]);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    void run();
+    return () => {
+      mounted = false;
+    };
+  }, [city, sort]);
+
+  const mergedPackages = useMemo<NormalizedPackage[]>(() => {
+    return apiTours.map((tour) => ({
+      id: tour._id,
+      name: tour.title,
+      region: tour.country === "India" ? "India" : "Abroad",
+      cities: [tour.city],
+      countries: [tour.country],
+      duration: `${tour.durationDays} days`,
+      guide: { rating: 4.5, name: "BMT Local Expert" },
+      activities: tour.tags || [],
+      price: tour.discountPrice || tour.basePrice,
+      images: tour.images || [tour.heroImage],
+      reviews: [],
+    }));
+  }, [apiTours]);
 
   const filtered =
     activeTab === "all"
-      ? packages
-      : packages.filter((p) => p.region === activeTab);
+      ? mergedPackages
+      : mergedPackages.filter((p) => p.region === activeTab);
   const visible = showAll ? filtered : filtered.slice(0, 6);
 
   return (
@@ -46,6 +142,7 @@ export default function PackagesPage() {
               className={`${styles.tab} ${activeTab === t.value ? styles.tabActive : ""}`}
               onClick={() => {
                 setActiveTab(t.value);
+                updateQuery({ region: t.value === "all" ? null : t.value });
                 setShowAll(false);
               }}
             >
@@ -53,6 +150,33 @@ export default function PackagesPage() {
             </button>
           ))}
         </div>
+
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+          <input
+            value={city}
+            placeholder="Filter by city"
+            onChange={(event) => {
+              const next = event.target.value;
+              setCity(next);
+              updateQuery({ city: next || null });
+            }}
+            style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #d0d7e2" }}
+          />
+          <select
+            value={sort}
+            onChange={(event) => {
+              const next = event.target.value;
+              setSort(next);
+              updateQuery({ sort: next === "price_asc" ? null : next });
+            }}
+            style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #d0d7e2" }}
+          >
+            <option value="price_asc">Price: Low to High</option>
+            <option value="price_desc">Price: High to Low</option>
+            <option value="duration">Duration</option>
+          </select>
+        </div>
+        {loading && <div className={styles.empty}>Fetching live packages...</div>}
 
         {/* Grid */}
         <div className={styles.grid}>
@@ -110,7 +234,7 @@ export default function PackagesPage() {
                   </div>
 
                   <div className={styles.tags}>
-                    {pkg.activities.slice(0, 3).map((a) => (
+                    {pkg.activities.slice(0, 3).map((a: string) => (
                       <span key={a} className={styles.tag}>
                         {a}
                       </span>

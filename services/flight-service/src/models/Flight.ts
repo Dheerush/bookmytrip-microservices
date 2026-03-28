@@ -42,6 +42,7 @@ export interface IFlight extends Document {
   duration: string;
   stops: number;
   stopCities: string[];
+  operatingDays: string[];
   originalPrice: number;
   discountedPrice: number;
   fare: IFare;
@@ -109,6 +110,7 @@ const flightSchema = new Schema<IFlight>(
     duration:      { type: String, required: true },
     stops:         { type: Number, required: true, min: 0, default: 0 },
     stopCities:    [{ type: String }],
+    operatingDays: { type: [String], default: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] },
     originalPrice: { type: Number, required: true, min: 0 },
     discountedPrice:{ type: Number, required: true, min: 0 },
     fare:          { type: fareSchema, required: true },

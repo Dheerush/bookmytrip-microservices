@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Home, Plane, Hotel, Package, LogOut, LayoutGrid } from "lucide-react";
+import { Home, Plane, Hotel, Package, LogOut, LayoutGrid, MessageSquare } from "lucide-react";
 import Logo from "@/components/ui/Logo/Logo";
 import { useAuth } from "@/services/auth/context";
 import styles from "./Navbar.module.scss";
@@ -23,6 +23,7 @@ const NAV_ITEMS = [
   { label: "Hotels",   href: "/hotels",   icon: <Hotel   size={13} strokeWidth={1.8} /> },
   { label: "Trains",   href: "/trains",   icon: <TrainIcon /> },
   { label: "Packages", href: "/packages", icon: <Package size={13} strokeWidth={1.8} /> },
+  { label: "Reviews",  href: "/reviews",  icon: <MessageSquare size={13} strokeWidth={1.8} /> },
 ];
 
 const NavLink = ({

@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { GATEWAY_API_BASE } from './api-config';
+import { getAccessToken, refreshAccessToken, touchSessionActivity } from './auth-session';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || GATEWAY_API_BASE;
 
@@ -16,21 +17,51 @@ const apiClient = axios.create({
   timeout: 15_000,
 });
 
+let refreshInFlight: Promise<string | null> | null = null;
+
+const getRefreshPromise = () => {
+  if (!refreshInFlight) {
+    refreshInFlight = refreshAccessToken().finally(() => {
+      refreshInFlight = null;
+    });
+  }
+  return refreshInFlight;
+};
+
 // ── Request interceptor: attach access token ───────────────────────────
 apiClient.interceptors.request.use((config) => {
-  if (typeof window !== 'undefined') {
-    const token = sessionStorage.getItem('accessToken');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
+  const token = getAccessToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
 
 // ── Response interceptor: normalize errors ─────────────────────────────
 apiClient.interceptors.response.use(
-  (response) => response,
-  (error) => {
+  (response) => {
+    touchSessionActivity();
+    return response;
+  },
+  async (error) => {
+    const originalRequest = error.config;
+    const shouldRetry =
+      error.response?.status === 401 &&
+      originalRequest &&
+      !originalRequest._retry &&
+      typeof window !== 'undefined';
+
+    if (shouldRetry) {
+      originalRequest._retry = true;
+      const refreshedToken = await getRefreshPromise();
+
+      if (refreshedToken) {
+        originalRequest.headers = originalRequest.headers || {};
+        originalRequest.headers.Authorization = `Bearer ${refreshedToken}`;
+        return apiClient(originalRequest);
+      }
+    }
+
     // Extract backend error message if available
     const message =
       error.response?.data?.message ||

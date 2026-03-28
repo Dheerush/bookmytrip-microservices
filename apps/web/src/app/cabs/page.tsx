@@ -6,6 +6,7 @@ import { useBookingFlow } from "@/hooks/useBookingFlow";
 import { useBookingGuard } from "@/hooks/useBookingGuard";
 import { useAuth } from "@/services/auth/context";
 import { parseApiResponse } from "@/lib/http";
+import { showToast } from "@/lib/toast";
 import s from "@/styles/search.module.scss";
 import { cabs, type Cab } from "@/data/cabs";
 import BookingSidebar from "@/components/ui/BookingSidebar/BookingSidebar";
@@ -13,8 +14,16 @@ import Pagination from "@/components/ui/Pagination/Pagination";
 
 const PER_PAGE = 10;
 type SortKey = "price-asc" | "price-desc" | "rating" | "seats";
-const CAB_TYPES: Cab["type"][] = ["Sedan", "SUV", "MUV", "Hatchback", "Luxury"];
-const FUEL_TYPES: Cab["fuelType"][] = ["Petrol", "Diesel", "CNG", "Electric"];
+
+const cabCities = Array.from(new Set(cabs.map((cab) => cab.city)));
+
+const resolveCabCity = (value: string): string | null => {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  const byCity = cabCities.find((city) => city.toLowerCase() === trimmed.toLowerCase());
+  return byCity || trimmed;
+};
 
 function CabsContent() {
   const searchParams = useSearchParams();
@@ -37,6 +46,7 @@ function CabsContent() {
     new Set((searchParams.get("fuel") || "").split(",").map((item) => item.trim()).filter(Boolean)),
   );
   const [acOnly, setAcOnly] = useState(searchParams.get("ac") === "true");
+  const [activeField, setActiveField] = useState<"pickup" | "drop" | null>(null);
   const [selected, setSelected] = useState<Cab | null>(null);
   const [apiResults, setApiResults] = useState<Cab[] | null>(null);
   const [apiTotalPages, setApiTotalPages] = useState<number | null>(null);
@@ -83,6 +93,11 @@ function CabsContent() {
   };
 
   const handleSearch = () => {
+    if (!resolveCabCity(pickup)) {
+      showToast.error("Please select a valid pickup city from suggestions.");
+      return;
+    }
+
     const params = new URLSearchParams();
     if (pickup) params.set("pickup", pickup);
     if (drop) params.set("drop", drop);
@@ -93,6 +108,18 @@ function CabsContent() {
     if (acOnly) params.set("ac", "true");
     router.push(`/cabs${params.toString() ? `?${params.toString()}` : ""}`);
   };
+
+  const pickupSuggestions = useMemo(() => {
+    const term = pickup.trim().toLowerCase();
+    if (!term) return [] as string[];
+    return cabCities.filter((city) => city.toLowerCase().includes(term)).slice(0, 6);
+  }, [pickup]);
+
+  const dropSuggestions = useMemo(() => {
+    const term = drop.trim().toLowerCase();
+    if (!term) return [] as string[];
+    return cabCities.filter((city) => city.toLowerCase().includes(term)).slice(0, 6);
+  }, [drop]);
 
   const handleProceedToPayment = (netAmount: number) => {
     if (!selected) return;
@@ -121,7 +148,7 @@ function CabsContent() {
   };
 
   const filtered = useMemo(() => {
-    let list = [...cabs];
+    let list = [...(apiResults || [])];
     if (selectedTypes.size) list = list.filter((c) => selectedTypes.has(c.type));
     if (selectedFuel.size) list = list.filter((c) => selectedFuel.has(c.fuelType));
     if (acOnly) list = list.filter((c) => c.ac);
@@ -133,7 +160,15 @@ function CabsContent() {
       case "seats":      list.sort((a, b) => b.seatingCapacity - a.seatingCapacity); break;
     }
     return list;
-  }, [selectedTypes, selectedFuel, acOnly, sort]);
+  }, [apiResults, selectedTypes, selectedFuel, acOnly, sort]);
+
+  const cabTypes = useMemo(() => {
+    return Array.from(new Set((apiResults || []).map((cab) => cab.type)));
+  }, [apiResults]);
+
+  const fuelTypes = useMemo(() => {
+    return Array.from(new Set((apiResults || []).map((cab) => cab.fuelType)));
+  }, [apiResults]);
 
   useEffect(() => {
     if (!pickup) {
@@ -152,7 +187,7 @@ function CabsContent() {
 
     const distanceKm = Number(searchParams.get("distanceKm") || "20");
     const params = new URLSearchParams({
-      city: pickup,
+      city: resolveCabCity(pickup) || pickup,
       distanceKm: String(distanceKm > 0 ? distanceKm : 20),
       sort: sortMap[sort],
       page: String(page),
@@ -214,14 +249,20 @@ function CabsContent() {
     };
   }, [pickup, sort, page, selectedTypes, selectedFuel, acOnly, searchParams]);
 
-  const totalPages = apiTotalPages ?? Math.ceil(filtered.length / PER_PAGE);
-  const paged = apiResults ?? filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+  useEffect(() => {
+    if (apiError) {
+      showToast.error(apiError);
+    }
+  }, [apiError]);
+
+  const totalPages = apiTotalPages ?? Math.max(1, Math.ceil(filtered.length / PER_PAGE));
+  const paged = filtered;
 
   return (
     <div className={s.page}>
       <div className={s.header}>
         <h1 className={s.title}>Cab Search Results</h1>
-        <p className={s.subtitle}>{apiResults ? `${apiResults.length} cabs on this page` : `${filtered.length} cabs available`}</p>
+        <p className={s.subtitle}>{pickup ? `${filtered.length} cabs on this page` : "Search to load live cabs"}</p>
       </div>
 
       {/* ── Inline search bar ── */}
@@ -229,11 +270,61 @@ function CabsContent() {
         <div className={s.searchBarInner}>
           <div className={s.searchFieldGroup}>
             <label className={s.searchFieldLabel}>📍 Pickup</label>
-            <input className={s.searchFieldInput} placeholder="Pickup location…" value={pickup} onChange={(e) => setPickup(e.target.value)} />
+            <input
+              className={s.searchFieldInput}
+              placeholder="Pickup location…"
+              value={pickup}
+              onFocus={() => setActiveField("pickup")}
+              onBlur={() => setTimeout(() => setActiveField(null), 120)}
+              onChange={(e) => setPickup(e.target.value)}
+            />
+            {activeField === "pickup" && pickupSuggestions.length > 0 && (
+              <div className={s.suggestions}>
+                {pickupSuggestions.map((city) => (
+                  <button
+                    key={`pickup-${city}`}
+                    type="button"
+                    className={s.suggestionItem}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => {
+                      setPickup(city);
+                      setActiveField(null);
+                    }}
+                  >
+                    {city}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <div className={s.searchFieldGroup}>
             <label className={s.searchFieldLabel}>📍 Drop</label>
-            <input className={s.searchFieldInput} placeholder="Drop location…" value={drop} onChange={(e) => setDrop(e.target.value)} />
+            <input
+              className={s.searchFieldInput}
+              placeholder="Drop location…"
+              value={drop}
+              onFocus={() => setActiveField("drop")}
+              onBlur={() => setTimeout(() => setActiveField(null), 120)}
+              onChange={(e) => setDrop(e.target.value)}
+            />
+            {activeField === "drop" && dropSuggestions.length > 0 && (
+              <div className={s.suggestions}>
+                {dropSuggestions.map((city) => (
+                  <button
+                    key={`drop-${city}`}
+                    type="button"
+                    className={s.suggestionItem}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => {
+                      setDrop(city);
+                      setActiveField(null);
+                    }}
+                  >
+                    {city}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <div className={s.searchFieldGroup}>
             <label className={s.searchFieldLabel}>📅 Date</label>
@@ -250,7 +341,7 @@ function CabsContent() {
 
           <div className={s.filterGroup}>
             <span className={s.filterGroupLabel}>Vehicle Type</span>
-            {CAB_TYPES.map((t) => (
+            {cabTypes.map((t) => (
               <label key={t} className={s.filterOption}>
                 <input
                   type="checkbox"
@@ -268,7 +359,7 @@ function CabsContent() {
 
           <div className={s.filterGroup}>
             <span className={s.filterGroupLabel}>Fuel Type</span>
-            {FUEL_TYPES.map((f) => (
+            {fuelTypes.map((f) => (
               <label key={f} className={s.filterOption}>
                 <input
                   type="checkbox"
@@ -342,8 +433,8 @@ function CabsContent() {
             ))}
           </div>
 
-          {paged.length === 0 && <div className={s.noResults}>No cabs match your filters.</div>}
-          {apiError && <div className={s.noResults}>{apiError} Showing offline results instead.</div>}
+          {paged.length === 0 && <div className={s.noResults}>{pickup ? "No cabs match your filters." : "Enter Pickup to load live cabs."}</div>}
+          {apiError && <div className={s.noResults}>{apiError}</div>}
           {apiLoading && <div className={s.noResults}>Fetching latest cabs…</div>}
 
           {paged.map((cab) => (

@@ -4,14 +4,38 @@ import { useState, useMemo, Suspense, useEffect } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { parseApiResponse } from "@/lib/http";
+import { showToast } from "@/lib/toast";
 import s from "@/styles/search.module.scss";
-import { hotels } from "@/data/hotels";
+import { hotels, type Hotel } from "@/data/hotels";
 import Pagination from "@/components/ui/Pagination/Pagination";
 
 const PER_PAGE = 10;
 type SortKey = "price-asc" | "price-desc" | "rating" | "stars";
 
-const CITIES = [...new Set(hotels.map((h) => h.city))];
+type HotelSuggestion = {
+  label: string;
+  value: string;
+  city: string;
+};
+
+const cityOptions = Array.from(new Set(hotels.map((hotel) => hotel.city)));
+const hotelSuggestionsSource: HotelSuggestion[] = [
+  ...cityOptions.map((city) => ({ label: `${city} (city)`, value: city, city })),
+  ...hotels.map((hotel) => ({ label: `${hotel.name} - ${hotel.city}`, value: hotel.name, city: hotel.city })),
+];
+
+const resolveHotelCity = (value: string): string | null => {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  const byCity = cityOptions.find((city) => city.toLowerCase() === trimmed.toLowerCase());
+  if (byCity) return byCity;
+
+  const byHotel = hotels.find((hotel) => hotel.name.toLowerCase() === trimmed.toLowerCase());
+  if (byHotel) return byHotel.city;
+
+  return trimmed;
+};
 
 function HotelsContent() {
   const searchParams = useSearchParams();
@@ -30,7 +54,8 @@ function HotelsContent() {
   const [wifiOnly, setWifiOnly] = useState(searchParams.get("wifi") === "true");
   const [foodOnly, setFoodOnly] = useState(searchParams.get("food") === "true");
   const [poolOnly, setPoolOnly] = useState(searchParams.get("pool") === "true");
-  const [apiResults, setApiResults] = useState<typeof hotels | null>(null);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [apiResults, setApiResults] = useState<Hotel[] | null>(null);
   const [apiTotalPages, setApiTotalPages] = useState<number | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
   const [apiLoading, setApiLoading] = useState(false);
@@ -75,6 +100,11 @@ function HotelsContent() {
   };
 
   const handleSearch = () => {
+    if (!resolveHotelCity(city)) {
+      showToast.error("Choose a valid city or hotel from suggestions.");
+      return;
+    }
+
     const params = new URLSearchParams();
     if (city) params.set("city", city);
     if (checkin) params.set("checkin", checkin);
@@ -87,8 +117,17 @@ function HotelsContent() {
     router.push(`/hotels${params.toString() ? `?${params.toString()}` : ""}`);
   };
 
+  const citySuggestions = useMemo(() => {
+    const term = city.trim().toLowerCase();
+    if (!term) return [] as HotelSuggestion[];
+
+    return hotelSuggestionsSource
+      .filter((option) => option.label.toLowerCase().includes(term) || option.city.toLowerCase().includes(term))
+      .slice(0, 8);
+  }, [city]);
+
   const filtered = useMemo(() => {
-    let list = [...hotels];
+    let list = [...(apiResults || [])];
     if (selectedCities.size) list = list.filter((h) => selectedCities.has(h.city));
     if (wifiOnly) list = list.filter((h) => h.wifi);
     if (foodOnly) list = list.filter((h) => h.foodIncluded !== "none");
@@ -101,7 +140,11 @@ function HotelsContent() {
       case "stars":      list.sort((a, b) => b.stars - a.stars); break;
     }
     return list;
-  }, [selectedCities, wifiOnly, foodOnly, poolOnly, sort]);
+  }, [apiResults, selectedCities, wifiOnly, foodOnly, poolOnly, sort]);
+
+  const cities = useMemo(() => {
+    return Array.from(new Set((apiResults || []).map((hotel) => hotel.city)));
+  }, [apiResults]);
 
   useEffect(() => {
     const canUseApi = Boolean(city && checkin && checkout);
@@ -120,7 +163,7 @@ function HotelsContent() {
     };
 
     const params = new URLSearchParams({
-      city,
+      city: resolveHotelCity(city) || city,
       checkIn: checkin,
       checkOut: checkout,
       sort: sortMap[sort],
@@ -140,7 +183,7 @@ function HotelsContent() {
 
         const res = await fetch(`/api/hotels/search?${params.toString()}`);
         const parsed = await parseApiResponse<{
-          results: Array<{ hotel: (typeof hotels)[number] & { _id?: string } }>;
+          results: Array<{ hotel: Hotel & { _id?: string } }>;
           totalPages: number;
         }>(
           res,
@@ -179,14 +222,20 @@ function HotelsContent() {
     };
   }, [city, checkin, checkout, sort, wifiOnly, foodOnly, poolOnly, page]);
 
-  const totalPages = apiTotalPages ?? Math.ceil(filtered.length / PER_PAGE);
-  const paged = apiResults ?? filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+  useEffect(() => {
+    if (apiError) {
+      showToast.error(apiError);
+    }
+  }, [apiError]);
+
+  const totalPages = apiTotalPages ?? Math.max(1, Math.ceil(filtered.length / PER_PAGE));
+  const paged = filtered;
 
   return (
     <div className={s.page}>
       <div className={s.header}>
         <h1 className={s.title}>Hotel Search Results</h1>
-        <p className={s.subtitle}>{apiResults ? `${apiResults.length} hotels on this page` : `${filtered.length} hotels found`}</p>
+        <p className={s.subtitle}>{city && checkin && checkout ? `${filtered.length} hotels on this page` : "Search to load live hotels"}</p>
       </div>
 
       {/* ── Inline search bar ── */}
@@ -194,7 +243,32 @@ function HotelsContent() {
         <div className={s.searchBarInner}>
           <div className={s.searchFieldGroup}>
             <label className={s.searchFieldLabel}>📍 City / Hotel</label>
-            <input className={s.searchFieldInput} placeholder="Search city or hotel…" value={city} onChange={(e) => setCity(e.target.value)} />
+            <input
+              className={s.searchFieldInput}
+              placeholder="Search city or hotel…"
+              value={city}
+              onFocus={() => setShowSuggestions(true)}
+              onBlur={() => setTimeout(() => setShowSuggestions(false), 120)}
+              onChange={(e) => setCity(e.target.value)}
+            />
+            {showSuggestions && citySuggestions.length > 0 && (
+              <div className={s.suggestions}>
+                {citySuggestions.map((option) => (
+                  <button
+                    key={`${option.value}-${option.city}`}
+                    type="button"
+                    className={s.suggestionItem}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => {
+                      setCity(option.value);
+                      setShowSuggestions(false);
+                    }}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <div className={s.searchFieldGroup}>
             <label className={s.searchFieldLabel}>📅 Check-in</label>
@@ -215,7 +289,7 @@ function HotelsContent() {
 
           <div className={s.filterGroup}>
             <span className={s.filterGroupLabel}>City</span>
-            {CITIES.map((c) => (
+            {cities.map((c) => (
               <label key={c} className={s.filterOption}>
                 <input
                   type="checkbox"
@@ -311,8 +385,8 @@ function HotelsContent() {
             ))}
           </div>
 
-          {paged.length === 0 && <div className={s.noResults}>No hotels match your filters.</div>}
-          {apiError && <div className={s.noResults}>{apiError} Showing offline results instead.</div>}
+          {paged.length === 0 && <div className={s.noResults}>{city && checkin && checkout ? "No hotels match your filters." : "Enter City, Check-in and Check-out to load live hotels."}</div>}
+          {apiError && <div className={s.noResults}>{apiError}</div>}
           {apiLoading && <div className={s.noResults}>Fetching latest hotels…</div>}
 
           {paged.map((hotel) => (

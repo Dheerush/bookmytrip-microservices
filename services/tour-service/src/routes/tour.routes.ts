@@ -21,6 +21,7 @@ const tourSchema = z.object({
   tags: z.array(z.string()).default([]),
   inclusions: z.array(z.string()).default([]),
   exclusions: z.array(z.string()).default([]),
+  isActive: z.boolean().optional(),
   offers: z.array(z.object({
     title: z.string(),
     code: z.string(),
@@ -63,6 +64,36 @@ router.get('/search', async (req, res, next) => {
     ]);
 
     res.status(200).json({ success: true, message: 'Tours fetched', data: { items, total, page, totalPages: Math.ceil(total / limit) } });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/admin/list', authenticate, authorizeRoles('admin'), async (req, res, next) => {
+  try {
+    const city = String(req.query.city || '').trim();
+    const page = Math.max(1, Number(req.query.page || 1));
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit || 20)));
+    const includeInactive = String(req.query.includeInactive || '').toLowerCase() === 'true';
+
+    const filter: Record<string, unknown> = {};
+    if (!includeInactive) {
+      filter.isActive = true;
+    }
+    if (city) {
+      filter.city = { $regex: new RegExp(city, 'i') };
+    }
+
+    const [items, total] = await Promise.all([
+      Tour.find(filter).sort({ updatedAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),
+      Tour.countDocuments(filter),
+    ]);
+
+    res.status(200).json({
+      success: true,
+      message: 'Tours listed for admin',
+      data: { items, total, page, totalPages: Math.ceil(total / limit) },
+    });
   } catch (error) {
     next(error);
   }

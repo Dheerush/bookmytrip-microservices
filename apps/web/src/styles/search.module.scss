@@ -478,6 +478,7 @@
   gap: 4px;
   flex: 1;
   min-width: 0;
+  position: relative;
 }
 
 .searchFieldLabel {
@@ -534,6 +535,38 @@
 .searchBarBtn:hover {
   opacity: 0.88;
   transform: translateY(-1px);
+}
+
+.suggestions {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  display: grid;
+  gap: 4px;
+  max-height: 220px;
+  overflow: auto;
+  padding: 8px;
+  border-radius: 10px;
+  border: 1px solid #dbeafe;
+  background: #ffffff;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.14);
+}
+
+.suggestionItem {
+  text-align: left;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  padding: 8px 10px;
+  font-size: 0.82rem;
+  color: #1e293b;
+  cursor: pointer;
+}
+
+.suggestionItem:hover {
+  background: #eff6ff;
 }
 
 /* ── Clear filters button ── */

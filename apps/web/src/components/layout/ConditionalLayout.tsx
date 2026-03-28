@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import Navbar from "@/components/layout/Navbar/Navbar";
-// import Footer from "@/components/layout/Footer/Footer"; // uncomment when ready
+import Footer from "@/components/layout/Footer/Footer";
 
 // Pages that should NOT have the Navbar / Footer
 const HIDDEN_NAV_ROUTES = ["/login", "/register", "/forgot-password", "/reset-password", "/otp", "/dashboard"];
@@ -19,7 +19,7 @@ export default function ConditionalLayout({
     <>
       {!hideNav && <Navbar />}
       {children}
-      {/* {!hideNav && <Footer />} */}
+      {!hideNav && <Footer />}
     </>
   );
 }

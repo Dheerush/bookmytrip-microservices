@@ -36,14 +36,17 @@ const parseDurationMinutes = (duration: string): number => {
 
 export const searchFlights = async (query: SearchFlightsQuery): Promise<PaginatedFlights> => {
   const {
-    from, to, passengers, class: cabinClass, passengerType,
+    from, to, date, passengers, class: cabinClass, passengerType,
     airlines, maxPrice, stops, refundable, meals, sort, page, limit,
   } = query;
+
+  const dayToken = new Date(`${date}T00:00:00`).toLocaleDateString('en-US', { weekday: 'short' });
 
   const filter: FilterQuery<IFlight> = {
     fromCode: from,
     toCode: to,
     isActive: true,
+    operatingDays: dayToken,
   };
 
   if (airlines) {

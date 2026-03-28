@@ -1,3 +1,5 @@
+import { getAccessToken } from "@/lib/auth-session";
+
 export interface ApiEnvelope<T> {
   success?: boolean;
   message?: string;
@@ -16,7 +18,7 @@ export function getAuthHeaders(): HeadersInit {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
 
   if (typeof window !== "undefined") {
-    const token = sessionStorage.getItem("accessToken");
+    const token = getAccessToken();
     if (token) {
       headers.Authorization = `Bearer ${token}`;
     }
@@ -41,6 +43,16 @@ export async function parseApiResponse<T>(
   } else {
     // Drain body to avoid unhandled stream while still presenting friendly errors.
     await response.text().catch(() => undefined);
+  }
+
+  if (!response.ok && (response.status === 401 || response.status === 403)) {
+    // Helps quickly debug auth edge-cases without relying only on toast errors.
+    console.warn("[auth] request failed", {
+      status: response.status,
+      url: response.url,
+      message: payload?.message || fallbackMessage,
+      code: payload?.code,
+    });
   }
 
   return {
