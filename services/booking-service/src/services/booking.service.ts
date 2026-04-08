@@ -19,6 +19,7 @@ const typeCodeMap: Record<BookingType, string> = {
   hotel: 'HT',
   train: 'TR',
   cab: 'CB',
+  tour: 'TO',
 };
 
 const serviceEndpointMap: Record<BookingType, string> = {
@@ -26,6 +27,7 @@ const serviceEndpointMap: Record<BookingType, string> = {
   hotel: env.HOTEL_SERVICE_URL,
   train: env.TRAIN_SERVICE_URL,
   cab: env.CAB_SERVICE_URL,
+  tour: env.TOUR_SERVICE_URL,
 };
 
 const servicePathMap: Record<BookingType, string> = {
@@ -33,13 +35,31 @@ const servicePathMap: Record<BookingType, string> = {
   hotel: '/api/hotels/',
   train: '/api/trains/',
   cab: '/api/cabs/',
+  tour: '/api/tours/',
 };
 
 const ensureInventoryItemExists = async (type: BookingType, itemId: string): Promise<void> => {
-  const url = new URL(`${servicePathMap[type]}${itemId}`, serviceEndpointMap[type]).toString();
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new AppError(`Unable to validate ${type} inventory`, 400, 'INVENTORY_NOT_FOUND');
+  const candidateIds = type === 'flight' && itemId.includes('|')
+    ? itemId.split('|').map((entry) => entry.trim()).filter(Boolean)
+    : [itemId.trim()];
+
+  if (candidateIds.length === 0) {
+    throw new AppError(`Invalid ${type} inventory identifier`, 400, 'INVENTORY_NOT_FOUND');
+  }
+
+  for (const candidateId of candidateIds) {
+    const url = new URL(`${servicePathMap[type]}${candidateId}`, serviceEndpointMap[type]).toString();
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new AppError(`Unable to validate ${type} inventory`, 400, 'INVENTORY_NOT_FOUND');
+      }
+    } catch (error) {
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError(`Unable to reach ${type} inventory service`, 503, 'INVENTORY_SERVICE_UNAVAILABLE');
+    }
   }
 };
 
@@ -69,20 +89,13 @@ export const createBooking = async (userId: string, dto: CreateBookingDto): Prom
     bookingDate,
     startDate: new Date(dto.startDate),
     endDate: dto.endDate ? new Date(dto.endDate) : undefined,
+    scheduleTime: dto.scheduleTime,
     quantity: dto.quantity,
     amount: dto.amount,
-    status: 'confirmed',
+    status: 'pending',
     contact: dto.contact,
     passengers: dto.passengers,
     metadata: dto.metadata,
-  });
-
-  publishEvent('booking.created', {
-    userId,
-    bookingRef: booking.bookingRef,
-    type: booking.type,
-    amount: booking.amount,
-    title: booking.title,
   });
 
   return booking;
@@ -122,6 +135,39 @@ export const getBookingById = async (bookingId: string, userId?: string, isAdmin
     throw new AppError('Forbidden', 403, 'FORBIDDEN');
   }
   return booking as unknown as IBooking;
+};
+
+export const confirmBooking = async (bookingId: string, userId: string): Promise<IBooking> => {
+  const booking = await Booking.findById(bookingId);
+  if (!booking) throw new AppError('Booking not found', 404, 'BOOKING_NOT_FOUND');
+  if (booking.userId !== userId) throw new AppError('Forbidden', 403, 'FORBIDDEN');
+  if (booking.status !== 'pending') throw new AppError('Booking cannot be confirmed', 400, 'INVALID_STATUS');
+
+  booking.status = 'confirmed';
+  await booking.save();
+
+  publishEvent('booking.created', {
+    userId,
+    bookingRef: booking.bookingRef,
+    type: booking.type,
+    amount: booking.amount,
+    title: booking.title,
+    email: booking.contact?.email,
+  });
+
+  return booking;
+};
+
+export const failBooking = async (bookingId: string, userId: string): Promise<IBooking> => {
+  const booking = await Booking.findById(bookingId);
+  if (!booking) throw new AppError('Booking not found', 404, 'BOOKING_NOT_FOUND');
+  if (booking.userId !== userId) throw new AppError('Forbidden', 403, 'FORBIDDEN');
+  // idempotent: already failed/cancelled → no-op
+  if (booking.status !== 'pending') return booking;
+
+  booking.status = 'failed';
+  await booking.save();
+  return booking;
 };
 
 export const cancelBooking = async (bookingId: string, userId: string, dto: CancelBookingDto, isAdmin = false): Promise<IBooking> => {

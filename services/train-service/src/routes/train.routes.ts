@@ -66,12 +66,11 @@ const router: Router = Router();
  *         description: Paginated train search results
  */
 router.get('/search', searchLimiter, validate(searchTrainsSchema, 'query'), searchTrainsHandler);
-router.post('/create-train', authenticate, authorizeRoles('admin'), mutationLimiter, validate(createTrainSchema), createTrainHandler);
 router.get('/number/:trainNumber', searchLimiter, getTrainByNumberHandler);
-router.get('/:trainId', searchLimiter, getTrainByIdHandler);
-
 router.get('/', authenticate, authorizeRoles('admin'), listAllTrainsHandler);
+router.post('/', authenticate, authorizeRoles('admin'), mutationLimiter, validate(createTrainSchema), createTrainHandler);
+router.get('/:trainId', searchLimiter, getTrainByIdHandler);
 router.patch('/:trainId', authenticate, authorizeRoles('admin'), mutationLimiter, validate(updateTrainSchema), updateTrainHandler);
-router.delete('/delete-train/:trainId', authenticate, authorizeRoles('admin'), mutationLimiter, deleteTrainHandler);
+router.delete('/:trainId', authenticate, authorizeRoles('admin'), mutationLimiter, deleteTrainHandler);
 
 export default router;

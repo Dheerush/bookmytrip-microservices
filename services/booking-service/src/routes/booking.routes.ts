@@ -1,7 +1,9 @@
 import { Router } from 'express';
 import {
   cancelBookingHandler,
+  confirmBookingHandler,
   createBookingHandler,
+  failBookingHandler,
   getBookingByIdHandler,
   getInvoiceHandler,
   listAllBookingsHandler,
@@ -21,5 +23,7 @@ bookingRouter.post('/', validate(createBookingSchema), createBookingHandler);
 bookingRouter.get('/me', validate(listBookingsSchema, 'query'), listMyBookingsHandler);
 bookingRouter.get('/admin', authorizeRoles('admin'), listAllBookingsHandler);
 bookingRouter.get('/:bookingId', getBookingByIdHandler);
-bookingRouter.post('/:bookingId/cancel', validate(cancelBookingSchema), cancelBookingHandler);
+bookingRouter.patch('/:bookingId/cancel', validate(cancelBookingSchema), cancelBookingHandler);
+bookingRouter.patch('/:bookingId/confirm', confirmBookingHandler);
+bookingRouter.patch('/:bookingId/fail', failBookingHandler);
 bookingRouter.get('/:bookingId/invoice', getInvoiceHandler);

@@ -1,7 +1,7 @@
 import { Document, Schema, model } from 'mongoose';
 
-export type BookingType = 'flight' | 'hotel' | 'train' | 'cab';
-export type BookingStatus = 'confirmed' | 'completed' | 'cancelled' | 'pending';
+export type BookingType = 'flight' | 'hotel' | 'train' | 'cab' | 'tour';
+export type BookingStatus = 'confirmed' | 'completed' | 'cancelled' | 'pending' | 'failed';
 
 export interface IBookingContact {
   name: string;
@@ -13,6 +13,7 @@ export interface IBookingPassenger {
   name: string;
   age?: number;
   gender?: string;
+  email?: string;
 }
 
 export interface IBooking extends Document {
@@ -27,6 +28,7 @@ export interface IBooking extends Document {
   bookingDate: Date;
   startDate: Date;
   endDate?: Date;
+  scheduleTime?: string;
   quantity: number;
   amount: number;
   status: BookingStatus;
@@ -53,6 +55,7 @@ const passengerSchema = new Schema<IBookingPassenger>(
     name: { type: String, required: true },
     age: { type: Number },
     gender: { type: String },
+    email: { type: String },
   },
   { _id: false },
 );
@@ -61,7 +64,7 @@ const bookingSchema = new Schema<IBooking>(
   {
     userId: { type: String, required: true, index: true },
     bookingRef: { type: String, required: true, unique: true, index: true },
-    type: { type: String, required: true, enum: ['flight', 'hotel', 'train', 'cab'], index: true },
+    type: { type: String, required: true, enum: ['flight', 'hotel', 'train', 'cab', 'tour'], index: true },
     itemId: { type: String, required: true, index: true },
     title: { type: String, required: true },
     city: { type: String },
@@ -72,7 +75,8 @@ const bookingSchema = new Schema<IBooking>(
     endDate: { type: Date },
     quantity: { type: Number, required: true, min: 1 },
     amount: { type: Number, required: true, min: 0 },
-    status: { type: String, required: true, enum: ['confirmed', 'completed', 'cancelled', 'pending'], default: 'confirmed', index: true },
+    scheduleTime: { type: String },
+    status: { type: String, required: true, enum: ['confirmed', 'completed', 'cancelled', 'pending', 'failed'], default: 'pending', index: true },
     contact: { type: contactSchema, required: true },
     passengers: { type: [passengerSchema], default: [] },
     metadata: { type: Schema.Types.Mixed, default: {} },

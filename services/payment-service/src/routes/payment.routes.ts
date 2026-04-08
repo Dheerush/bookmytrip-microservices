@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { RequestHandler, Router } from 'express';
 import {
   createPaymentHandler,
   getPaymentByIdHandler,
@@ -12,10 +12,15 @@ import { paymentLimiter } from '../middleware/rateLimit.middleware';
 import { validate } from '../middleware/validate.middleware';
 import { createPaymentSchema, listPaymentsSchema, refundPaymentSchema } from '../validators/payment.validators';
 
+const paymentLimiterMiddleware: RequestHandler = (req, res, next) => {
+  const limiter = paymentLimiter as unknown as (request: unknown, response: unknown, done: (err?: unknown) => void) => void;
+  limiter(req, res, next);
+};
+
 export const paymentRouter: Router = Router();
 
 paymentRouter.use(authenticate);
-paymentRouter.use(paymentLimiter);
+paymentRouter.use(paymentLimiterMiddleware);
 
 paymentRouter.post('/', validate(createPaymentSchema), createPaymentHandler);
 paymentRouter.get('/me', validate(listPaymentsSchema, 'query'), listMyPaymentsHandler);

@@ -1,4 +1,3 @@
-import { Request } from 'express';
 import rateLimit from 'express-rate-limit';
 import RedisStore from 'rate-limit-redis';
 import { redisClient } from '../config/redis';
@@ -13,7 +12,10 @@ const makeStore = (prefix: string) =>
 export const paymentLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 30,
-  keyGenerator: (req: Request) => `user:${req.user?.id ?? req.ip}`,
+  keyGenerator: (req) => {
+    const userId = (req as { user?: { id?: string } }).user?.id;
+    return `user:${userId ?? req.ip}`;
+  },
   store: makeStore('payment'),
   standardHeaders: true,
   legacyHeaders: false,

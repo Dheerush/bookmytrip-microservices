@@ -107,6 +107,22 @@
   min-width: 0;
 }
 
+.resultsRoundTrip {
+  gap: 12px;
+}
+
+.roundTripColumns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.resultsPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 .sortBar {
   display: flex;
   align-items: center;
@@ -154,6 +170,13 @@
   font-size: 1rem;
 }
 
+.sectionTitle {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--deep-navy, #0b1929);
+  margin-top: 8px;
+}
+
 /* ── Generic result card ── */
 .card {
   background: #fff;
@@ -161,6 +184,11 @@
   border-radius: 16px;
   padding: 20px;
   transition: box-shadow 0.2s, transform 0.15s;
+}
+
+.cardSelected {
+  border-color: var(--deep-navy, #0b1929);
+  box-shadow: 0 10px 30px rgba(11, 25, 41, 0.14);
 }
 
 .card:hover {
@@ -680,6 +708,10 @@
 
   .filterGroup {
     margin-bottom: 0;
+  }
+
+  .roundTripColumns {
+    grid-template-columns: 1fr;
   }
 }
 

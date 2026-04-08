@@ -13,10 +13,13 @@ export interface Cab {
   reviewCount: number;
   driverName: string;
   driverRating: number;
+  driverPhone?: string;
   city: string;
   features: string[];
   luggage: string;
   available: boolean;
+  pickupPoints?: string[];
+  dropPoints?: string[];
 }
 
 export const cabs: Cab[] = [
@@ -34,7 +37,9 @@ export const cabs: Cab[] = [
     rating: 4.5,
     reviewCount: 1240,
     driverName: "Rajesh Kumar",
-    driverRating: 4.7,
+    driverRating: 4.9,
+    driverPhone: "9812345678",
+
     city: "Delhi",
     features: ["AC", "Music System", "GPS", "Bottle Water"],
     luggage: "2 Bags",
@@ -54,7 +59,9 @@ export const cabs: Cab[] = [
     rating: 4.8,
     reviewCount: 980,
     driverName: "Amit Sharma",
-    driverRating: 4.9,
+    driverRating: 4.6,
+    driverPhone: "9823456789",
+
     city: "Mumbai",
     features: ["AC", "Music System", "GPS", "Charging Port", "Spacious"],
     luggage: "4 Bags",
@@ -74,7 +81,9 @@ export const cabs: Cab[] = [
     rating: 4.7,
     reviewCount: 760,
     driverName: "Vikram Singh",
-    driverRating: 4.6,
+    driverRating: 4.4,
+    driverPhone: "9834567890",
+
     city: "Jaipur",
     features: ["AC", "Sunroof", "GPS", "Premium Sound", "Leather Seats"],
     luggage: "4 Bags",
@@ -94,7 +103,9 @@ export const cabs: Cab[] = [
     rating: 4.3,
     reviewCount: 2100,
     driverName: "Suresh Yadav",
-    driverRating: 4.4,
+    driverRating: 4.9,
+    driverPhone: "9845678901",
+
     city: "Delhi",
     features: ["AC", "Music System", "Compact"],
     luggage: "1 Bag",
@@ -114,7 +125,9 @@ export const cabs: Cab[] = [
     rating: 4.9,
     reviewCount: 420,
     driverName: "Arjun Mehta",
-    driverRating: 4.9,
+    driverRating: 4.5,
+    driverPhone: "9856789012",
+
     city: "Mumbai",
     features: ["AC", "Premium Sound", "Leather Seats", "WiFi", "Bottle Water", "Newspaper"],
     luggage: "3 Bags",
@@ -134,7 +147,9 @@ export const cabs: Cab[] = [
     rating: 4.4,
     reviewCount: 890,
     driverName: "Pradeep Verma",
-    driverRating: 4.5,
+    driverRating: 4.7,
+    driverPhone: "9867890123",
+
     city: "Bangalore",
     features: ["AC", "Music System", "GPS", "Comfortable"],
     luggage: "2 Bags",
@@ -154,7 +169,9 @@ export const cabs: Cab[] = [
     rating: 4.6,
     reviewCount: 650,
     driverName: "Manoj Tiwari",
-    driverRating: 4.7,
+    driverRating: 4.8,
+    driverPhone: "9878901234",
+
     city: "Hyderabad",
     features: ["AC", "Music System", "GPS", "Ventilated Seats", "Spacious"],
     luggage: "3 Bags",
@@ -174,7 +191,9 @@ export const cabs: Cab[] = [
     rating: 4.6,
     reviewCount: 540,
     driverName: "Rohan Kapoor",
-    driverRating: 4.8,
+    driverRating: 4.3,
+    driverPhone: "9889012345",
+
     city: "Delhi",
     features: ["AC", "Electric", "GPS", "Zero Emission", "Smooth Ride"],
     luggage: "2 Bags",
@@ -194,7 +213,9 @@ export const cabs: Cab[] = [
     rating: 4.2,
     reviewCount: 1560,
     driverName: "Deepak Chauhan",
-    driverRating: 4.3,
+    driverRating: 4.6,
+    driverPhone: "9890123456",
+
     city: "Delhi",
     features: ["AC", "CNG", "Budget Friendly", "Music System"],
     luggage: "2 Bags",
@@ -215,6 +236,8 @@ export const cabs: Cab[] = [
     reviewCount: 380,
     driverName: "Karan Singh",
     driverRating: 4.8,
+    driverPhone: "9901234567",
+
     city: "Chandigarh",
     features: ["AC", "Premium", "GPS", "4WD", "Leather Seats", "Spacious"],
     luggage: "5 Bags",
@@ -234,7 +257,9 @@ export const cabs: Cab[] = [
     rating: 4.5,
     reviewCount: 1120,
     driverName: "Ramesh Gupta",
-    driverRating: 4.6,
+    driverRating: 4.5,
+    driverPhone: "9912345678",
+
     city: "Pune",
     features: ["AC", "CNG", "Spacious", "Music System", "Family Friendly"],
     luggage: "3 Bags",
@@ -254,7 +279,9 @@ export const cabs: Cab[] = [
     rating: 4.9,
     reviewCount: 290,
     driverName: "Ankit Malhotra",
-    driverRating: 5.0,
+    driverRating: 4.7,
+    driverPhone: "9923456789",
+
     city: "Delhi",
     features: ["AC", "Premium Sound", "Leather Seats", "WiFi", "Mini Bar", "Magazine"],
     luggage: "3 Bags",
@@ -274,7 +301,9 @@ export const cabs: Cab[] = [
     rating: 4.5,
     reviewCount: 870,
     driverName: "Nitin Reddy",
-    driverRating: 4.6,
+    driverRating: 4.9,
+    driverPhone: "9934567890",
+
     city: "Hyderabad",
     features: ["AC", "GPS", "Music System", "Sunroof", "Comfortable"],
     luggage: "2 Bags",
@@ -294,7 +323,9 @@ export const cabs: Cab[] = [
     rating: 4.1,
     reviewCount: 1800,
     driverName: "Santosh Patil",
-    driverRating: 4.2,
+    driverRating: 4.4,
+    driverPhone: "9945678901",
+
     city: "Pune",
     features: ["AC", "Budget Friendly", "Compact"],
     luggage: "1 Bag",
@@ -314,7 +345,9 @@ export const cabs: Cab[] = [
     rating: 4.6,
     reviewCount: 620,
     driverName: "Prakash Joshi",
-    driverRating: 4.5,
+    driverRating: 4.6,
+    driverPhone: "9956789012",
+
     city: "Jaipur",
     features: ["AC", "GPS", "4WD", "Rugged", "Music System"],
     luggage: "4 Bags",
@@ -334,7 +367,9 @@ export const cabs: Cab[] = [
     rating: 4.6,
     reviewCount: 940,
     driverName: "Gaurav Sinha",
-    driverRating: 4.7,
+    driverRating: 4.5,
+    driverPhone: "9967890123",
+
     city: "Bangalore",
     features: ["AC", "Music System", "GPS", "Lane Assist", "Comfortable"],
     luggage: "2 Bags",
@@ -354,7 +389,9 @@ export const cabs: Cab[] = [
     rating: 4.4,
     reviewCount: 480,
     driverName: "Sumit Agarwal",
-    driverRating: 4.5,
+    driverRating: 4.8,
+    driverPhone: "9978901234",
+
     city: "Kolkata",
     features: ["AC", "Panoramic Sunroof", "GPS", "Premium Sound", "Connected Car"],
     luggage: "3 Bags",
@@ -374,7 +411,9 @@ export const cabs: Cab[] = [
     rating: 4.0,
     reviewCount: 3200,
     driverName: "Rahul Mishra",
-    driverRating: 4.1,
+    driverRating: 4.3,
+    driverPhone: "9989012345",
+
     city: "Delhi",
     features: ["AC", "CNG", "Budget Friendly", "Tall Boy Design"],
     luggage: "1 Bag",
@@ -394,7 +433,9 @@ export const cabs: Cab[] = [
     rating: 4.9,
     reviewCount: 210,
     driverName: "Naveen Bhatia",
-    driverRating: 5.0,
+    driverRating: 4.7,
+    driverPhone: "9990123456",
+
     city: "Mumbai",
     features: ["AC", "Premium Sound", "Leather Seats", "WiFi", "Ambient Lighting", "Privacy Glass"],
     luggage: "3 Bags",
@@ -415,6 +456,8 @@ export const cabs: Cab[] = [
     reviewCount: 720,
     driverName: "Vivek Pandey",
     driverRating: 4.6,
+    driverPhone: "9876123450",
+
     city: "Chennai",
     features: ["AC", "GPS", "Music System", "Ventilated Seats", "Connected Car"],
     luggage: "2 Bags",
@@ -434,7 +477,9 @@ export const cabs: Cab[] = [
     rating: 4.2,
     reviewCount: 1650,
     driverName: "Ajay Raut",
-    driverRating: 4.3,
+    driverRating: 4.9,
+    driverPhone: "9812987654",
+
     city: "Pune",
     features: ["AC", "Compact", "Music System", "Budget Friendly"],
     luggage: "1 Bag",
@@ -454,7 +499,9 @@ export const cabs: Cab[] = [
     rating: 5.0,
     reviewCount: 140,
     driverName: "Sharad Kapoor",
-    driverRating: 5.0,
+    driverRating: 4.5,
+    driverPhone: "9823012345",
+
     city: "Delhi",
     features: ["AC", "Premium", "4WD", "Leather Seats", "WiFi", "Mini Bar", "Captain Seats"],
     luggage: "5 Bags",
@@ -474,7 +521,9 @@ export const cabs: Cab[] = [
     rating: 4.4,
     reviewCount: 780,
     driverName: "Mohan Das",
-    driverRating: 4.5,
+    driverRating: 4.4,
+    driverPhone: "9834123456",
+
     city: "Kolkata",
     features: ["AC", "Music System", "GPS", "Spacious Boot", "Comfortable"],
     luggage: "3 Bags",
@@ -494,7 +543,9 @@ export const cabs: Cab[] = [
     rating: 4.3,
     reviewCount: 560,
     driverName: "Balraj Patel",
-    driverRating: 4.4,
+    driverRating: 4.8,
+    driverPhone: "9845234567",
+
     city: "Ahmedabad",
     features: ["AC", "8-Seater", "Spacious", "Music System", "Captain Seats"],
     luggage: "4 Bags",
@@ -515,6 +566,8 @@ export const cabs: Cab[] = [
     reviewCount: 510,
     driverName: "Harish Nair",
     driverRating: 4.7,
+    driverPhone: "9856345678",
+
     city: "Goa",
     features: ["AC", "Panoramic Sunroof", "GPS", "Terrain Modes", "Premium Sound"],
     luggage: "4 Bags",

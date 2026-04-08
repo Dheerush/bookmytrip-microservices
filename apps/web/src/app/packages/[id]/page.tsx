@@ -1,9 +1,92 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useState, useEffect } from "react";
 import Link from "next/link";
-import { packages } from "../../../data/packages";
+import { packages, type Package } from "../../../data/packages";
 import styles from "./page.module.scss";
+
+interface TourApiDetail {
+  _id: string;
+  title: string;
+  city: string;
+  country: string;
+  durationDays: number;
+  basePrice: number;
+  discountPrice?: number;
+  heroImage: string;
+  images?: string[];
+  description?: string;
+  tags?: string[];
+  inclusions?: string[];
+  exclusions?: string[];
+  hotel?: string;
+  hotelRating?: number;
+  food?: string[];
+  transport?: string[];
+  activities?: string[];
+  bestSeason?: string;
+  groupSize?: string;
+  tripType?: Package["tripType"];
+  hospitality?: string;
+  documents?: string[];
+  highlights?: string[];
+  guide?: {
+    name?: string;
+    contact?: string;
+    languages?: string[];
+    rating?: number;
+    experience?: string;
+    speciality?: string;
+    photo?: string;
+    bio?: string;
+  };
+}
+
+function mapTourToPackage(tour: TourApiDetail): Package {
+  return {
+    id: tour._id,
+    name: tour.title,
+    region: tour.country === "India" ? "India" : "Abroad",
+    subRegion: tour.city,
+    cities: [tour.city],
+    countries: [tour.country],
+    price: tour.discountPrice ?? tour.basePrice,
+    originalPrice: tour.discountPrice ? tour.basePrice : undefined,
+    duration: `${tour.durationDays} days`,
+    durationDays: tour.durationDays,
+    durationNights: Math.max(0, tour.durationDays - 1),
+    hotel: tour.hotel || "Contact us for hotel details",
+    hotelRating: tour.hotelRating ?? 4,
+    food: tour.food?.length ? tour.food : ["Breakfast included"],
+    transport: tour.transport?.length ? tour.transport : ["Private transfers"],
+    activities: tour.activities?.length ? tour.activities : (tour.tags ?? []),
+    inclusions: tour.inclusions?.length ? tour.inclusions : (tour.tags ?? []),
+    exclusions: tour.exclusions ?? [],
+    bestSeason: tour.bestSeason || "Oct–Mar",
+    groupSize: tour.groupSize || "2–15 pax",
+    tripType: tour.tripType || "Leisure",
+    guide: {
+      name: tour.guide?.name || "BMT Local Expert",
+      speciality: tour.guide?.speciality || `${tour.city} & surroundings`,
+      rating: tour.guide?.rating ?? 4.5,
+      experience: tour.guide?.experience || "5+ years",
+      languages: tour.guide?.languages?.length ? tour.guide.languages : ["English", "Hindi"],
+      bio: tour.guide?.bio || `Knowledgeable local guide for ${tour.city} tours.`,
+      contact: tour.guide?.contact || "+91 98765 43210",
+      photo: tour.guide?.photo || "",
+    },
+    hospitality: tour.hospitality || "Standard",
+    documents: tour.documents?.length ? tour.documents : ["Valid government photo ID"],
+    reviews: [],
+    images: tour.images?.length ? tour.images : [tour.heroImage].filter(Boolean) as string[],
+    heroImage: tour.heroImage ?? "",
+    description: tour.description ?? `Discover ${tour.city} with this ${tour.durationDays}-day package.`,
+    highlights: tour.highlights?.length ? tour.highlights : (tour.tags ?? []),
+    tags: tour.tags ?? [],
+    cityFacts: [],
+    countryFaqs: [],
+  } as Package;
+}
 
 export default function PackageDetail({
   params,
@@ -11,12 +94,37 @@ export default function PackageDetail({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const pkg = packages.find((p) => p.id === id);
+  const staticPkg = packages.find((p) => p.id === id);
 
+  const [apiPkg, setApiPkg] = useState<Package | null>(null);
+  const [loading, setLoading] = useState(!staticPkg);
   const [activeImg, setActiveImg] = useState(0);
   const [imgError, setImgError] = useState(false);
   const [guideImgError, setGuideImgError] = useState(false);
 
+  useEffect(() => {
+    if (staticPkg) return;
+    let mounted = true;
+    const run = async () => {
+      try {
+        const res = await fetch(`/api/tours/${id}`);
+        if (!res.ok) return;
+        const json = await res.json() as { data?: TourApiDetail; success?: boolean };
+        const tour = json.data;
+        if (mounted && tour) setApiPkg(mapTourToPackage(tour));
+      } catch {
+        // silently ignore fetch errors
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+    void run();
+    return () => { mounted = false; };
+  }, [id, staticPkg]);
+
+  if (loading) return <div className={styles.notFound}>Loading package…</div>;
+
+  const pkg = staticPkg ?? apiPkg;
   if (!pkg) return <div className={styles.notFound}>Package not found.</div>;
 
   const destinations =
@@ -261,7 +369,6 @@ export default function PackageDetail({
               { label: "Duration", val: pkg.duration },
               { label: "Best Season", val: pkg.bestSeason },
               { label: "Group Size", val: pkg.groupSize },
-              { label: "Difficulty", val: pkg.difficulty },
               { label: "Hotel", val: pkg.hotel },
             ].map(({ label, val }) => (
               <div key={label} className={styles.sideInfoRow}>
@@ -270,9 +377,12 @@ export default function PackageDetail({
               </div>
             ))}
 
-            <button className={styles.bookBtn} type="button">
-              Enquire Now →
-            </button>
+            <Link
+              href={`/packages/booking?packageId=${pkg.id}`}
+              className={styles.bookBtn}
+            >
+              Book Now →
+            </Link>
           </div>
 
           {/* Quick info card */}

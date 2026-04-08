@@ -24,6 +24,27 @@ export interface ITour extends Document {
   tags: string[];
   inclusions: string[];
   exclusions: string[];
+  hotel?: string;
+  hotelRating?: number;
+  food?: string[];
+  transport?: string[];
+  activities?: string[];
+  bestSeason?: string;
+  groupSize?: string;
+  tripType?: 'Leisure' | 'Adventure' | 'Cultural' | 'Honeymoon' | 'Family' | 'Spiritual';
+  hospitality?: string;
+  documents?: string[];
+  highlights?: string[];
+  guide?: {
+    name: string;
+    contact: string;
+    languages: string[];
+    rating: number;
+    experience: string;
+    speciality: string;
+    photo: string;
+    bio: string;
+  };
   offers: TourOffer[];
   isActive: boolean;
   createdAt: Date;
@@ -58,6 +79,30 @@ const tourSchema = new Schema<ITour>(
     tags: [{ type: String }],
     inclusions: [{ type: String }],
     exclusions: [{ type: String }],
+    hotel: { type: String },
+    hotelRating: { type: Number, min: 0, max: 5 },
+    food: [{ type: String }],
+    transport: [{ type: String }],
+    activities: [{ type: String }],
+    bestSeason: { type: String },
+    groupSize: { type: String },
+    tripType: {
+      type: String,
+      enum: ['Leisure', 'Adventure', 'Cultural', 'Honeymoon', 'Family', 'Spiritual'],
+    },
+    hospitality: { type: String },
+    documents: [{ type: String }],
+    highlights: [{ type: String }],
+    guide: {
+      name: { type: String },
+      contact: { type: String },
+      languages: [{ type: String }],
+      rating: { type: Number, min: 0, max: 5 },
+      experience: { type: String },
+      speciality: { type: String },
+      photo: { type: String },
+      bio: { type: String },
+    },
     offers: [offerSchema],
     isActive: { type: Boolean, default: true, index: true },
   },

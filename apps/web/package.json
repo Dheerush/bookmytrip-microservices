@@ -9,10 +9,12 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@apollo/client": "^4.1.6",
     "@hookform/resolvers": "^5.2.2",
     "axios": "^1.13.6",
     "classnames": "^2.5.1",
     "framer-motion": "^12.34.3",
+    "graphql": "^16.13.2",
     "jwt-decode": "^4.0.0",
     "lucide-react": "^0.575.0",
     "next": "16.1.6",
@@ -21,6 +23,7 @@
     "react-hook-form": "^7.71.2",
     "react-hot-toast": "^2.6.0",
     "sass": "^1.97.3",
+    "socket.io-client": "^4.8.3",
     "zod": "^4.3.6"
   },
   "devDependencies": {

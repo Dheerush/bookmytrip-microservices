@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import styles from "./page.module.scss";
@@ -45,7 +45,7 @@ interface TourApiItem {
   tags?: string[];
 }
 
-export default function PackagesPage() {
+function PackagesContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -288,5 +288,13 @@ export default function PackagesPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function PackagesPage() {
+  return (
+    <Suspense fallback={<div className={styles.page}><div className={styles.container}><div className={styles.empty}>Loading packages...</div></div></div>}>
+      <PackagesContent />
+    </Suspense>
   );
 }

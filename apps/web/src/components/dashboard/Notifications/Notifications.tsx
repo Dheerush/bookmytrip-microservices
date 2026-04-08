@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Bell,
@@ -9,11 +9,9 @@ import {
   CheckCircle,
   AlertCircle,
   Gift,
-  Percent,
-  LogIn,
-  KeyRound,
   MessageSquare,
 } from "lucide-react";
+import { useNotifications } from "@/hooks/useNotifications";
 import styles from "./Notifications.module.scss";
 
 type NotifCategory = "all" | "offers" | "security" | "support";
@@ -28,58 +26,6 @@ interface Notification {
   read: boolean;
 }
 
-const SAMPLE_NOTIFICATIONS: Notification[] = [
-  {
-    id: "1", category: "offers",
-    icon: <Gift size={16} strokeWidth={1.5} />,
-    title: "Flash Sale: 30% Off Flights!",
-    message: "Book any domestic flight before Apr 5 and get 30% off. Use code FLYFAST30.",
-    time: "2 hours ago", read: false,
-  },
-  {
-    id: "2", category: "offers",
-    icon: <Percent size={16} strokeWidth={1.5} />,
-    title: "Exclusive Coupon: SUMMER2026",
-    message: "Enjoy ₹2,000 off on hotel bookings above ₹10,000. Valid till Apr 30.",
-    time: "5 hours ago", read: false,
-  },
-  {
-    id: "3", category: "security",
-    icon: <LogIn size={16} strokeWidth={1.5} />,
-    title: "New Login Detected",
-    message: "A new login was detected from Chrome on Windows. If this wasn't you, please change your password.",
-    time: "1 day ago", read: false,
-  },
-  {
-    id: "4", category: "security",
-    icon: <KeyRound size={16} strokeWidth={1.5} />,
-    title: "Password Changed Successfully",
-    message: "Your account password was changed successfully on Mar 20, 2026.",
-    time: "2 days ago", read: true,
-  },
-  {
-    id: "5", category: "support",
-    icon: <MessageSquare size={16} strokeWidth={1.5} />,
-    title: "Complaint #1234 Resolved",
-    message: "Your complaint regarding Booking BMT-FL-2026022801 has been resolved. Refund of ₹5,200 processed.",
-    time: "3 days ago", read: true,
-  },
-  {
-    id: "6", category: "offers",
-    icon: <Tag size={16} strokeWidth={1.5} />,
-    title: "Goa Deals: Hotels from ₹999/night",
-    message: "Limited-period offer on beachfront hotels in Goa. Book now!",
-    time: "4 days ago", read: true,
-  },
-  {
-    id: "7", category: "security",
-    icon: <Shield size={16} strokeWidth={1.5} />,
-    title: "Login Attempt Blocked",
-    message: "A suspicious login attempt was blocked from an unknown device. No action needed.",
-    time: "5 days ago", read: true,
-  },
-];
-
 const CATEGORY_FILTERS: { label: string; value: NotifCategory; icon: React.ReactNode }[] = [
   { label: "All", value: "all", icon: <Bell size={13} strokeWidth={1.6} /> },
   { label: "Offers & Coupons", value: "offers", icon: <Tag size={13} strokeWidth={1.6} /> },
@@ -88,18 +34,59 @@ const CATEGORY_FILTERS: { label: string; value: NotifCategory; icon: React.React
 ];
 
 export default function NotificationsPage() {
+  const { notifications: socketNotifications, unreadCount, markAllRead, connected } = useNotifications();
   const [category, setCategory] = useState<NotifCategory>("all");
-  const [notifications, setNotifications] = useState(SAMPLE_NOTIFICATIONS);
+  const [locallyRead, setLocallyRead] = useState<Record<string, boolean>>({});
+
+  const notifications = useMemo<Notification[]>(() => {
+    return socketNotifications.map((n) => {
+      const mappedCategory: Notification["category"] =
+        n.type === "support" || n.type === "booking" || n.type === "cancellation" || n.type === "refund"
+          ? "support"
+          : n.type === "login" || n.type === "security"
+            ? "security"
+            : "offers";
+
+      const icon =
+        mappedCategory === "offers"
+          ? <Gift size={16} strokeWidth={1.5} />
+          : mappedCategory === "security"
+            ? <Shield size={16} strokeWidth={1.5} />
+            : <MessageSquare size={16} strokeWidth={1.5} />;
+
+      const parsedDate = new Date(n.createdAt);
+      const time = Number.isNaN(parsedDate.getTime())
+        ? "Just now"
+        : parsedDate.toLocaleString("en-IN", {
+            day: "2-digit",
+            month: "short",
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+
+      return {
+        id: n.id,
+        category: mappedCategory,
+        icon,
+        title: n.title,
+        message: n.message,
+        time,
+        read: Boolean(n.read || locallyRead[n.id]),
+      };
+    });
+  }, [socketNotifications, locallyRead]);
 
   const filtered = category === "all" ? notifications : notifications.filter((n) => n.category === category);
-  const unreadCount = notifications.filter((n) => !n.read).length;
 
-  const markAllRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+  const markAllLocallyRead = () => {
+    const next: Record<string, boolean> = {};
+    notifications.forEach((n) => { next[n.id] = true; });
+    setLocallyRead(next);
+    markAllRead();
   };
 
   const markRead = (id: string) => {
-    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+    setLocallyRead((prev) => ({ ...prev, [id]: true }));
   };
 
   return (
@@ -110,12 +97,14 @@ export default function NotificationsPage() {
             Notifications
             {unreadCount > 0 && <span className={styles.unreadBadge}>{unreadCount} new</span>}
           </h1>
-          <p className={styles.subtitle}>Offers, coupons, security alerts, and support updates</p>
+          <p className={styles.subtitle}>
+            {connected ? "Live stream connected" : "Connecting live stream..."} · Offers, coupons, security alerts, and support updates
+          </p>
         </div>
         {unreadCount > 0 && (
           <motion.button
             className={styles.markAllBtn}
-            onClick={markAllRead}
+            onClick={markAllLocallyRead}
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >

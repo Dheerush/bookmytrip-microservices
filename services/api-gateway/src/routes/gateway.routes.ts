@@ -96,6 +96,9 @@ router.get("/gateway/circuit-breakers", (_req: Request, res: Response) => {
 
 router.use("/api/auth", authRateLimiter, guardCircuit("auth"), buildProxy("auth"));
 
+// Public user-service route (newsletter) — must be before the authenticated user route
+router.post("/api/users/newsletter/subscribe", apiRateLimiter, guardCircuit("user"), buildProxy("user"));
+
 router.use("/api/users", apiRateLimiter, authenticate, guardCircuit("user"), buildProxy("user"));
 router.use("/api/flights", apiRateLimiter, guardCircuit("flight"), buildProxy("flight"));
 router.use("/api/trains", apiRateLimiter, guardCircuit("train"), buildProxy("train"));

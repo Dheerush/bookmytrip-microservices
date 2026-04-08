@@ -19,7 +19,7 @@ export const searchFlightsSchema = z.object({
   sort:          z.enum(['price_asc', 'price_desc', 'duration', 'rating']).optional().default('price_asc'),
   // pagination
   page:          z.string().optional().default('1').transform(Number).pipe(z.number().int().min(1)),
-  limit:         z.string().optional().default('10').transform(Number).pipe(z.number().int().min(1).max(50)),
+  limit:         z.string().optional().default('10').transform(Number).pipe(z.number().int().min(1).max(200)),
 });
 
 export type SearchFlightsQuery = z.infer<typeof searchFlightsSchema>;
@@ -46,6 +46,9 @@ export const createFlightSchema = z.object({
   airlineLogo:    z.string().url().optional().or(z.literal('')).optional(),
   from:           z.string().min(2),
   fromCode:       z.string().length(3).toUpperCase(),
+  boardingAirport:z.string().min(2).optional(),
+  boardingTerminal:z.string().min(1).optional(),
+  boardingTime:   z.string().regex(/^\d{2}:\d{2}$/, 'HH:MM format required').optional(),
   to:             z.string().min(2),
   toCode:         z.string().length(3).toUpperCase(),
   departureTime:  z.string().regex(/^\d{2}:\d{2}$/, 'HH:MM format required'),

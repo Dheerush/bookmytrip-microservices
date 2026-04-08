@@ -11,6 +11,8 @@ export interface ICoupon extends Document {
   endsAt: Date;
   usageLimit: number;
   usedCount: number;
+  oneTimePerUser: boolean;
+  usedBy: string[];
   active: boolean;
   applicableOn: string[];
   createdBy: string;
@@ -28,6 +30,8 @@ const couponSchema = new Schema<ICoupon>(
     endsAt: { type: Date, required: true },
     usageLimit: { type: Number, default: 1000, min: 1 },
     usedCount: { type: Number, default: 0, min: 0 },
+    oneTimePerUser: { type: Boolean, default: false },
+    usedBy: [{ type: String }],
     active: { type: Boolean, default: true, index: true },
     applicableOn: [{ type: String, default: [] }],
     createdBy: { type: String, required: true },

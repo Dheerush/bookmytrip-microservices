@@ -1,14 +1,27 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { motion } from "framer-motion";
-import { Plane, Hotel, Train, Package, Eye, Download, Filter } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Plane, Hotel, Train, Package, Eye, Download, Filter, X, MapPin, Calendar, Users, CreditCard, Ban } from "lucide-react";
 import { showToast } from "@/lib/toast";
 import { getApiErrorMessage, getAuthHeaders, parseApiResponse } from "@/lib/http";
 import styles from "./BookingHistory.module.scss";
 
 type BookingType = "all" | "flight" | "hotel" | "train" | "package";
-type BookingStatus = "confirmed" | "completed" | "cancelled" | "pending";
+type BookingStatus = "confirmed" | "completed" | "cancelled" | "pending" | "failed";
+
+interface Passenger {
+  name: string;
+  age?: number;
+  gender?: string;
+  email?: string;
+}
+
+interface BookingContact {
+  name: string;
+  email: string;
+  phone: string;
+}
 
 interface Booking {
   id: string;
@@ -17,10 +30,18 @@ interface Booking {
   title: string;
   bookingDate?: string;
   startDate?: string;
+  endDate?: string;
+  scheduleTime?: string;
   createdAt?: string;
   status: BookingStatus;
   amount: number;
   bookingRef: string;
+  fromCode?: string;
+  toCode?: string;
+  quantity?: number;
+  contact?: BookingContact;
+  passengers?: Passenger[];
+  city?: string;
 }
 
 interface BookingApiItem {
@@ -30,18 +51,27 @@ interface BookingApiItem {
   title: string;
   bookingDate?: string;
   createdAt?: string;
+  startDate?: string;
+  endDate?: string;
+  scheduleTime?: string;
   status: BookingStatus;
   amount: number;
   bookingRef: string;
+  fromCode?: string;
+  toCode?: string;
+  quantity?: number;
+  contact?: BookingContact;
+  passengers?: Passenger[];
+  city?: string;
 }
 
 const SAMPLE_BOOKINGS: Booking[] = [
-  { id: "1", type: "flight", title: "Delhi (DEL) → Goa (GOI)", bookingDate: "15 Mar 2026", status: "confirmed", amount: 8500, bookingRef: "BMT-FL-2026031501" },
-  { id: "2", type: "hotel", title: "Taj Vivanta, Panaji, Goa", bookingDate: "15–18 Mar 2026", status: "confirmed", amount: 22000, bookingRef: "BMT-HT-2026031502" },
-  { id: "3", type: "flight", title: "Mumbai (BOM) → Jaipur (JAI)", bookingDate: "28 Feb 2026", status: "completed", amount: 5200, bookingRef: "BMT-FL-2026022801" },
-  { id: "4", type: "train", title: "Rajdhani Express – Delhi to Mumbai", bookingDate: "20 Jan 2026", status: "completed", amount: 2800, bookingRef: "BMT-TR-2026012001" },
-  { id: "5", type: "package", title: "Manali Adventure (3N/4D)", bookingDate: "10–13 Dec 2025", status: "completed", amount: 35000, bookingRef: "BMT-PK-2025121001" },
-  { id: "6", type: "hotel", title: "The Oberoi, Jaipur", bookingDate: "01–03 Nov 2025", status: "cancelled", amount: 18500, bookingRef: "BMT-HT-2025110101" },
+  { id: "1", type: "flight", title: "Delhi (DEL) → Goa (GOI)", bookingDate: "15 Mar 2026", status: "confirmed", amount: 8500, bookingRef: "BMT-FL-2026031501", fromCode: "DEL", toCode: "GOI", quantity: 1, passengers: [{ name: "Rahul Sharma", age: 28, gender: "male" }], contact: { name: "Rahul Sharma", email: "rahul@example.com", phone: "9876543210" } },
+  { id: "2", type: "hotel", title: "Taj Vivanta, Panaji, Goa", bookingDate: "15 Mar 2026", status: "confirmed", amount: 22000, bookingRef: "BMT-HT-2026031502", quantity: 2, passengers: [{ name: "Rahul Sharma", age: 28 }, { name: "Priya Sharma", age: 26 }], contact: { name: "Rahul Sharma", email: "rahul@example.com", phone: "9876543210" } },
+  { id: "3", type: "flight", title: "Mumbai (BOM) → Jaipur (JAI)", bookingDate: "28 Feb 2026", status: "completed", amount: 5200, bookingRef: "BMT-FL-2026022801", fromCode: "BOM", toCode: "JAI", quantity: 1, passengers: [{ name: "Rahul Sharma", age: 28 }], contact: { name: "Rahul Sharma", email: "rahul@example.com", phone: "9876543210" } },
+  { id: "4", type: "train", title: "Rajdhani Express – Delhi to Mumbai", bookingDate: "20 Jan 2026", status: "completed", amount: 2800, bookingRef: "BMT-TR-2026012001", fromCode: "NDLS", toCode: "BCT", quantity: 2, passengers: [{ name: "Rahul Sharma", age: 28 }, { name: "Ankur Gupta", age: 32 }], contact: { name: "Rahul Sharma", email: "rahul@example.com", phone: "9876543210" } },
+  { id: "5", type: "package", title: "Manali Adventure (3N/4D)", bookingDate: "10 Dec 2025", status: "completed", amount: 35000, bookingRef: "BMT-PK-2025121001", quantity: 3, contact: { name: "Rahul Sharma", email: "rahul@example.com", phone: "9876543210" } },
+  { id: "6", type: "hotel", title: "The Oberoi, Jaipur", bookingDate: "01 Nov 2025", status: "cancelled", amount: 18500, bookingRef: "BMT-HT-2025110101", quantity: 1, contact: { name: "Rahul Sharma", email: "rahul@example.com", phone: "9876543210" } },
 ];
 
 const TYPE_FILTERS: { label: string; value: BookingType; icon: React.ReactNode }[] = [
@@ -62,11 +92,243 @@ const typeIcon = (type: string) => {
   }
 };
 
+const REFUND_PCTS: Record<string, number> = { flight: 60, train: 70, cab: 80, hotel: 65, tour: 50, package: 50 };
+
+const getRefundPct = (type: string, startDate?: string): number => {
+  if (!startDate) return 0;
+  const hoursUntil = (new Date(startDate).getTime() - Date.now()) / (1000 * 60 * 60);
+  if (hoursUntil < 24) return 0;
+  return REFUND_PCTS[type] ?? 60;
+};
+
 export default function BookingHistoryPage() {
   const [filter, setFilter] = useState<BookingType>("all");
   const [bookings, setBookings] = useState<Booking[]>(SAMPLE_BOOKINGS);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [detailBooking, setDetailBooking] = useState<Booking | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [cancelling, setCancelling] = useState<string | null>(null); // bookingId being cancelled
+
+  const cancelBookingWithRefund = async (booking: Booking) => {
+    const bookingId = booking._id || booking.id;
+    const refundPct = getRefundPct(booking.type, booking.startDate);
+    const refundAmount = Math.floor(booking.amount * refundPct / 100);
+    const confirmMsg = refundPct > 0
+      ? `Cancel this booking?\nYou will receive a refund of ₹${refundAmount.toLocaleString('en-IN')} (${refundPct}% of ₹${booking.amount.toLocaleString('en-IN')}).`
+      : `Cancel this booking?\nNo refund will be issued as travel is within 24 hours.`;
+    if (!window.confirm(confirmMsg)) return;
+
+    try {
+      setCancelling(bookingId);
+
+      // 1. Cancel the booking
+      const cancelRes = await fetch(`/api/bookings/${bookingId}/cancel`, {
+        method: 'PATCH',
+        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: 'Cancelled by customer' }),
+      });
+      if (!cancelRes.ok) throw new Error('Failed to cancel booking');
+
+      // 2. If eligible for refund, find the payment and trigger refund
+      if (refundAmount > 0) {
+        try {
+          const paymentsRes = await fetch(`/api/payments/booking/${bookingId}`, { headers: getAuthHeaders() });
+          if (paymentsRes.ok) {
+            const paymentsData = await paymentsRes.json();
+            const items: Array<{ _id: string; status: string }> = paymentsData?.data?.payments ?? paymentsData?.data?.items ?? [];
+            const succeeded = items.find((p) => p.status === 'succeeded');
+            if (succeeded) {
+              await fetch(`/api/payments/${succeeded._id}/refund`, {
+                method: 'POST',
+                headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+                body: JSON.stringify({ reason: 'Cancelled by customer' }),
+              });
+            }
+          }
+        } catch { /* refund best-effort — booking is already cancelled */ }
+      }
+
+      // 3. Update local state
+      setBookings((prev) => prev.map((b) =>
+        (b._id || b.id) === bookingId ? { ...b, status: 'cancelled' as BookingStatus } : b
+      ));
+      if (detailBooking && (detailBooking._id || detailBooking.id) === bookingId) {
+        setDetailBooking((prev) => prev ? { ...prev, status: 'cancelled' as BookingStatus } : prev);
+      }
+
+      showToast.success(
+        refundAmount > 0
+          ? `Booking cancelled. Refund of ₹${refundAmount.toLocaleString('en-IN')} will be processed in 5–7 business days.`
+          : 'Booking cancelled successfully. No refund applicable.'
+      );
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to cancel booking.';
+      showToast.error(msg);
+    } finally {
+      setCancelling(null);
+    }
+  };
+
+  const openBookingDetail = async (booking: Booking) => {
+    // If we already have full details (passengers/contact), open directly
+    if (booking.passengers !== undefined || booking.contact !== undefined) {
+      setDetailBooking(booking);
+      return;
+    }
+
+    // Otherwise fetch from API
+    const bookingId = booking._id || booking.id;
+    if (!bookingId) { setDetailBooking(booking); return; }
+
+    try {
+      setDetailLoading(true);
+      setDetailBooking(booking); // open modal with partial data while loading
+      const res = await fetch(`/api/bookings/${bookingId}`, { headers: getAuthHeaders() });
+      const parsed = await parseApiResponse<BookingApiItem>(res, 'Unable to load booking details.');
+      if (parsed.ok && parsed.payload?.data) {
+        const b = parsed.payload.data;
+        setDetailBooking((prev) => prev ? {
+          ...prev,
+          fromCode: b.fromCode,
+          toCode: b.toCode,
+          startDate: b.startDate,
+          endDate: b.endDate,
+          scheduleTime: b.scheduleTime,
+          quantity: b.quantity,
+          contact: b.contact,
+          passengers: b.passengers,
+          city: b.city,
+        } : prev);
+      }
+    } catch { /* keep partial data */ } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  const downloadInvoice = (booking: Booking) => {
+    const win = window.open("", "_blank");
+    if (!win) {
+      showToast.error("Please allow pop-ups to download the invoice.");
+      return;
+    }
+    const dateStr = booking.startDate
+      ? new Date(booking.startDate).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" }) +
+        (booking.scheduleTime ? ` at ${booking.scheduleTime}` : "")
+      : booking.bookingDate || "—";
+    const issuedOn = new Date().toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
+    const gst = Math.round(booking.amount * 0.05);
+    const baseAmount = booking.amount - gst;
+    const routeInfo = [booking.fromCode, booking.toCode].filter(Boolean).join(" → ") || booking.city || "N/A";
+    const travelerRows = (booking.passengers || []).length > 0
+      ? (booking.passengers || []).map((p, idx) => `<tr><td>${idx + 1}</td><td>${p.name || "—"}</td><td>${p.age ?? "—"}</td><td style="text-transform:capitalize">${p.gender || "—"}</td><td>${p.email || "—"}</td></tr>`).join("")
+      : `<tr><td>1</td><td>${booking.contact?.name || "Primary traveler"}</td><td>—</td><td>—</td><td>${booking.contact?.email || "—"}</td></tr>`;
+
+    win.document.write(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Invoice — ${booking.bookingRef}</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', Arial, sans-serif; background: #f7f8fc; color: #0f1f2e; }
+    .page { max-width: 720px; margin: 40px auto; background: #fff; border-radius: 12px; box-shadow: 0 4px 32px rgba(0,0,0,0.10); overflow: hidden; }
+    .header { background: #0b1929; color: #fff; padding: 32px 40px; display: flex; justify-content: space-between; align-items: flex-start; }
+    .brand { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.5px; }
+    .brand span { color: #3b9edd; }
+    .invoice-label { text-align: right; }
+    .invoice-label h2 { font-size: 1.1rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; opacity: 0.85; }
+    .invoice-label p { font-size: 0.85rem; opacity: 0.6; margin-top: 4px; }
+    .body { padding: 36px 40px; }
+    .meta-row { display: flex; gap: 40px; margin-bottom: 32px; flex-wrap: wrap; }
+    .meta-block label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: #6b7f93; display: block; margin-bottom: 4px; }
+    .meta-block p { font-weight: 600; color: #0f1f2e; }
+    .status { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.78rem; font-weight: 600; text-transform: capitalize;
+      background: ${booking.status === "confirmed" || booking.status === "completed" ? "#d1fae5" : booking.status === "cancelled" ? "#fee2e2" : "#fef3c7"};
+      color: ${booking.status === "confirmed" || booking.status === "completed" ? "#065f46" : booking.status === "cancelled" ? "#991b1b" : "#92400e"}; }
+    table { width: 100%; border-collapse: collapse; margin: 24px 0; }
+    thead tr { background: #f1f5f9; }
+    th { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em; color: #6b7f93; padding: 10px 14px; text-align: left; }
+    td { padding: 12px 14px; border-bottom: 1px solid #f1f5f9; font-size: 0.9rem; }
+    .amount-col { text-align: right; }
+    .total-row td { border-top: 2px solid #e2e8f0; border-bottom: none; font-weight: 700; font-size: 1rem; }
+    .traveler-table th, .traveler-table td { font-size: 0.82rem; }
+    .footer { background: #f8fafc; padding: 20px 40px; display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; color: #6b7f93; }
+    @media print { body { background: #fff; } .page { box-shadow: none; margin: 0; border-radius: 0; } }
+  </style>
+</head>
+<body>
+<div class="page">
+  <div class="header">
+    <div class="brand">Book<span>My</span>Trip</div>
+    <div class="invoice-label">
+      <h2>Tax Invoice</h2>
+      <p>Issued: ${issuedOn}</p>
+    </div>
+  </div>
+  <div class="body">
+    <div class="meta-row">
+      <div class="meta-block"><label>Booking Reference</label><p>${booking.bookingRef}</p></div>
+      <div class="meta-block"><label>Type</label><p style="text-transform:capitalize">${booking.type}</p></div>
+      <div class="meta-block"><label>Travel Date</label><p>${dateStr}</p></div>
+      <div class="meta-block"><label>Route / City</label><p>${routeInfo}</p></div>
+      <div class="meta-block"><label>Status</label><span class="status">${booking.status}</span></div>
+    </div>
+    ${booking.contact ? `<div class="meta-row"><div class="meta-block"><label>Billed To</label><p>${booking.contact.name}</p><p style="font-weight:400;font-size:0.85rem">${booking.contact.email} · ${booking.contact.phone}</p></div></div>` : ""}
+    <table>
+      <thead><tr><th>Description</th><th>Qty</th><th class="amount-col">Amount</th></tr></thead>
+      <tbody>
+        <tr><td>${booking.title}</td><td>${booking.quantity ?? 1}</td><td class="amount-col">₹${baseAmount.toLocaleString("en-IN")}</td></tr>
+        <tr><td>GST (5%)</td><td>—</td><td class="amount-col">₹${gst.toLocaleString("en-IN")}</td></tr>
+      </tbody>
+      <tfoot>
+        <tr class="total-row"><td colspan="2">Total Paid</td><td class="amount-col">₹${booking.amount.toLocaleString("en-IN")}</td></tr>
+      </tfoot>
+    </table>
+    <div class="meta-row" style="margin-top:8px;margin-bottom:8px">
+      <div class="meta-block"><label>Traveler Details</label></div>
+    </div>
+    <table class="traveler-table">
+      <thead><tr><th>#</th><th>Name</th><th>Age</th><th>Gender</th><th>Email</th></tr></thead>
+      <tbody>${travelerRows}</tbody>
+    </table>
+    <p style="font-size:0.78rem;color:#6b7f93">This is a computer-generated invoice and does not require a signature.</p>
+  </div>
+  <div class="footer">
+    <span>BookMyTrip · support@bookmytrip.app</span>
+    <span>Thank you for travelling with us.</span>
+  </div>
+</div>
+<script>window.onload = () => window.print();</script>
+</body>
+</html>`);
+    win.document.close();
+  };
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const success = params.get("success");
+    const pendingRef = params.get("pending");
+    const errParam = params.get("error");
+
+    if (success) {
+      showToast.success(`Booking confirmed! Ref: ${success}`);
+      params.delete("success");
+    }
+    if (pendingRef) {
+      showToast.info(`Booking created (payment pending): ${pendingRef}`);
+      params.delete("pending");
+    }
+    if (errParam) {
+      showToast.error(`Payment failed for: ${errParam}`);
+      params.delete("error");
+    }
+    if (success || pendingRef || errParam) {
+      const next = params.toString();
+      window.history.replaceState({}, "", next ? `?${next}` : window.location.pathname);
+    }
+  }, []);
 
   useEffect(() => {
     const fetchBookings = async () => {
@@ -90,10 +352,19 @@ export default function BookingHistoryPage() {
           type: b.type,
           title: b.title,
           bookingDate: b.bookingDate ? new Date(b.bookingDate).toLocaleDateString('en-IN') : '',
+          startDate: b.startDate,
+          endDate: b.endDate,
+          scheduleTime: b.scheduleTime,
           createdAt: b.createdAt,
           status: b.status,
           amount: b.amount,
           bookingRef: b.bookingRef,
+          fromCode: b.fromCode,
+          toCode: b.toCode,
+          quantity: b.quantity,
+          contact: b.contact,
+          passengers: b.passengers,
+          city: b.city,
         }));
         setBookings(transformedBookings.length > 0 ? transformedBookings : SAMPLE_BOOKINGS);
         setError(null);
@@ -176,13 +447,152 @@ export default function BookingHistoryPage() {
               </span>
               <span className={styles.colAmount}>₹{booking.amount.toLocaleString('en-IN')}</span>
               <span className={styles.colActions}>
-                <button className={styles.actionBtn} title="View Details"><Eye size={14} strokeWidth={1.6} /></button>
-                <button className={styles.actionBtn} title="Download Invoice"><Download size={14} strokeWidth={1.6} /></button>
+                <button className={styles.actionBtn} title="View Details" onClick={() => openBookingDetail(booking)}><Eye size={14} strokeWidth={1.6} /></button>
+                {booking.status !== 'failed' && booking.status !== 'pending' && (
+                  <button className={styles.actionBtn} title="Download Invoice" onClick={() => downloadInvoice(booking)}><Download size={14} strokeWidth={1.6} /></button>
+                )}
+                {(booking.status === 'confirmed' || booking.status === 'pending') && (
+                  <button
+                    className={`${styles.actionBtn} ${styles.cancelBtn}`}
+                    title="Cancel Booking"
+                    onClick={() => cancelBookingWithRefund(booking)}
+                    disabled={cancelling === (booking._id || booking.id)}
+                  >
+                    <Ban size={14} strokeWidth={1.6} />
+                  </button>
+                )}
               </span>
             </motion.div>
           ))
         )}
       </div>
+
+      {/* ── Booking Detail Modal ── */}
+      <AnimatePresence>
+        {detailBooking && (
+          <motion.div
+            className={styles.modalOverlay}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setDetailBooking(null)}
+          >
+            <motion.div
+              className={styles.modalPanel}
+              initial={{ opacity: 0, y: 20, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 20, scale: 0.97 }}
+              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className={styles.modalHeader}>
+                <div>
+                  <h2 className={styles.modalTitle}>Booking Details</h2>
+                  <p className={styles.modalRef}>{detailBooking.bookingRef}</p>
+                </div>
+                <button className={styles.modalClose} onClick={() => setDetailBooking(null)} aria-label="Close">
+                  <X size={16} strokeWidth={1.6} />
+                </button>
+              </div>
+
+              <div className={styles.modalBody}>
+                {detailLoading && <p className={styles.modalLoading}>Loading details...</p>}
+
+                {/* Title + Status */}
+                <div className={styles.modalRow}>
+                  <span className={styles.typeIcon} style={{ flexShrink: 0 }}>{typeIcon(detailBooking.type)}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p className={styles.modalBookingTitle}>{detailBooking.title}</p>
+                    <span className={`${styles.statusBadge} ${styles[detailBooking.status]}`}>{detailBooking.status}</span>
+                  </div>
+                </div>
+
+                {/* Route */}
+                {(detailBooking.fromCode || detailBooking.toCode || detailBooking.city) && (
+                  <div className={styles.modalSection}>
+                    <p className={styles.modalSectionLabel}><MapPin size={12} /> Route / Location</p>
+                    <p className={styles.modalSectionValue}>
+                      {detailBooking.fromCode && detailBooking.toCode
+                        ? `${detailBooking.fromCode} → ${detailBooking.toCode}`
+                        : detailBooking.city || "—"}
+                    </p>
+                  </div>
+                )}
+
+                {/* Dates */}
+                <div className={styles.modalSection}>
+                  <p className={styles.modalSectionLabel}><Calendar size={12} /> Travel Date</p>
+                  <p className={styles.modalSectionValue}>
+                    {detailBooking.startDate
+                      ? new Date(detailBooking.startDate).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })
+                      : detailBooking.bookingDate || "—"}
+                    {detailBooking.scheduleTime ? ` at ${detailBooking.scheduleTime}` : ""}
+                    {detailBooking.endDate
+                      ? ` → ${new Date(detailBooking.endDate).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}`
+                      : ""}
+                  </p>
+                </div>
+
+                {/* Travellers */}
+                {detailBooking.passengers && detailBooking.passengers.length > 0 && (
+                  <div className={styles.modalSection}>
+                    <p className={styles.modalSectionLabel}><Users size={12} /> Traveller{detailBooking.passengers.length > 1 ? "s" : ""}</p>
+                    <div className={styles.passengerList}>
+                      {detailBooking.passengers.map((p, idx) => (
+                        <div key={idx} className={styles.passengerRow}>
+                          <span className={styles.passengerNum}>{idx + 1}</span>
+                          <span className={styles.passengerName}>{p.name}</span>
+                          {p.age != null && <span className={styles.passengerMeta}>Age {p.age}</span>}
+                          {p.gender && <span className={styles.passengerMeta}>{p.gender}</span>}
+                          {p.email && <span className={styles.passengerEmail}>{p.email}</span>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Contact */}
+                {detailBooking.contact && (
+                  <div className={styles.modalSection}>
+                    <p className={styles.modalSectionLabel}>Contact Details</p>
+                    <p className={styles.modalSectionValue}>{detailBooking.contact.name} · {detailBooking.contact.email} · {detailBooking.contact.phone}</p>
+                  </div>
+                )}
+
+                {/* Amount */}
+                <div className={styles.modalSection}>
+                  <p className={styles.modalSectionLabel}><CreditCard size={12} /> {detailBooking.status === 'failed' ? 'Payment Status' : 'Amount Paid'}</p>
+                  {detailBooking.status === 'failed'
+                    ? <p className={styles.modalSectionValue} style={{ color: '#b85c5c', fontWeight: 600 }}>Payment Failed — no charge</p>
+                    : <p className={styles.modalAmountValue}>₹{detailBooking.amount.toLocaleString("en-IN")}</p>
+                  }
+                </div>
+
+                {/* Refund info for eligible bookings */}
+                {(detailBooking.status === 'confirmed' || detailBooking.status === 'pending') && (() => {
+                  const pct = getRefundPct(detailBooking.type, detailBooking.startDate);
+                  const amt = Math.floor(detailBooking.amount * pct / 100);
+                  return (
+                    <div className={styles.modalRefundRow}>
+                      <span className={styles.modalRefundLabel}>
+                        {pct > 0 ? `Cancellation refund: ₹${amt.toLocaleString('en-IN')} (${pct}%)` : 'No refund — travel within 24 hours'}
+                      </span>
+                      <button
+                        className={styles.modalCancelBtn}
+                        onClick={() => { setDetailBooking(null); cancelBookingWithRefund(detailBooking); }}
+                        disabled={cancelling === (detailBooking._id || detailBooking.id)}
+                      >
+                        <Ban size={13} strokeWidth={1.6} />
+                        {cancelling === (detailBooking._id || detailBooking.id) ? 'Cancelling…' : 'Cancel Booking'}
+                      </button>
+                    </div>
+                  );
+                })()}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

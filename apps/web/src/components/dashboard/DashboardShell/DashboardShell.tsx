@@ -17,9 +17,12 @@ import {
   Menu,
   X,
   ChevronRight,
+  Tag,
 } from "lucide-react";
 import Logo from "@/components/ui/Logo/Logo";
+import NotificationBell from "@/components/ui/NotificationBell/NotificationBell";
 import { useAuth } from "@/services/auth/context";
+import { useNotifications } from "@/hooks/useNotifications";
 import styles from "./DashboardShell.module.scss";
 
 interface SidebarItem {
@@ -29,40 +32,43 @@ interface SidebarItem {
   badge?: number;
 }
 
-const USER_NAV_ITEMS: SidebarItem[] = [
-  { label: "Dashboard", href: "/dashboard", icon: <LayoutDashboard size={18} strokeWidth={1.6} /> },
-  { label: "Booking History", href: "/dashboard/bookings", icon: <ClipboardList size={18} strokeWidth={1.6} /> },
-  { label: "Notifications", href: "/dashboard/notifications", icon: <Bell size={18} strokeWidth={1.6} />, badge: 3 },
-  { label: "Issues", href: "/dashboard/issues", icon: <AlertTriangle size={18} strokeWidth={1.6} /> },
-  { label: "Settings", href: "/dashboard/settings", icon: <Settings size={18} strokeWidth={1.6} /> },
-];
-
-const VENDOR_NAV_ITEMS: SidebarItem[] = [
-  { label: "Vendor Dashboard", href: "/dashboard/vendor", icon: <LayoutDashboard size={18} strokeWidth={1.6} /> },
-  { label: "Bookings", href: "/dashboard/bookings", icon: <ClipboardList size={18} strokeWidth={1.6} /> },
-  { label: "Reviews", href: "/dashboard/vendor/reviews", icon: <MessageSquare size={18} strokeWidth={1.6} /> },
-  { label: "Settings", href: "/dashboard/settings", icon: <Settings size={18} strokeWidth={1.6} /> },
-];
-
-const ADMIN_NAV_ITEMS: SidebarItem[] = [
-  { label: "Admin Dashboard", href: "/dashboard/admin", icon: <LayoutDashboard size={18} strokeWidth={1.6} /> },
-  { label: "Inventory", href: "/dashboard/admin/inventory", icon: <Database size={18} strokeWidth={1.6} /> },
-  { label: "Requests", href: "/dashboard/admin/requests", icon: <FileClock size={18} strokeWidth={1.6} /> },
-  { label: "Notifications", href: "/dashboard/notifications", icon: <Bell size={18} strokeWidth={1.6} />, badge: 5 },
-  { label: "Complaints", href: "/dashboard/issues", icon: <AlertTriangle size={18} strokeWidth={1.6} /> },
-  { label: "Data Management", href: "/dashboard/admin/data", icon: <Database size={18} strokeWidth={1.6} /> },
-  { label: "Settings", href: "/dashboard/settings", icon: <Settings size={18} strokeWidth={1.6} /> },
-];
+const buildNavItems = (unreadCount: number) => ({
+  user: [
+    { label: "Dashboard", href: "/dashboard", icon: <LayoutDashboard size={18} strokeWidth={1.6} /> },
+    { label: "Booking History", href: "/dashboard/bookings", icon: <ClipboardList size={18} strokeWidth={1.6} /> },
+    { label: "Notifications", href: "/dashboard/notifications", icon: <Bell size={18} strokeWidth={1.6} />, badge: unreadCount > 0 ? unreadCount : undefined },
+    { label: "Issues", href: "/dashboard/issues", icon: <AlertTriangle size={18} strokeWidth={1.6} /> },
+    { label: "Settings", href: "/dashboard/settings", icon: <Settings size={18} strokeWidth={1.6} /> },
+  ] as SidebarItem[],
+  vendor: [
+    { label: "Vendor Dashboard", href: "/dashboard/vendor", icon: <LayoutDashboard size={18} strokeWidth={1.6} /> },
+    { label: "Bookings", href: "/dashboard/bookings", icon: <ClipboardList size={18} strokeWidth={1.6} /> },
+    { label: "Reviews", href: "/dashboard/vendor/reviews", icon: <MessageSquare size={18} strokeWidth={1.6} /> },
+    { label: "Settings", href: "/dashboard/settings", icon: <Settings size={18} strokeWidth={1.6} /> },
+  ] as SidebarItem[],
+  admin: [
+    { label: "Admin Dashboard", href: "/dashboard/admin", icon: <LayoutDashboard size={18} strokeWidth={1.6} /> },
+    { label: "Inventory", href: "/dashboard/admin/inventory", icon: <Database size={18} strokeWidth={1.6} /> },
+    { label: "Requests", href: "/dashboard/admin/requests", icon: <FileClock size={18} strokeWidth={1.6} /> },
+    { label: "Coupons & Deals", href: "/dashboard/admin/coupons", icon: <Tag size={18} strokeWidth={1.6} /> },
+    { label: "Notifications", href: "/dashboard/notifications", icon: <Bell size={18} strokeWidth={1.6} />, badge: unreadCount > 0 ? unreadCount : undefined },
+    { label: "Complaints", href: "/dashboard/issues", icon: <AlertTriangle size={18} strokeWidth={1.6} /> },
+    { label: "Data Management", href: "/dashboard/admin/data", icon: <Database size={18} strokeWidth={1.6} /> },
+    { label: "Settings", href: "/dashboard/settings", icon: <Settings size={18} strokeWidth={1.6} /> },
+  ] as SidebarItem[],
+});
 
 export default function DashboardShell({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
+  const { unreadCount } = useNotifications();
   const router = useRouter();
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const displayName = user?.fullName || user?.email?.split("@")[0] || "User";
   const normalizedRole = user?.role === "admin" ? "admin" : user?.role === "vendor" ? "vendor" : "user";
-  const navItems = normalizedRole === "admin" ? ADMIN_NAV_ITEMS : normalizedRole === "vendor" ? VENDOR_NAV_ITEMS : USER_NAV_ITEMS;
+  const allNavItems = buildNavItems(unreadCount);
+  const navItems = normalizedRole === "admin" ? allNavItems.admin : normalizedRole === "vendor" ? allNavItems.vendor : allNavItems.user;
 
   const handleLogout = () => {
     logout();
@@ -187,6 +193,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
           <div className={styles.breadcrumb}>
             {pathname === "/dashboard" ? "Dashboard" : navItems.find((i) => isActive(i.href))?.label || "Dashboard"}
           </div>
+          <NotificationBell />
         </header>
         <div className={styles.contentInner}>{children}</div>
       </main>

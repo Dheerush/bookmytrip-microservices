@@ -1,0 +1,428 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 4px;
+}
+
+.subtitle {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.createBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 16px;
+  background: var(--sky);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity 0.16s;
+
+  &:hover { opacity: 0.88; }
+}
+
+.emptyMsg {
+  font-size: 0.84rem;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 40px 0;
+}
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 60px 20px;
+  color: var(--text-muted);
+  font-size: 0.86rem;
+  text-align: center;
+}
+
+// ── Filter Tabs ───────────────────────────────────────
+.filterTabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.filterTab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  border: 1px solid var(--border-soft);
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+
+  &:hover {
+    background: var(--surface-hover, rgba(0,0,0,0.04));
+    color: var(--text-primary);
+  }
+}
+
+.filterTabActive {
+  background: var(--color-primary, #1e90ff);
+  color: #fff;
+  border-color: var(--color-primary, #1e90ff);
+
+  &:hover {
+    background: var(--color-primary, #1e90ff);
+  }
+}
+
+.filterCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  background: rgba(255,255,255,0.22);
+  color: inherit;
+
+  .filterTab:not(.filterTabActive) & {
+    background: var(--border-soft);
+    color: var(--text-muted);
+  }
+}
+
+// ── Cards ────────────────────────────────────────────
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: border-color 0.16s;
+
+  &:hover { border-color: var(--sky); }
+}
+
+.inactive {
+  opacity: 0.6;
+}
+
+.cardTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.code {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--sky);
+  letter-spacing: 0.06em;
+}
+
+.statusBadge {
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.active {
+  background: rgba(34, 197, 94, 0.12);
+  color: #22c55e;
+}
+
+.expired {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.description {
+  font-size: 0.81rem;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.cardMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.metaChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--surface-muted, rgba(0,0,0,0.04));
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.cardDates {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.74rem;
+  color: var(--text-muted);
+}
+
+.usage {
+  font-size: 0.72rem;
+  background: var(--surface-muted, rgba(0,0,0,0.04));
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.applicable {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.serviceTag {
+  font-size: 0.68rem;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(14, 165, 233, 0.1);
+  color: var(--sky);
+  text-transform: capitalize;
+  font-weight: 500;
+}
+
+.cardActions {
+  display: flex;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.actionBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--border-soft);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+
+  &:hover {
+    border-color: var(--sky);
+    color: var(--sky);
+    background: rgba(14, 165, 233, 0.06);
+  }
+}
+
+// ── Modal ────────────────────────────────────────────
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.52);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 560px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.26);
+}
+
+.modalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 22px 14px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.modalTitle {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.modalClose {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-soft);
+  border-radius: 7px;
+  background: transparent;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: all 0.15s;
+
+  &:hover { border-color: #ef4444; color: #ef4444; }
+}
+
+// ── Form ─────────────────────────────────────────────
+.form {
+  padding: 18px 22px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+
+  @media (max-width: 480px) { grid-template-columns: 1fr; }
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+
+  label {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-muted);
+  }
+
+  input, select {
+    padding: 8px 10px;
+    border: 1px solid var(--border-soft);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-primary);
+    font-size: 0.86rem;
+    outline: none;
+    transition: border-color 0.15s;
+
+    &:focus { border-color: var(--sky); }
+  }
+
+  select { cursor: pointer; }
+}
+
+.checkboxLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.84rem;
+  cursor: pointer;
+  color: var(--text-secondary);
+}
+
+.chipGroup {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.chip {
+  padding: 5px 12px;
+  border: 1px solid var(--border-soft);
+  border-radius: 20px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  cursor: pointer;
+  text-transform: capitalize;
+  transition: all 0.15s;
+
+  &:hover { border-color: var(--sky); color: var(--sky); }
+}
+
+.chipSelected {
+  border-color: var(--sky);
+  background: rgba(14, 165, 233, 0.1);
+  color: var(--sky);
+  font-weight: 600;
+}
+
+.formActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.cancelBtn {
+  padding: 9px 18px;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.84rem;
+  cursor: pointer;
+  transition: all 0.15s;
+
+  &:hover { border-color: var(--sky); color: var(--sky); }
+}
+
+.submitBtn {
+  padding: 9px 20px;
+  border: none;
+  border-radius: 8px;
+  background: var(--sky);
+  color: #fff;
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+
+  &:hover:not(:disabled) { opacity: 0.88; }
+  &:disabled { opacity: 0.55; cursor: not-allowed; }
+}

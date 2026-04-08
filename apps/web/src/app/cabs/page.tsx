@@ -2,20 +2,125 @@
 
 import { useState, useMemo, Suspense, useEffect } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { useBookingFlow } from "@/hooks/useBookingFlow";
-import { useBookingGuard } from "@/hooks/useBookingGuard";
-import { useAuth } from "@/services/auth/context";
 import { parseApiResponse } from "@/lib/http";
 import { showToast } from "@/lib/toast";
 import s from "@/styles/search.module.scss";
 import { cabs, type Cab } from "@/data/cabs";
-import BookingSidebar from "@/components/ui/BookingSidebar/BookingSidebar";
 import Pagination from "@/components/ui/Pagination/Pagination";
 
 const PER_PAGE = 10;
 type SortKey = "price-asc" | "price-desc" | "rating" | "seats";
 
 const cabCities = Array.from(new Set(cabs.map((cab) => cab.city)));
+
+const getTodayIso = (): string => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const CITY_COORDS: Record<string, [number, number]> = {
+  "delhi": [28.6139, 77.2090],
+  "new delhi": [28.6139, 77.2090],
+  "gurgaon": [28.4595, 77.0266],
+  "gurugram": [28.4595, 77.0266],
+  "noida": [28.5355, 77.3910],
+  "faridabad": [28.4089, 77.3178],
+  "ghaziabad": [28.6692, 77.4538],
+  "mumbai": [19.0760, 72.8777],
+  "navi mumbai": [19.0330, 73.0297],
+  "pune": [18.5204, 73.8567],
+  "thane": [19.2183, 72.9781],
+  "kolkata": [22.5726, 88.3639],
+  "howrah": [22.5958, 88.2636],
+  "chennai": [13.0827, 80.2707],
+  "pondicherry": [11.9416, 79.8083],
+  "bengaluru": [12.9716, 77.5946],
+  "bangalore": [12.9716, 77.5946],
+  "mysuru": [12.2958, 76.6394],
+  "mysore": [12.2958, 76.6394],
+  "hyderabad": [17.3850, 78.4867],
+  "secunderabad": [17.4399, 78.4983],
+  "ahmedabad": [23.0225, 72.5714],
+  "surat": [21.1702, 72.8311],
+  "vadodara": [22.3072, 73.1812],
+  "jaipur": [26.9124, 75.7873],
+  "jodhpur": [26.2389, 73.0243],
+  "udaipur": [24.5854, 73.7125],
+  "kota": [25.2138, 75.8648],
+  "lucknow": [26.8467, 80.9462],
+  "kanpur": [26.4499, 80.3319],
+  "agra": [27.1767, 78.0081],
+  "varanasi": [25.3176, 82.9739],
+  "allahabad": [25.4358, 81.8463],
+  "prayagraj": [25.4358, 81.8463],
+  "patna": [25.5941, 85.1376],
+  "bhopal": [23.2599, 77.4126],
+  "indore": [22.7196, 75.8577],
+  "nagpur": [21.1458, 79.0882],
+  "raipur": [21.2514, 81.6296],
+  "coimbatore": [11.0168, 76.9558],
+  "madurai": [9.9252, 78.1198],
+  "visakhapatnam": [17.6868, 83.2185],
+  "vijayawada": [16.5062, 80.6480],
+  "chandigarh": [30.7333, 76.7794],
+  "amritsar": [31.6340, 74.8723],
+  "ludhiana": [30.9010, 75.8573],
+  "dehradun": [30.3165, 78.0322],
+  "haridwar": [29.9457, 78.1642],
+  "rishikesh": [30.0869, 78.2676],
+  "shimla": [31.1048, 77.1734],
+  "manali": [32.2432, 77.1892],
+  "goa": [15.2993, 74.1240],
+  "panaji": [15.4989, 73.8278],
+  "mangalore": [12.9141, 74.8560],
+  "kochi": [9.9312, 76.2673],
+  "trivandrum": [8.5241, 76.9366],
+  "thiruvananthapuram": [8.5241, 76.9366],
+  "kozhikode": [11.2588, 75.7804],
+  "bhubaneswar": [20.2961, 85.8245],
+  "puri": [19.8135, 85.8312],
+  "ranchi": [23.3441, 85.3096],
+  "jamshedpur": [22.8046, 86.2029],
+  "guwahati": [26.1445, 91.7362],
+  "shillong": [25.5788, 91.8933],
+  "imphal": [24.8170, 93.9368],
+  "agartala": [23.8315, 91.2868],
+  "leh": [34.1526, 77.5771],
+  "srinagar": [34.0837, 74.7973],
+  "jammu": [32.7266, 74.8570],
+};
+
+const haversineKm = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+};
+
+const estimateDistanceKm = (pickup: string, drop: string): number => {
+  const from = pickup.trim().toLowerCase();
+  const to = drop.trim().toLowerCase();
+
+  if (!from || !to || from === to) return 12;
+
+  const coordsFrom = CITY_COORDS[from];
+  const coordsTo = CITY_COORDS[to];
+
+  if (coordsFrom && coordsTo) {
+    // Straight-line distance × 1.3 road factor, rounded to nearest 5 km
+    const straight = haversineKm(coordsFrom[0], coordsFrom[1], coordsTo[0], coordsTo[1]);
+    return Math.max(5, Math.round((straight * 1.3) / 5) * 5);
+  }
+
+  // Fallback for unknown cities: use a midpoint estimate
+  return 30;
+};
 
 const resolveCabCity = (value: string): string | null => {
   const trimmed = value.trim();
@@ -30,13 +135,14 @@ function CabsContent() {
   const router = useRouter();
   const pathname = usePathname();
   const page = Number(searchParams.get("page") || "1");
-  const { guardAction } = useBookingGuard();
-  const { processBookingAndPayment } = useBookingFlow();
-  const { user } = useAuth();
 
-  const [pickup, setPickup] = useState(searchParams.get("pickup") || "");
-  const [drop, setDrop] = useState(searchParams.get("drop") || "");
-  const [date, setDate] = useState(searchParams.get("date") || "");
+  const [pickup, setPickup] = useState(searchParams.get("pickup") || "Delhi");
+  const [drop, setDrop] = useState(searchParams.get("drop") || "Jaipur");
+  const [date, setDate] = useState(searchParams.get("date") || getTodayIso());
+  const [pickupTime, setPickupTime] = useState(searchParams.get("time") || "10:00");
+  // committedPickup only updates when user clicks Search (URL param changes)
+  // so typing in the field does NOT trigger API calls
+  const [committedPickup, setCommittedPickup] = useState(searchParams.get("pickup") || "Delhi");
 
   const [sort, setSort] = useState<SortKey>((searchParams.get("sort") as SortKey) || "price-asc");
   const [selectedTypes, setSelectedTypes] = useState<Set<string>>(
@@ -47,9 +153,7 @@ function CabsContent() {
   );
   const [acOnly, setAcOnly] = useState(searchParams.get("ac") === "true");
   const [activeField, setActiveField] = useState<"pickup" | "drop" | null>(null);
-  const [selected, setSelected] = useState<Cab | null>(null);
   const [apiResults, setApiResults] = useState<Cab[] | null>(null);
-  const [apiTotalPages, setApiTotalPages] = useState<number | null>(null);
   const [apiLoading, setApiLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
 
@@ -68,6 +172,10 @@ function CabsContent() {
   };
 
   useEffect(() => {
+    setCommittedPickup(searchParams.get("pickup") || "Delhi");
+    setDrop(searchParams.get("drop") || "Jaipur");
+    setDate(searchParams.get("date") || getTodayIso());
+    setPickupTime(searchParams.get("time") || "10:00");
     setSort((searchParams.get("sort") as SortKey) || "price-asc");
     setSelectedTypes(
       new Set((searchParams.get("types") || "").split(",").map((item) => item.trim()).filter(Boolean)),
@@ -102,6 +210,7 @@ function CabsContent() {
     if (pickup) params.set("pickup", pickup);
     if (drop) params.set("drop", drop);
     if (date) params.set("date", date);
+    if (pickupTime) params.set("time", pickupTime);
     if (sort !== "price-asc") params.set("sort", sort);
     if (selectedTypes.size) params.set("types", Array.from(selectedTypes).join(","));
     if (selectedFuel.size) params.set("fuel", Array.from(selectedFuel).join(","));
@@ -120,32 +229,6 @@ function CabsContent() {
     if (!term) return [] as string[];
     return cabCities.filter((city) => city.toLowerCase().includes(term)).slice(0, 6);
   }, [drop]);
-
-  const handleProceedToPayment = (netAmount: number) => {
-    if (!selected) return;
-    guardAction(async () => {
-      if (!user) return;
-      await processBookingAndPayment(
-        {
-          itemId: selected.id,
-          type: 'cab',
-          title: `${selected.carModel} (${selected.type})`,
-          fromCode: pickup,
-          toCode: drop,
-          startDate: date,
-          quantity: 1,
-          amount: selected.baseFare,
-          contact: {
-            name: user.fullName || 'Guest',
-            email: user.email || '',
-            phone: '',
-          },
-          passengers: [],
-        },
-        netAmount,
-      );
-    });
-  };
 
   const filtered = useMemo(() => {
     let list = [...(apiResults || [])];
@@ -171,12 +254,13 @@ function CabsContent() {
   }, [apiResults]);
 
   useEffect(() => {
-    if (!pickup) {
+    if (!committedPickup) {
       setApiResults(null);
-      setApiTotalPages(null);
       setApiError(null);
       return;
     }
+
+    const estimatedDistanceKm = estimateDistanceKm(committedPickup, drop);
 
     const sortMap: Record<SortKey, string> = {
       "price-asc": "price_asc",
@@ -185,13 +269,12 @@ function CabsContent() {
       seats: "driver_rating",
     };
 
-    const distanceKm = Number(searchParams.get("distanceKm") || "20");
     const params = new URLSearchParams({
-      city: resolveCabCity(pickup) || pickup,
-      distanceKm: String(distanceKm > 0 ? distanceKm : 20),
+      city: resolveCabCity(committedPickup) || committedPickup,
+      distanceKm: String(estimatedDistanceKm),
       sort: sortMap[sort],
-      page: String(page),
-      limit: String(PER_PAGE),
+      page: "1",
+      limit: "50",
     });
 
     const selectedType = Array.from(selectedTypes)[0];
@@ -232,12 +315,10 @@ function CabsContent() {
         });
 
         setApiResults(normalized);
-        setApiTotalPages(parsed.payload.data.totalPages || 1);
       } catch (error) {
         if (!mounted) return;
         setApiError(error instanceof Error ? error.message : "Unable to fetch cabs right now.");
         setApiResults(null);
-        setApiTotalPages(null);
       } finally {
         if (mounted) setApiLoading(false);
       }
@@ -247,7 +328,7 @@ function CabsContent() {
     return () => {
       mounted = false;
     };
-  }, [pickup, sort, page, selectedTypes, selectedFuel, acOnly, searchParams]);
+  }, [committedPickup, drop, sort, selectedTypes, selectedFuel, acOnly]);
 
   useEffect(() => {
     if (apiError) {
@@ -255,14 +336,22 @@ function CabsContent() {
     }
   }, [apiError]);
 
-  const totalPages = apiTotalPages ?? Math.max(1, Math.ceil(filtered.length / PER_PAGE));
-  const paged = filtered;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
+  const paged = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+
+  useEffect(() => {
+    if (page <= totalPages) return;
+    updateQuery({ page: totalPages > 1 ? String(totalPages) : null }, false);
+  }, [page, totalPages]);
+
+  const estimatedDistanceKm = estimateDistanceKm(pickup, drop);
+  const todayIso = getTodayIso();
 
   return (
     <div className={s.page}>
       <div className={s.header}>
         <h1 className={s.title}>Cab Search Results</h1>
-        <p className={s.subtitle}>{pickup ? `${filtered.length} cabs on this page` : "Search to load live cabs"}</p>
+        <p className={s.subtitle}>{pickup ? `${filtered.length} cabs found` : "Search to load live cabs"}</p>
       </div>
 
       {/* ── Inline search bar ── */}
@@ -328,7 +417,15 @@ function CabsContent() {
           </div>
           <div className={s.searchFieldGroup}>
             <label className={s.searchFieldLabel}>📅 Date</label>
-            <input className={s.searchFieldInput} type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+            <input className={s.searchFieldInput} type="date" min={todayIso} value={date} onChange={(e) => setDate(e.target.value)} />
+          </div>
+          <div className={s.searchFieldGroup}>
+            <label className={s.searchFieldLabel}>🕒 Pickup Time</label>
+            <input className={s.searchFieldInput} type="time" value={pickupTime} onChange={(e) => setPickupTime(e.target.value)} />
+          </div>
+          <div className={s.searchFieldGroup}>
+            <label className={s.searchFieldLabel}>📏 Estimated Distance</label>
+            <input className={s.searchFieldInput} type="text" value={`${estimatedDistanceKm} km`} readOnly />
           </div>
           <button className={s.searchBarBtn} type="button" onClick={handleSearch}>🔍 Search</button>
         </div>
@@ -468,7 +565,29 @@ function CabsContent() {
                   <button
                     className={s.bookBtn}
                     type="button"
-                    onClick={() => setSelected(cab)}
+                    onClick={() => {
+                      if (!drop.trim()) {
+                        showToast.error("Please enter a drop location before booking.");
+                        return;
+                      }
+                      if (!date) {
+                        showToast.error("Please select a travel date before booking.");
+                        return;
+                      }
+                      if (!pickupTime) {
+                        showToast.error("Please select a pickup time before booking.");
+                        return;
+                      }
+                      const bp = new URLSearchParams({
+                        cabId: cab.id,
+                        pickup,
+                        drop,
+                        date,
+                        time: pickupTime,
+                        distanceKm: String(estimateDistanceKm(pickup, drop)),
+                      });
+                      router.push(`/cabs/booking?${bp.toString()}`);
+                    }}
                   >
                     Book Now
                   </button>
@@ -480,14 +599,6 @@ function CabsContent() {
           <Pagination currentPage={page} totalPages={totalPages} />
         </div>
 
-        {/* ── Right: Booking sidebar ── */}
-        <BookingSidebar
-          baseFare={selected?.baseFare ?? paged[0]?.baseFare ?? 0}
-          taxes={Math.round((selected?.baseFare ?? paged[0]?.baseFare ?? 0) * 0.05)}
-          serviceFee={49}
-          ctaLabel="Confirm Booking"
-          onProceed={handleProceedToPayment}
-        />
       </div>
     </div>
   );

@@ -1,0 +1,164 @@
+.page {
+  min-height: 100vh;
+  padding: 32px 24px 72px;
+  background:
+    radial-gradient(1200px 400px at 20% 0%, rgba(48, 140, 203, 0.12), transparent 60%),
+    radial-gradient(900px 360px at 90% 10%, rgba(233, 178, 73, 0.14), transparent 60%),
+    #f7fafc;
+}
+
+.hero {
+  max-width: 960px;
+  margin: 0 auto 22px;
+  h1 {
+    margin: 6px 0;
+    font-size: clamp(2rem, 4vw, 2.8rem);
+    letter-spacing: -0.02em;
+    color: #0f2438;
+  }
+  p {
+    color: #516579;
+    max-width: 740px;
+  }
+}
+
+.kicker {
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #2f89c7;
+  font-weight: 700;
+}
+
+.section {
+  max-width: 960px;
+  margin: 0 auto 28px;
+}
+
+.sectionHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+
+  h2 {
+    margin: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 1.1rem;
+    color: #11293f;
+  }
+}
+
+.offerGrid,
+.couponGrid {
+  display: grid;
+  gap: 14px;
+}
+
+.offerGrid {
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+}
+
+.couponGrid {
+  grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+}
+
+.offerCard,
+.couponCard {
+  background: #ffffff;
+  border: 1px solid #d7e6f0;
+  border-radius: 14px;
+  padding: 16px;
+  box-shadow: 0 8px 24px rgba(17, 41, 63, 0.06);
+}
+
+.offerCard {
+  h3 {
+    margin: 0;
+    color: #153856;
+  }
+}
+
+.headline {
+  margin: 8px 0;
+  font-weight: 600;
+  color: #2f89c7;
+}
+
+.offerFooter,
+.row {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+
+  a {
+    color: #0f2438;
+    background: #f0c46f;
+    padding: 8px 12px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 0.82rem;
+  }
+}
+
+.expiry {
+  display: inline-flex;
+  gap: 6px;
+  color: #6b7f93;
+  font-size: 0.78rem;
+}
+
+.code {
+  display: inline-block;
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  background: #102b44;
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 8px;
+}
+
+.desc {
+  margin: 10px 0 8px;
+}
+
+.value {
+  margin: 0;
+  color: #147e48;
+  font-weight: 700;
+}
+
+.tags {
+  margin-top: 8px;
+  font-size: 0.82rem;
+  color: #607589;
+}
+
+.soon {
+  font-size: 0.8rem;
+  color: #6b7f93;
+}
+
+.soonHot {
+  color: #b45309;
+  font-weight: 700;
+}
+
+.empty {
+  margin: 0;
+  padding: 16px;
+  border: 1px dashed #d3e2ee;
+  border-radius: 12px;
+  background: #fff;
+  color: #6b7f93;
+}
+
+@media (max-width: 640px) {
+  .page { padding: 20px 14px 56px; }
+}

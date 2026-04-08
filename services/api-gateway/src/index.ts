@@ -4,7 +4,7 @@ import logger from "./config/logger";
 
 const bootstrap = async (): Promise<void> => {
   try {
-    const app = createApp();
+    const app = await createApp();
 
     const server = app.listen(env.PORT, () => {
       logger.info("API Gateway started", {
@@ -12,6 +12,7 @@ const bootstrap = async (): Promise<void> => {
         environment: env.NODE_ENV,
         health: `http://localhost:${env.PORT}/health`,
         docs: `http://localhost:${env.PORT}/docs`,
+        graphql: `http://localhost:${env.PORT}/graphql`,
       });
     });
 

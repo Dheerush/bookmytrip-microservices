@@ -12,33 +12,33 @@ export interface InventoryListResult<T = unknown> {
 const LIST_ENDPOINTS: Record<InventoryEntity, string> = {
   flights: "/api/flights",
   trains: "/api/trains",
-  hotels: "/api/hotels/all-hotels",
-  cabs: "/api/cabs/all-cabs",
+  hotels: "/api/hotels",
+  cabs: "/api/cabs",
   tours: "/api/tours/admin/list",
 };
 
 const CREATE_ENDPOINTS: Record<InventoryEntity, string> = {
   flights: "/api/flights",
-  trains: "/api/trains/create-train",
-  hotels: "/api/hotels/create-hotel",
-  cabs: "/api/cabs/create-cab",
-  tours: "/api/tours/create-tour",
+  trains: "/api/trains",
+  hotels: "/api/hotels",
+  cabs: "/api/cabs",
+  tours: "/api/tours",
 };
 
 const UPDATE_ENDPOINTS: Record<InventoryEntity, (id: string) => string> = {
   flights: (id) => `/api/flights/${id}`,
   trains: (id) => `/api/trains/${id}`,
-  hotels: (id) => `/api/hotels/update-hotel/${id}`,
-  cabs: (id) => `/api/cabs/update-cab/${id}`,
-  tours: (id) => `/api/tours/update-tour/${id}`,
+  hotels: (id) => `/api/hotels/${id}`,
+  cabs: (id) => `/api/cabs/${id}`,
+  tours: (id) => `/api/tours/${id}`,
 };
 
 const DELETE_ENDPOINTS: Record<InventoryEntity, (id: string) => string> = {
   flights: (id) => `/api/flights/${id}`,
   trains: (id) => `/api/trains/delete-train/${id}`,
-  hotels: (id) => `/api/hotels/delete-hotel/${id}`,
-  cabs: (id) => `/api/cabs/delete-cab/${id}`,
-  tours: (id) => `/api/tours/delete-tour/${id}`,
+  hotels: (id) => `/api/hotels/${id}`,
+  cabs: (id) => `/api/cabs/${id}`,
+  tours: (id) => `/api/tours/${id}`,
 };
 
 const normalizeList = <T = unknown>(entity: InventoryEntity, data: unknown): InventoryListResult<T> => {

@@ -10,6 +10,7 @@ import {
   setAccessToken,
   touchSessionActivity,
 } from '@/lib/auth-session';
+import { showToast } from '@/lib/toast';
 
 export interface AuthUser {
   id: string;
@@ -164,6 +165,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     clearAccessToken();
     localStorage.removeItem(AUTH_USER_KEY);
     clearSessionActivity();
+  }, []);
+
+  // Listen for forced logout events dispatched by the axios interceptor on token refresh failure
+  useEffect(() => {
+    const handleForceLogout = () => {
+      setUser(null);
+      setToken(null);
+      clearAccessToken();
+      localStorage.removeItem(AUTH_USER_KEY);
+      clearSessionActivity();
+      showToast.error('Your session has expired. Please sign in again.');
+      // Hard redirect so all stale state is cleared
+      if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+        window.location.href = '/login';
+      }
+    };
+
+    window.addEventListener('auth:force-logout', handleForceLogout);
+    return () => window.removeEventListener('auth:force-logout', handleForceLogout);
   }, []);
 
   const checkSession = useCallback(() => {

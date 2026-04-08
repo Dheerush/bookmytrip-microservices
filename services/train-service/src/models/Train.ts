@@ -39,8 +39,13 @@ export interface ITrain extends Document {
   name: string;
   from: string;
   fromCode: string;
+  fromStationName?: string;
+  fromStationCode?: string;
   to: string;
   toCode: string;
+  toStationName?: string;
+  toStationCode?: string;
+  platformNumber?: string;
   departureTime: string;
   arrivalTime: string;
   duration: string;
@@ -105,8 +110,13 @@ const trainSchema = new Schema<ITrain>(
     name: { type: String, required: true, trim: true },
     from: { type: String, required: true },
     fromCode: { type: String, required: true, uppercase: true, trim: true, index: true },
+    fromStationName: { type: String },
+    fromStationCode: { type: String, uppercase: true, trim: true },
     to: { type: String, required: true },
     toCode: { type: String, required: true, uppercase: true, trim: true, index: true },
+    toStationName: { type: String },
+    toStationCode: { type: String, uppercase: true, trim: true },
+    platformNumber: { type: String },
     departureTime: { type: String, required: true },
     arrivalTime: { type: String, required: true },
     duration: { type: String, required: true },

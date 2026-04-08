@@ -1,0 +1,217 @@
+/* ── Booking form page ── */
+.page {
+  min-height: 100vh;
+  background: var(--ivory, #fafaf8);
+  padding-top: calc(var(--navbar-h, 72px) + 32px);
+  padding-bottom: 60px;
+}
+
+.inner {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 0 24px;
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 28px;
+  align-items: start;
+}
+
+@media (max-width: 720px) {
+  .inner { grid-template-columns: 1fr; }
+}
+
+.title {
+  font-family: var(--font-display, "Cormorant Garamond", serif);
+  font-size: 1.7rem;
+  font-weight: 700;
+  color: var(--deep-navy, #0b1929);
+  margin: 0 auto 28px;
+  max-width: 860px;
+  padding: 0 24px;
+}
+
+/* ── Selected item summary card ── */
+.summaryCard {
+  background: #fff;
+  border: 1.5px solid var(--border-soft, rgba(59, 158, 221, 0.14));
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.summaryImg {
+  width: 100%;
+  height: 180px;
+  object-fit: cover;
+}
+
+.summaryBody {
+  padding: 18px;
+}
+
+.summaryName {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--deep-navy, #0b1929);
+  margin-bottom: 4px;
+}
+
+.summaryMeta {
+  font-size: 0.83rem;
+  color: var(--text-muted, #6b7f93);
+  margin-bottom: 2px;
+}
+
+.summaryRoute {
+  font-size: 0.88rem;
+  color: var(--text-dark, #0f1f2e);
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #f0f3f7;
+}
+
+/* ── Fare breakdown card ── */
+.fareCard {
+  background: #fff;
+  border: 1.5px solid var(--border-soft, rgba(59, 158, 221, 0.14));
+  border-radius: 16px;
+  padding: 20px;
+  position: sticky;
+  top: 88px;
+}
+
+.fareTitle {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--deep-navy, #0b1929);
+  margin-bottom: 14px;
+}
+
+.fareLine {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  color: var(--text-dark, #0f1f2e);
+  padding: 5px 0;
+  border-bottom: 1px solid #f5f7fa;
+}
+
+.fareDiscount {
+  color: #16a34a;
+}
+
+.fareTotal {
+  display: flex;
+  justify-content: space-between;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--deep-navy, #0b1929);
+  padding-top: 12px;
+  margin-top: 4px;
+}
+
+/* ── Form ── */
+.formCard {
+  background: #fff;
+  border: 1.5px solid var(--border-soft, rgba(59, 158, 221, 0.14));
+  border-radius: 16px;
+  padding: 24px;
+  margin-top: 20px;
+}
+
+.sectionTitle {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--deep-navy, #0b1929);
+  margin-bottom: 16px;
+}
+
+.fieldRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.fieldFull {
+  margin-bottom: 16px;
+}
+
+.label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted, #6b7f93);
+  margin-bottom: 5px;
+}
+
+.input {
+  width: 100%;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  outline: none;
+  background: #fff;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+
+.input:focus {
+  border-color: var(--sky, #3b9edd);
+}
+
+.input.error {
+  border-color: #ef4444;
+}
+
+.ctaBtn {
+  width: 100%;
+  background: var(--deep-navy, #0b1929);
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  padding: 14px 20px;
+  font-size: 1rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  margin-top: 8px;
+  transition: background 0.2s, transform 0.15s;
+}
+
+.ctaBtn:hover { background: #1a3352; }
+.ctaBtn:active { transform: scale(0.98); }
+.ctaBtn:disabled { background: #94a3b8; cursor: not-allowed; }
+
+.errorMsg {
+  font-size: 0.78rem;
+  color: #ef4444;
+  margin-top: 4px;
+}
+
+.notFound {
+  text-align: center;
+  padding: 80px 20px;
+  color: var(--text-muted, #6b7f93);
+  font-size: 1rem;
+}
+
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: var(--sky, #3b9edd);
+  text-decoration: none;
+  margin-bottom: 20px;
+  max-width: 860px;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 0 24px;
+  display: block;
+}
+
+.backLink:hover { text-decoration: underline; }

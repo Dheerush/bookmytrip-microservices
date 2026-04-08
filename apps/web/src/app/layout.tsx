@@ -5,6 +5,7 @@ import ConditionalLayout from "@/components/layout/ConditionalLayout";
 import { AuthProvider } from "@/services/auth/context";
 import ToastProvider from "@/components/ui/ToastProvider/ToastProvider";
 import AiAssistant from "@/components/ui/AiAssistant/AiAssistant";
+import { ApolloClientProvider } from "@/graphql/ApolloProvider";
 
 
 const jost = Jost({
@@ -35,11 +36,13 @@ export default function RootLayout({
         />
       </head>
       <body>
-        <AuthProvider>
-          <ToastProvider />
-          <ConditionalLayout>{children}</ConditionalLayout>
-          <AiAssistant />
-        </AuthProvider>
+        <ApolloClientProvider>
+          <AuthProvider>
+            <ToastProvider />
+            <ConditionalLayout>{children}</ConditionalLayout>
+            <AiAssistant />
+          </AuthProvider>
+        </ApolloClientProvider>
       </body>
     </html>
   );

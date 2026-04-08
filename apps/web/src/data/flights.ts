@@ -19,6 +19,9 @@ export interface Flight {
   airlineLogo: string; 
   from: string;
   fromCode: string;
+  boardingAirport?: string;
+  boardingTerminal?: string;
+  boardingTime?: string;
   to: string;
   toCode: string;
   departureTime: string;

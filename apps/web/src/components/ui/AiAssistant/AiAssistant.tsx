@@ -24,75 +24,58 @@ const WELCOME_MESSAGE: Message = {
   text: "👋 Namaste! I'm **Yatra**, your BookMyTrip AI assistant. I can help you with recommendations, bookings, complaints, travel tips, and more. How can I help you today?",
 };
 
-function getBotReply(userMsg: string): string {
-  const lower = userMsg.toLowerCase();
-
-  if (lower.includes("hotel") || lower.includes("stay"))
-    return "🏨 Great choice! I'd recommend checking out our top-rated hotels in Goa, Jaipur, and Mumbai. Visit the Hotels page for live availability and exclusive discounts!";
-
-  if (lower.includes("flight") || lower.includes("fly") || lower.includes("deal"))
-    return "✈️ We have amazing flight deals! Check flights from Delhi to Goa starting ₹2,999. Head to the Flights page to search and compare.";
-
-  if (lower.includes("train") || lower.includes("rail"))
-    return "🚂 Looking for train bookings? We have 25+ trains across major routes. Visit the Trains page to find the perfect journey.";
-
-  if (lower.includes("cab") || lower.includes("taxi") || lower.includes("car"))
-    return "🚕 Need a ride? We offer Sedans, SUVs, MUVs, and Luxury cabs across all major cities. Check the Cabs page for pricing!";
-
-  if (lower.includes("complaint") || lower.includes("issue") || lower.includes("problem"))
-    return "📞 I'm sorry to hear that! Please share your booking ID and the issue you're facing. Our support team will connect with you within 24 hours. You can also email us at support@bookmytrip.com.";
-
-  if (lower.includes("faq") || lower.includes("question"))
-    return "❓ **FAQs:**\n• Cancel up to 24hrs before for full refund\n• Booking confirmation via email & SMS\n• Support available 24/7 via chat\n• EMI options on bookings above ₹5,000\n• Loyalty points on every booking!";
-
-  if (lower.includes("tip") || lower.includes("advice"))
-    return "💡 **Travel Tips:**\n• Book in advance for best prices\n• Tuesday & Wednesday flights are cheapest\n• Always carry a copy of your ID\n• Download offline maps\n• Pack light — you'll thank yourself later!";
-
-  if (lower.includes("plan") || lower.includes("trip") || lower.includes("recommend"))
-    return "🗺️ I'd love to help you plan! Tell me your destination, dates, and budget — I'll suggest the best flights, hotels, and activities for you.";
-
-  if (lower.includes("hello") || lower.includes("hi") || lower.includes("hey"))
-    return "👋 Hello! Welcome to BookMyTrip. What can I help you with — flights, hotels, trains, or cabs?";
-
-  return "Thanks for your message! I can help with hotel recommendations, flight deals, trip planning, complaints, and more. Try asking me something specific! 😊";
+async function fetchBotReply(message: string): Promise<string> {
+  try {
+    const res = await fetch("/api/ai/support", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message }),
+    });
+    if (!res.ok) throw new Error("API error");
+    const data = await res.json() as { data?: { reply?: string } };
+    return data?.data?.reply ?? "I'm having trouble responding right now. Please try again in a moment.";
+  } catch {
+    return "Sorry, I couldn't connect to the assistant. Please try again shortly.";
+  }
 }
 
 export default function AiAssistant() {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([WELCOME_MESSAGE]);
   const [input, setInput] = useState("");
+  const [typing, setTyping] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
   const msgIdRef = useRef(0);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, typing]);
 
-  const sendMessage = (text: string) => {
-    if (!text.trim()) return;
+  const sendMessage = async (text: string) => {
+    if (!text.trim() || typing) return;
 
     msgIdRef.current += 1;
-    const userId = `u-${msgIdRef.current}`;
 
     const userMsg: Message = {
-      id: userId,
+      id: `u-${msgIdRef.current}`,
       role: "user",
       text: text.trim(),
     };
 
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
+    setTyping(true);
 
-    // Simulate bot reply
-    setTimeout(() => {
-      msgIdRef.current += 1;
-      const botReply: Message = {
-        id: `b-${msgIdRef.current}`,
-        role: "assistant",
-        text: getBotReply(text),
-      };
-      setMessages((prev) => [...prev, botReply]);
-    }, 600);
+    const replyText = await fetchBotReply(text.trim());
+
+    msgIdRef.current += 1;
+    const botReply: Message = {
+      id: `b-${msgIdRef.current}`,
+      role: "assistant",
+      text: replyText,
+    };
+    setMessages((prev) => [...prev, botReply]);
+    setTyping(false);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -150,6 +133,11 @@ export default function AiAssistant() {
                 </div>
               </div>
             ))}
+            {typing && (
+              <div className={`${styles.bubble} ${styles.assistant}`}>
+                <span className={styles.typingDots}><span /><span /><span /></span>
+              </div>
+            )}
             <div ref={endRef} />
           </div>
 
@@ -176,7 +164,7 @@ export default function AiAssistant() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
             />
-            <button className={styles.sendBtn} type="submit" disabled={!input.trim()}>
+            <button className={styles.sendBtn} type="submit" disabled={!input.trim() || typing}>
               ➤
             </button>
           </form>

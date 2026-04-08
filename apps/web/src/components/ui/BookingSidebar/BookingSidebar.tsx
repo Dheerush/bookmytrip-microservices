@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { getAuthHeaders } from "@/lib/http";
 import styles from "./BookingSidebar.module.scss";
 
 interface FareLine {
@@ -16,15 +17,12 @@ interface BookingSidebarProps {
   /** Pre-applied discount from search card (e.g. original - discounted) */
   discount?: number;
   ctaLabel?: string;
+  serviceType?: string;
+  initialCouponCode?: string;
+  initialCouponDiscount?: number;
+  onCouponApplied?: (payload: { code: string; discount: number }) => void;
   onProceed?: (netAmount: number) => void;
 }
-
-const COUPON_MAP: Record<string, number> = {
-  SAVE200: 200,
-  TRIP500: 500,
-  WELCOME: 300,
-  FIRST100: 100,
-};
 
 export default function BookingSidebar({
   baseFare,
@@ -33,21 +31,45 @@ export default function BookingSidebar({
   extraLines = [],
   discount = 0,
   ctaLabel = "Proceed to Payment",
+  serviceType,
+  initialCouponCode = "",
+  initialCouponDiscount = 0,
+  onCouponApplied,
   onProceed,
 }: BookingSidebarProps) {
-  const [coupon, setCoupon] = useState("");
-  const [couponDiscount, setCouponDiscount] = useState(0);
+  const [coupon, setCoupon] = useState(initialCouponCode);
+  const [couponDiscount, setCouponDiscount] = useState(initialCouponDiscount);
   const [couponMsg, setCouponMsg] = useState<string | null>(null);
+  const [applying, setApplying] = useState(false);
 
-  const applyCoupon = () => {
+  const applyCoupon = async () => {
     const code = coupon.trim().toUpperCase();
-    const value = COUPON_MAP[code];
-    if (value) {
-      setCouponDiscount(value);
-      setCouponMsg(`Coupon applied! ₹${value} off`);
-    } else {
+    if (!code) return;
+    const extraTotal = extraLines.reduce((s, l) => s + l.amount, 0);
+    const subtotal = baseFare + taxes + serviceFee + extraTotal - discount;
+    try {
+      setApplying(true);
+      const res = await fetch("/api/admin/coupons/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        body: JSON.stringify({ code, amount: subtotal, serviceType: serviceType || "" }),
+      });
+      const data = await res.json() as { success?: boolean; data?: { discount?: number }; message?: string };
+      if (data.success && data.data?.discount != null) {
+        setCouponDiscount(data.data.discount);
+        setCouponMsg(`Coupon applied! ₹${data.data.discount} off`);
+        onCouponApplied?.({ code, discount: data.data.discount });
+      } else {
+        setCouponDiscount(0);
+        setCouponMsg(data.message || "Invalid coupon code");
+        onCouponApplied?.({ code, discount: 0 });
+      }
+    } catch {
       setCouponDiscount(0);
-      setCouponMsg("Invalid coupon code");
+      setCouponMsg("Could not validate coupon. Try again.");
+      onCouponApplied?.({ code, discount: 0 });
+    } finally {
+      setApplying(false);
     }
   };
 
@@ -106,8 +128,8 @@ export default function BookingSidebar({
           value={coupon}
           onChange={(e) => setCoupon(e.target.value)}
         />
-        <button className={styles.couponBtn} type="button" onClick={applyCoupon}>
-          Apply
+        <button className={styles.couponBtn} type="button" onClick={applyCoupon} disabled={applying}>
+          {applying ? "..." : "Apply"}
         </button>
       </div>
       {couponMsg && (

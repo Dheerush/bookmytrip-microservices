@@ -1,44 +1,88 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import Link from "next/link";
 import Logo from "@/components/ui/Logo/Logo";
 import { showToast } from "@/lib/toast";
 import styles from "./Footer.module.scss";
 
 const policyLinks = [
-  "Privacy Policy",
-  "Terms of Use",
-  "Cancellation & Refund",
-  "Travel Safety",
+  { key: "privacy", label: "Privacy Policy" },
+  { key: "terms", label: "Terms of Use" },
+  { key: "cancel", label: "Cancellation & Refund" },
+  { key: "safety", label: "Travel Safety" },
 ];
 
 const developerNotes = [
-  "Platform Status",
-  "API Changelog",
-  "Feature Rollout Notes",
-  "Security Baseline",
+  { key: "status", label: "Platform Status" },
+  { key: "api", label: "API Changelog" },
+  { key: "rollout", label: "Feature Rollout Notes" },
+  { key: "security", label: "Security Baseline" },
 ];
 
 const offerLinks = [
-  "Weekend Flight Deals",
-  "Hotel Flash Sale",
-  "Cab Cashback",
-  "Train Early Bird Pass",
+  { label: "Weekend Flight Deals", href: "/deals" },
+  { label: "Hotel Flash Sale", href: "/deals" },
+  { label: "Cab Cashback", href: "/deals" },
+  { label: "Train Early Bird Pass", href: "/deals" },
 ];
 
 const destinationHighlights = ["Goa", "Dubai", "Bali", "Singapore", "Kashmir", "Istanbul"];
 
 const Footer = () => {
   const [email, setEmail] = useState("");
+  const [activeModal, setActiveModal] = useState<string | null>(null);
 
-  const handleNewsletter = (event: FormEvent<HTMLFormElement>) => {
+  const handleNewsletter = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!email.trim()) {
       showToast.error("Please add an email to subscribe.");
       return;
     }
-    showToast.success("Subscribed successfully. You will receive offers and coupons.");
-    setEmail("");
+    try {
+      const res = await fetch("/api/users/newsletter/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+      const data = (await res.json()) as { success?: boolean; message?: string };
+      if (data.success) {
+        showToast.success("Subscribed! We'll send upcoming deals and offers to your email.");
+        setEmail("");
+      } else {
+        showToast.error(data.message || "Subscription failed. Please try again.");
+      }
+    } catch {
+      showToast.error("Subscription failed. Please try again.");
+    }
+  };
+
+  const renderModalBody = () => {
+    if (activeModal === "privacy") {
+      return "This learning project stores only basic account and booking details needed for app flows. We do not sell personal data. By using this app, you agree that data may be used for demo analytics and debugging in development environments.";
+    }
+    if (activeModal === "terms") {
+      return "BookMyTrip is a learning/demo platform and not a production booking provider. Prices, inventory, and third-party integrations may be simulated. Please do not use this app for real financial or travel decisions.";
+    }
+    if (activeModal === "cancel") {
+      return "Cancellation and refund eligibility depends on booking type, timing, and provider rules. Refund timelines shown in the app are indicative and part of learning workflows.";
+    }
+    if (activeModal === "safety") {
+      return "Always verify destination advisories, local regulations, and provider legitimacy before travel. Keep IDs and emergency contacts available.";
+    }
+    if (activeModal === "status") {
+      return "Current platform status: development mode. Some modules may use fallback data when corresponding backend services are unavailable.";
+    }
+    if (activeModal === "api") {
+      return "Recent updates include coupon validation, live complaint workflows, and real-time notifications via socket channels.";
+    }
+    if (activeModal === "rollout") {
+      return "Feature rollout follows phased integration: APIs first, dashboard wiring second, and UX polish in final pass.";
+    }
+    if (activeModal === "security") {
+      return "Security baseline includes JWT auth, role-based access controls, API gateway checks, and event audit patterns for key actions.";
+    }
+    return "";
   };
 
   return (
@@ -61,7 +105,7 @@ const Footer = () => {
           <h3>BMT Policies</h3>
           <ul>
             {policyLinks.map((item) => (
-              <li key={item}>{item}</li>
+              <li key={item.key}><button type="button" onClick={() => setActiveModal(item.key)}>{item.label}</button></li>
             ))}
           </ul>
         </section>
@@ -70,7 +114,7 @@ const Footer = () => {
           <h3>Developer Notes</h3>
           <ul>
             {developerNotes.map((item) => (
-              <li key={item}>{item}</li>
+              <li key={item.key}><button type="button" onClick={() => setActiveModal(item.key)}>{item.label}</button></li>
             ))}
           </ul>
         </section>
@@ -79,7 +123,7 @@ const Footer = () => {
           <h3>Coupons and Offers</h3>
           <ul>
             {offerLinks.map((item) => (
-              <li key={item}>{item}</li>
+              <li key={item.label}><Link href={item.href}>{item.label}</Link></li>
             ))}
           </ul>
         </section>
@@ -104,15 +148,25 @@ const Footer = () => {
         <h4>Curated Destinations</h4>
         <div>
           {destinationHighlights.map((place) => (
-            <span key={place}>{place}</span>
+            <Link key={place} href={`/flights?to=${encodeURIComponent(place)}`}>{place}</Link>
           ))}
         </div>
       </div>
 
       <div className={styles.bottom}>
-        <span>© {new Date().getFullYear()} BookMyTrip. Crafted for elevated travel experiences.</span>
-        <span>Made with modern platform architecture and trust-first design.</span>
+        <span>© {new Date().getFullYear()} BookMyTrip. This app is for learning and demo workflows only.</span>
+        <span>Created by Dheeraj Sharma · sharmadheeraj1996@gmail.com</span>
       </div>
+
+      {activeModal && (
+        <div className={styles.modalOverlay} onClick={() => setActiveModal(null)}>
+          <div className={styles.modalCard} onClick={(e) => e.stopPropagation()}>
+            <h4>{[...policyLinks, ...developerNotes].find((x) => x.key === activeModal)?.label}</h4>
+            <p>{renderModalBody()}</p>
+            <button type="button" onClick={() => setActiveModal(null)}>Close</button>
+          </div>
+        </div>
+      )}
     </footer>
   );
 };

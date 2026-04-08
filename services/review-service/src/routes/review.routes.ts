@@ -14,6 +14,15 @@ const createSchema = z.object({
   comment: z.string().min(10).max(1500),
 });
 
+router.get('/me/list', authenticate, async (req, res, next) => {
+  try {
+    const items = await Review.find({ userId: req.user?.id }).sort({ createdAt: -1 }).lean();
+    res.status(200).json({ success: true, message: 'My reviews fetched', data: { items } });
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.get('/:itemType/:itemId', async (req, res, next) => {
   try {
     const itemType = req.params.itemType;
@@ -31,15 +40,6 @@ router.get('/:itemType/:itemId', async (req, res, next) => {
     ]);
 
     res.status(200).json({ success: true, message: 'Reviews fetched', data: { items, total, page, totalPages: Math.ceil(total / limit) } });
-  } catch (error) {
-    next(error);
-  }
-});
-
-router.get('/me/list', authenticate, async (req, res, next) => {
-  try {
-    const items = await Review.find({ userId: req.user?.id }).sort({ createdAt: -1 }).lean();
-    res.status(200).json({ success: true, message: 'My reviews fetched', data: { items } });
   } catch (error) {
     next(error);
   }

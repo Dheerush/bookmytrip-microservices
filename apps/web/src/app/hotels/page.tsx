@@ -37,15 +37,26 @@ const resolveHotelCity = (value: string): string | null => {
   return trimmed;
 };
 
+const getTodayIso = (): string => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
+const getTomorrowIso = (): string => {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
 function HotelsContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
   const page = Number(searchParams.get("page") || "1");
 
-  const [city, setCity] = useState(searchParams.get("city") || "");
-  const [checkin, setCheckin] = useState(searchParams.get("checkin") || "");
-  const [checkout, setCheckout] = useState(searchParams.get("checkout") || "");
+  const [city, setCity] = useState(searchParams.get("city") || "Delhi");
+  const [checkin, setCheckin] = useState(searchParams.get("checkin") || getTodayIso());
+  const [checkout, setCheckout] = useState(searchParams.get("checkout") || getTomorrowIso());
 
   const [sort, setSort] = useState<SortKey>((searchParams.get("sort") as SortKey) || "price-asc");
   const [selectedCities, setSelectedCities] = useState<Set<string>>(

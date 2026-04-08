@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Home, Plane, Hotel, Package, LogOut, LayoutGrid, MessageSquare } from "lucide-react";
 import Logo from "@/components/ui/Logo/Logo";
 import { useAuth } from "@/services/auth/context";
+import { showToast } from "@/lib/toast";
 import styles from "./Navbar.module.scss";
 
 const TrainIcon = () => (
@@ -134,6 +135,7 @@ export default function Navbar() {
 
   const handleLogout = () => {
     logout();
+    showToast.success("You've been signed out. See you soon! ✈️");
     router.push("/");
   };
 

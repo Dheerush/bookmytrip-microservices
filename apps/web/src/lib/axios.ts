@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { GATEWAY_API_BASE } from './api-config';
-import { getAccessToken, refreshAccessToken, touchSessionActivity } from './auth-session';
+import { clearAccessToken, getAccessToken, refreshAccessToken, touchSessionActivity } from './auth-session';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || GATEWAY_API_BASE;
 
@@ -60,6 +60,10 @@ apiClient.interceptors.response.use(
         originalRequest.headers.Authorization = `Bearer ${refreshedToken}`;
         return apiClient(originalRequest);
       }
+
+      // Refresh failed — session is truly expired. Clear tokens and force logout.
+      clearAccessToken();
+      window.dispatchEvent(new CustomEvent('auth:force-logout', { detail: { reason: 'session_expired' } }));
     }
 
     // Extract backend error message if available

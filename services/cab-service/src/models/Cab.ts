@@ -20,6 +20,13 @@ export interface ICab extends Document {
   city: string;
   features: string[];
   luggage: string;
+  pickupPoints: string[];
+  dropPoints: string[];
+  distanceMatrix: Array<{
+    from: string;
+    to: string;
+    distanceKm: number;
+  }>;
   available: boolean;
   isActive: boolean;
   createdAt: Date;
@@ -43,6 +50,13 @@ const cabSchema = new Schema<ICab>({
   city: { type: String, required: true, index: true },
   features: [{ type: String, required: true }],
   luggage: { type: String, required: true },
+  pickupPoints: [{ type: String }],
+  dropPoints: [{ type: String }],
+  distanceMatrix: [{
+    from: { type: String, required: true },
+    to: { type: String, required: true },
+    distanceKm: { type: Number, required: true, min: 0 },
+  }],
   available: { type: Boolean, default: true },
   isActive: { type: Boolean, default: true, index: true },
 }, { timestamps: true });

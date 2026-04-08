@@ -1,11 +1,8 @@
 "use client";
 
-import { useState, use } from "react";
-import { notFound } from "next/navigation";
-import { useBookingFlow } from "@/hooks/useBookingFlow";
-import { useBookingGuard } from "@/hooks/useBookingGuard";
-import { useAuth } from "@/services/auth/context";
-import { hotels } from "@/data/hotels";
+import { useState, useEffect, use } from "react";
+import { notFound, useRouter } from "next/navigation";
+import { hotels, type Hotel } from "@/data/hotels";
 import BookingSidebar from "@/components/ui/BookingSidebar/BookingSidebar";
 import styles from "./page.module.scss";
 
@@ -15,15 +12,50 @@ interface Props {
 
 export default function HotelDetailPage({ params }: Props) {
   const { id } = use(params);
-  const hotel = hotels.find((h) => h.id === id);
+  const staticHotel = hotels.find((h) => h.id === id);
 
   const [activeImg, setActiveImg] = useState(0);
   const [selectedRoom, setSelectedRoom] = useState(0);
   const [nights, setNights] = useState(1);
-  const { guardAction } = useBookingGuard();
-  const { processBookingAndPayment } = useBookingFlow();
-  const { user } = useAuth();
+  const [apiHotel, setApiHotel] = useState<Hotel | null>(null);
+  const [loading, setLoading] = useState(!staticHotel);
+  const [appliedCouponCode, setAppliedCouponCode] = useState("");
+  const [appliedCouponDiscount, setAppliedCouponDiscount] = useState(0);
+  const router = useRouter();
 
+  useEffect(() => {
+    if (staticHotel) return;
+    let mounted = true;
+
+    const run = async () => {
+      try {
+        const res = await fetch(`/api/hotels/${id}`);
+        if (!res.ok) return;
+        const json = await res.json() as { data?: (Hotel & { _id?: string }); success?: boolean };
+        const hotel = json.data;
+        if (!mounted || !hotel) return;
+        setApiHotel({
+          ...hotel,
+          id: hotel.id || hotel._id || id,
+        });
+      } catch {
+        // ignore and show not found state below
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    void run();
+    return () => {
+      mounted = false;
+    };
+  }, [id, staticHotel]);
+
+  if (loading) {
+    return <div className={styles.page}>Loading hotel details...</div>;
+  }
+
+  const hotel = staticHotel ?? apiHotel;
   if (!hotel) return notFound();
 
   const room = hotel.rooms[selectedRoom];
@@ -33,29 +65,17 @@ export default function HotelDetailPage({ params }: Props) {
   const serviceFee = 399;
   const netAmount = baseTotal + taxes + serviceFee - discount;
 
-  const handleProceedToPayment = (netAmount: number) => {
-    guardAction(async () => {
-      if (!user) return;
-      await processBookingAndPayment(
-        {
-          itemId: hotel.id,
-          type: 'hotel',
-          title: hotel.name,
-          city: hotel.address,
-          startDate: new Date().toISOString().split('T')[0],
-          endDate: new Date(Date.now() + nights * 86400000).toISOString().split('T')[0],
-          quantity: nights,
-          amount: baseTotal,
-          contact: {
-            name: user.name || 'Guest',
-            email: user.email || '',
-            phone: user.phone || '',
-          },
-          passengers: [],
-        },
-        netAmount,
-      );
+  const handleProceedToPayment = (_netAmount: number) => {
+    const params = new URLSearchParams({
+      hotelId: hotel.id,
+      roomIndex: String(selectedRoom),
+      nights: String(nights),
     });
+    if (appliedCouponCode && appliedCouponDiscount > 0) {
+      params.set("couponCode", appliedCouponCode);
+      params.set("couponDiscount", String(Math.round(appliedCouponDiscount)));
+    }
+    router.push(`/hotels/booking?${params.toString()}`);
   };
 
   return (
@@ -205,7 +225,12 @@ export default function HotelDetailPage({ params }: Props) {
             extraLines={[
               { label: `${room.type} × ${nights} night${nights > 1 ? "s" : ""}`, amount: 0 },
             ]}
+            serviceType="hotel"
             ctaLabel="Proceed to Payment"
+            onCouponApplied={({ code, discount: value }) => {
+              setAppliedCouponCode(code);
+              setAppliedCouponDiscount(value);
+            }}
             onProceed={handleProceedToPayment}
           />
         </div>

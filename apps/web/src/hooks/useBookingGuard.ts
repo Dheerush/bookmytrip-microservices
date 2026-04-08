@@ -22,7 +22,7 @@ export function useBookingGuard() {
   const guardAction = useCallback(
     (action: () => void) => {
       if (!isAuthenticated) {
-        showToast.info("Please sign in to proceed with your booking");
+        showToast.info("Sign in to book");
         router.push("/login");
         return;
       }

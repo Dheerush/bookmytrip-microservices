@@ -1,7 +1,7 @@
 import { Request, RequestHandler, Response } from 'express';
 import { asyncHandler } from '../utils/asyncHandler';
 import { apiResponse } from '../utils/apiResponse';
-import { cancelBooking, createBooking, getBookingById, getBookingInvoice, listAllBookings, listUserBookings } from '../services/booking.service';
+import { cancelBooking, confirmBooking, createBooking, failBooking, getBookingById, getBookingInvoice, listAllBookings, listUserBookings } from '../services/booking.service';
 import { CancelBookingDto, CreateBookingDto, ListBookingsQuery } from '../validators/booking.validators';
 import { AppError } from '../utils/AppError';
 
@@ -36,6 +36,16 @@ export const getBookingByIdHandler: RequestHandler = asyncHandler(async (req: Re
 export const cancelBookingHandler: RequestHandler = asyncHandler(async (req: Request, res: Response) => {
   const booking = await cancelBooking(req.params.bookingId, requireUserId(req), req.body as CancelBookingDto, req.user?.role === 'admin');
   res.status(200).json(apiResponse(booking, 'Booking cancelled'));
+});
+
+export const confirmBookingHandler: RequestHandler = asyncHandler(async (req: Request, res: Response) => {
+  const booking = await confirmBooking(req.params.bookingId, requireUserId(req));
+  res.status(200).json(apiResponse(booking, 'Booking confirmed'));
+});
+
+export const failBookingHandler: RequestHandler = asyncHandler(async (req: Request, res: Response) => {
+  const booking = await failBooking(req.params.bookingId, requireUserId(req));
+  res.status(200).json(apiResponse(booking, 'Booking marked as failed'));
 });
 
 export const getInvoiceHandler: RequestHandler = asyncHandler(async (req: Request, res: Response) => {

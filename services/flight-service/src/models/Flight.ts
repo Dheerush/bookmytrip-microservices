@@ -35,6 +35,9 @@ export interface IFlight extends Document {
   airlineLogo: string;
   from: string;
   fromCode: string;
+  boardingAirport?: string;
+  boardingTerminal?: string;
+  boardingTime?: string;
   to: string;
   toCode: string;
   departureTime: string;   // "HH:MM" — schedule-relative, date applied at search time
@@ -103,6 +106,9 @@ const flightSchema = new Schema<IFlight>(
     airlineLogo:   { type: String, default: '' },
     from:          { type: String, required: true },
     fromCode:      { type: String, required: true, uppercase: true, length: 3, index: true },
+    boardingAirport:{ type: String },
+    boardingTerminal:{ type: String },
+    boardingTime:  { type: String },
     to:            { type: String, required: true },
     toCode:        { type: String, required: true, uppercase: true, length: 3, index: true },
     departureTime: { type: String, required: true },

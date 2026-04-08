@@ -17,6 +17,7 @@ const couponSchema = z.object({
   startsAt: z.string().datetime(),
   endsAt: z.string().datetime(),
   usageLimit: z.number().int().min(1).default(1000),
+  oneTimePerUser: z.boolean().default(false),
   active: z.boolean().default(true),
   applicableOn: z.array(z.string()).default([]),
 });
@@ -43,12 +44,26 @@ router.get('/offers/public', async (_req: Request, res: Response, next: NextFunc
   }
 });
 
-router.post('/coupons/validate', async (req: Request, res: Response, next: NextFunction) => {
+router.get('/coupons/public', async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const now = new Date();
+    const items = await Coupon.find({ active: true, startsAt: { $lte: now }, endsAt: { $gte: now } })
+      .sort({ createdAt: -1 })
+      .lean();
+    res.status(200).json({ success: true, message: 'Coupons fetched', data: { items } });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/coupons/validate', authenticate, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const code = String(req.body?.code || '').trim().toUpperCase();
     const amount = Number(req.body?.amount || 0);
     const serviceType = String(req.body?.serviceType || '').trim();
+    const userId = req.user?.id;
     if (!code || amount <= 0) throw new AppError('Invalid payload', 400, 'VALIDATION_ERROR');
+    if (!userId) throw new AppError('Authentication required', 401, 'UNAUTHORIZED');
 
     const now = new Date();
     const coupon = await Coupon.findOne({ code, active: true, startsAt: { $lte: now }, endsAt: { $gte: now } }).lean();
@@ -57,6 +72,9 @@ router.post('/coupons/validate', async (req: Request, res: Response, next: NextF
     if (amount < coupon.minOrderValue) throw new AppError('Order value below minimum for coupon', 400, 'MIN_ORDER_NOT_MET');
     if (coupon.applicableOn.length > 0 && serviceType && !coupon.applicableOn.includes(serviceType)) {
       throw new AppError('Coupon not applicable on selected service', 400, 'COUPON_NOT_APPLICABLE');
+    }
+    if (coupon.oneTimePerUser && coupon.usedBy.includes(userId)) {
+      throw new AppError('Coupon already used by this account', 400, 'COUPON_ALREADY_USED');
     }
 
     let discount = coupon.discountType === 'percent' ? (amount * coupon.discountValue) / 100 : coupon.discountValue;
@@ -75,6 +93,33 @@ router.post('/coupons/validate', async (req: Request, res: Response, next: NextF
         payableAmount: amount - discount,
       },
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/coupons/redeem', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const code = String(req.body?.code || '').trim().toUpperCase();
+    const userId = req.user?.id;
+    if (!code) throw new AppError('Coupon code is required', 400, 'VALIDATION_ERROR');
+    if (!userId) throw new AppError('Authentication required', 401, 'UNAUTHORIZED');
+
+    const now = new Date();
+    const coupon = await Coupon.findOne({ code, active: true, startsAt: { $lte: now }, endsAt: { $gte: now } });
+    if (!coupon) throw new AppError('Coupon not found or expired', 404, 'COUPON_INVALID');
+    if (coupon.usageLimit <= coupon.usedCount) throw new AppError('Coupon usage exhausted', 400, 'COUPON_EXHAUSTED');
+    if (coupon.oneTimePerUser && coupon.usedBy.includes(userId)) {
+      throw new AppError('Coupon already used by this account', 400, 'COUPON_ALREADY_USED');
+    }
+
+    coupon.usedCount += 1;
+    if (coupon.oneTimePerUser && !coupon.usedBy.includes(userId)) {
+      coupon.usedBy.push(userId);
+    }
+    await coupon.save();
+
+    res.status(200).json({ success: true, message: 'Coupon redeemed', data: { code: coupon.code, usedCount: coupon.usedCount } });
   } catch (error) {
     next(error);
   }

@@ -27,8 +27,13 @@ export interface Train {
   name: string;
   from: string;
   fromCode: string;
+  fromStationName?: string;
+  fromStationCode?: string;
   to: string;
   toCode: string;
+  toStationName?: string;
+  toStationCode?: string;
+  platformNumber?: string;
   departureTime: string;
   arrivalTime: string;
   duration: string;

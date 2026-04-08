@@ -58,6 +58,9 @@ const ENTITY_CONFIGS: EntityConfig[] = [
       { key: "airline", label: "Airline", type: "text", required: true, placeholder: "BookMyTrip Air" },
       { key: "from", label: "From City", type: "text", required: true, placeholder: "Delhi" },
       { key: "fromCode", label: "From Code", type: "text", required: true, placeholder: "DEL" },
+      { key: "boardingAirport", label: "Boarding Airport", type: "text", required: true, placeholder: "Indira Gandhi International Airport" },
+      { key: "boardingTerminal", label: "Boarding Terminal", type: "text", required: true, placeholder: "T3" },
+      { key: "boardingTime", label: "Boarding Time", type: "text", required: true, placeholder: "08:45" },
       { key: "to", label: "To City", type: "text", required: true, placeholder: "Mumbai" },
       { key: "toCode", label: "To Code", type: "text", required: true, placeholder: "BOM" },
       { key: "departureTime", label: "Departure Time", type: "text", required: true, placeholder: "09:30" },
@@ -91,6 +94,9 @@ const ENTITY_CONFIGS: EntityConfig[] = [
       airline: "BookMyTrip Air",
       from: "Delhi",
       fromCode: "DEL",
+      boardingAirport: "Indira Gandhi International Airport",
+      boardingTerminal: "T3",
+      boardingTime: "08:45",
       to: "Mumbai",
       toCode: "BOM",
       departureTime: "09:30",
@@ -128,8 +134,13 @@ const ENTITY_CONFIGS: EntityConfig[] = [
       { key: "name", label: "Train Name", type: "text", required: true, placeholder: "Sample Express" },
       { key: "from", label: "From City", type: "text", required: true, placeholder: "Delhi" },
       { key: "fromCode", label: "From Code", type: "text", required: true, placeholder: "NDLS" },
+      { key: "fromStationName", label: "From Station Name", type: "text", required: true, placeholder: "New Delhi Railway Station" },
+      { key: "fromStationCode", label: "From Station Code", type: "text", required: true, placeholder: "NDLS" },
       { key: "to", label: "To City", type: "text", required: true, placeholder: "Mumbai" },
       { key: "toCode", label: "To Code", type: "text", required: true, placeholder: "BCT" },
+      { key: "toStationName", label: "To Station Name", type: "text", required: true, placeholder: "Mumbai Central" },
+      { key: "toStationCode", label: "To Station Code", type: "text", required: true, placeholder: "BCT" },
+      { key: "platformNumber", label: "Platform Number", type: "text", required: true, placeholder: "5" },
       { key: "departureTime", label: "Departure Time", type: "text", required: true, placeholder: "06:00" },
       { key: "arrivalTime", label: "Arrival Time", type: "text", required: true, placeholder: "21:30" },
       { key: "duration", label: "Duration", type: "text", required: true, placeholder: "15h 30m" },
@@ -158,8 +169,13 @@ const ENTITY_CONFIGS: EntityConfig[] = [
       name: "Sample Express",
       from: "Delhi",
       fromCode: "NDLS",
+      fromStationName: "New Delhi Railway Station",
+      fromStationCode: "NDLS",
       to: "Mumbai",
       toCode: "BCT",
+      toStationName: "Mumbai Central",
+      toStationCode: "BCT",
+      platformNumber: "5",
       departureTime: "06:00",
       arrivalTime: "21:30",
       duration: "15h 30m",
@@ -270,6 +286,15 @@ const ENTITY_CONFIGS: EntityConfig[] = [
       { key: "driverName", label: "Driver Name", type: "text", required: true, placeholder: "Arun Kumar" },
       { key: "driverRating", label: "Driver Rating", type: "number", required: true, placeholder: "4.6" },
       { key: "city", label: "City", type: "text", required: true, placeholder: "Mumbai" },
+      { key: "pickupPoints", label: "Pickup Points", type: "text", required: true, placeholder: "Type pickup point and press Enter" },
+      { key: "dropPoints", label: "Drop Points", type: "text", required: true, placeholder: "Type drop point and press Enter" },
+      {
+        key: "routeDistances",
+        label: "Route Distances",
+        type: "text",
+        required: true,
+        placeholder: "Use format Pickup->Drop:DistanceKm and press Enter",
+      },
       { key: "features", label: "Features", type: "text", required: true, placeholder: "Type feature and press Enter" },
       { key: "luggage", label: "Luggage", type: "text", required: true, placeholder: "2 bags" },
       { key: "available", label: "Available", type: "checkbox" },
@@ -278,6 +303,9 @@ const ENTITY_CONFIGS: EntityConfig[] = [
       { key: "baseFare", label: "Base Fare", type: "number", placeholder: "449" },
       { key: "pricePerKm", label: "Price/KM", type: "number", placeholder: "13" },
       { key: "rating", label: "Rating", type: "number", placeholder: "4.5" },
+      { key: "pickupPoints", label: "Pickup Points", type: "text", placeholder: "Type pickup point and press Enter" },
+      { key: "dropPoints", label: "Drop Points", type: "text", placeholder: "Type drop point and press Enter" },
+      { key: "routeDistances", label: "Route Distances", type: "text", placeholder: "Use format Pickup->Drop:DistanceKm and press Enter" },
       { key: "available", label: "Available", type: "checkbox" },
     ],
     createDefaults: {
@@ -295,6 +323,9 @@ const ENTITY_CONFIGS: EntityConfig[] = [
       driverName: "Arun Kumar",
       driverRating: "4.6",
       city: "Mumbai",
+      pickupPoints: "Andheri Station,Bandra West,Airport Terminal 2",
+      dropPoints: "BKC,Lower Parel,Powai",
+      routeDistances: "Andheri Station->BKC:8,Bandra West->Lower Parel:10,Airport Terminal 2->Powai:6",
       features: "Music,Charging Port,Sanitized",
       luggage: "2 bags",
       available: "true",
@@ -303,6 +334,9 @@ const ENTITY_CONFIGS: EntityConfig[] = [
       baseFare: "449",
       pricePerKm: "13",
       rating: "4.5",
+      pickupPoints: "Andheri Station,Bandra West,Airport Terminal 2",
+      dropPoints: "BKC,Lower Parel,Powai",
+      routeDistances: "Andheri Station->BKC:8,Bandra West->Lower Parel:10,Airport Terminal 2->Powai:6",
       available: "true",
     },
   },
@@ -322,6 +356,27 @@ const ENTITY_CONFIGS: EntityConfig[] = [
       { key: "tags", label: "Tags", type: "text", placeholder: "Type tag and press Enter" },
       { key: "inclusions", label: "Inclusions", type: "text", placeholder: "Type inclusion and press Enter" },
       { key: "exclusions", label: "Exclusions", type: "text", placeholder: "Type exclusion and press Enter" },
+      { key: "hotel", label: "Hotel", type: "text", placeholder: "Premium Beach Resort" },
+      { key: "hotelRating", label: "Hotel Rating", type: "number", placeholder: "4.5" },
+      { key: "food", label: "Food", type: "text", placeholder: "Breakfast,Dinner" },
+      { key: "transport", label: "Transport", type: "text", placeholder: "Private transfers,Coach" },
+      { key: "activities", label: "Activities", type: "text", placeholder: "Scuba,Sunset cruise" },
+      { key: "highlights", label: "Highlights", type: "text", placeholder: "Beach day,Old Goa,Market walk" },
+      { key: "bestSeason", label: "Best Season", type: "text", placeholder: "Oct-Mar" },
+      { key: "groupSize", label: "Group Size", type: "text", placeholder: "2-15 pax" },
+      { key: "tripType", label: "Trip Type", type: "text", placeholder: "Leisure" },
+      { key: "hospitality", label: "Hospitality", type: "text", placeholder: "Premium" },
+      { key: "documents", label: "Documents", type: "text", placeholder: "Passport,Government ID" },
+      { key: "guideName", label: "Guide Name", type: "text", placeholder: "BMT Local Expert" },
+      { key: "guideContact", label: "Guide Contact", type: "text", placeholder: "+91 98765 43210" },
+      { key: "guideLanguages", label: "Guide Languages", type: "text", placeholder: "English,Hindi" },
+      { key: "guideRating", label: "Guide Rating", type: "number", placeholder: "4.6" },
+      { key: "guideExperience", label: "Guide Experience", type: "text", placeholder: "5+ years" },
+      { key: "guideSpeciality", label: "Guide Speciality", type: "text", placeholder: "Goa and surroundings" },
+      { key: "guidePhoto", label: "Guide Photo URL", type: "text", placeholder: "https://..." },
+      { key: "guideBio", label: "Guide Bio", type: "text", placeholder: "Friendly local expert..." },
+      { key: "offerCodes", label: "Offer Coupons", type: "text", placeholder: "Type coupon code and press Enter" },
+      { key: "isActive", label: "Is Active", type: "checkbox" },
     ],
     updateFields: [
       { key: "basePrice", label: "Base Price", type: "number", placeholder: "14999" },
@@ -341,6 +396,27 @@ const ENTITY_CONFIGS: EntityConfig[] = [
       tags: "beach,leisure,culture",
       inclusions: "Hotel,Breakfast,Transfers",
       exclusions: "Flights,Insurance",
+      hotel: "Premium Beach Resort",
+      hotelRating: "4.5",
+      food: "Breakfast,Dinner",
+      transport: "Private transfers",
+      activities: "Sightseeing,Beach Day",
+      highlights: "Old Goa churches,Sunset cruise,Local markets",
+      bestSeason: "Oct-Mar",
+      groupSize: "2-15 pax",
+      tripType: "Leisure",
+      hospitality: "Premium",
+      documents: "Government photo ID",
+      guideName: "BMT Local Expert",
+      guideContact: "+91 98765 43210",
+      guideLanguages: "English,Hindi",
+      guideRating: "4.6",
+      guideExperience: "5+ years",
+      guideSpeciality: "Goa and nearby circuits",
+      guidePhoto: "",
+      guideBio: "Knowledgeable local guide for immersive city and beach experiences.",
+      offerCodes: "",
+      isActive: "true",
     },
     updateDefaults: {
       basePrice: "14999",
@@ -365,13 +441,95 @@ const parseNumber = (value: string, fallback = 0): number => {
   return Number.isFinite(num) ? num : fallback;
 };
 
+type NumberLimit = { min?: number; max?: number };
+
+const NUMBER_LIMITS: Record<string, NumberLimit> = {
+  stops: { min: 0, max: 4 },
+  seatsLeft: { min: 0, max: 400 },
+  fareEconomy: { min: 0, max: 500000 },
+  farePremiumEconomy: { min: 0, max: 500000 },
+  fareBusiness: { min: 0, max: 1000000 },
+  originalPrice: { min: 0, max: 1000000 },
+  discountedPrice: { min: 0, max: 1000000 },
+  rating: { min: 1, max: 5 },
+  reviewCount: { min: 0, max: 1000000 },
+  fareSleeper: { min: 0, max: 500000 },
+  fareAc3: { min: 0, max: 500000 },
+  fareAc2: { min: 0, max: 500000 },
+  fareAc1: { min: 0, max: 500000 },
+  seatsSleeper: { min: 0, max: 1200 },
+  seatsAc3: { min: 0, max: 1200 },
+  seatsAc2: { min: 0, max: 800 },
+  seatsAc1: { min: 0, max: 500 },
+  stars: { min: 1, max: 5 },
+  pricePerNight: { min: 0, max: 1000000 },
+  seatingCapacity: { min: 1, max: 20 },
+  baseFare: { min: 0, max: 500000 },
+  pricePerKm: { min: 0, max: 10000 },
+  driverRating: { min: 1, max: 5 },
+  durationDays: { min: 1, max: 90 },
+  basePrice: { min: 0, max: 10000000 },
+  discountPrice: { min: 0, max: 10000000 },
+  hotelRating: { min: 0, max: 5 },
+  guideRating: { min: 0, max: 5 },
+};
+
+const clampNumber = (value: number, limit?: NumberLimit): number => {
+  if (!limit) return value;
+  let next = value;
+  if (limit.min != null && next < limit.min) next = limit.min;
+  if (limit.max != null && next > limit.max) next = limit.max;
+  return next;
+};
+
+const parseBoundedNumber = (key: string, value: string, fallback = 0): number => {
+  const num = parseNumber(value, fallback);
+  return clampNumber(num, NUMBER_LIMITS[key]);
+};
+
 const parseBoolean = (value: string): boolean => value === "true";
 
 const parseList = (value: string): string[] =>
-  value
-    .split(",")
-    .map((entry) => entry.trim())
-    .filter(Boolean);
+  Array.from(
+    new Set(
+      value
+        .split(",")
+        .map((entry) => entry.trim())
+        .filter(Boolean),
+    ),
+  );
+
+const buildOffersFromCodes = (value: string) => {
+  return parseList(value).map((code) => ({
+    title: `${code} Offer`,
+    code,
+    discountType: "percent",
+    discountValue: 10,
+  }));
+};
+
+const parseDistanceMatrix = (value: string) => {
+  return parseList(value)
+    .map((entry) => {
+      const [routePart, distancePart] = entry.split(":");
+      if (!routePart || !distancePart) return null;
+      const [fromPart, toPart] = routePart.split("->");
+      const from = fromPart?.trim();
+      const to = toPart?.trim();
+      const distanceKm = Number(distancePart.trim());
+
+      if (!from || !to || !Number.isFinite(distanceKm) || distanceKm <= 0) {
+        return null;
+      }
+
+      return {
+        from,
+        to,
+        distanceKm,
+      };
+    })
+    .filter((route): route is { from: string; to: string; distanceKm: number } => route !== null);
+};
 
 const LIST_FIELD_KEYS = new Set([
   "stopCities",
@@ -381,8 +539,18 @@ const LIST_FIELD_KEYS = new Set([
   "amenities",
   "tags",
   "features",
+  "pickupPoints",
+  "dropPoints",
+  "routeDistances",
   "inclusions",
   "exclusions",
+  "food",
+  "transport",
+  "activities",
+  "highlights",
+  "documents",
+  "guideLanguages",
+  "offerCodes",
 ]);
 
 const BULK_ALLOWED_FIELDS: Record<InventoryEntity, string[]> = {
@@ -400,22 +568,25 @@ const buildCreatePayload = (entity: InventoryEntity, values: EntityState) => {
       airline: values.airline,
       from: values.from,
       fromCode: values.fromCode.toUpperCase(),
+      boardingAirport: values.boardingAirport,
+      boardingTerminal: values.boardingTerminal,
+      boardingTime: values.boardingTime,
       to: values.to,
       toCode: values.toCode.toUpperCase(),
       departureTime: values.departureTime,
       arrivalTime: values.arrivalTime,
       duration: values.duration,
-      stops: parseNumber(values.stops),
+      stops: parseBoundedNumber("stops", values.stops),
       stopCities: parseList(values.stopCities),
       operatingDays: parseList(values.operatingDays),
-      originalPrice: parseNumber(values.originalPrice),
-      discountedPrice: parseNumber(values.discountedPrice),
+      originalPrice: parseBoundedNumber("originalPrice", values.originalPrice),
+      discountedPrice: parseBoundedNumber("discountedPrice", values.discountedPrice),
       fare: {
-        economy: parseNumber(values.fareEconomy),
-        premiumEconomy: parseNumber(values.farePremiumEconomy),
-        business: parseNumber(values.fareBusiness),
+        economy: parseBoundedNumber("fareEconomy", values.fareEconomy),
+        premiumEconomy: parseBoundedNumber("farePremiumEconomy", values.farePremiumEconomy),
+        business: parseBoundedNumber("fareBusiness", values.fareBusiness),
       },
-      seatsLeft: parseNumber(values.seatsLeft),
+      seatsLeft: parseBoundedNumber("seatsLeft", values.seatsLeft),
       aircraft: values.aircraft,
       baggage: {
         cabin: values.baggageCabin,
@@ -423,23 +594,28 @@ const buildCreatePayload = (entity: InventoryEntity, values: EntityState) => {
       },
       meals: parseBoolean(values.meals),
       refundable: parseBoolean(values.refundable),
-      rating: parseNumber(values.rating, 4),
+      rating: parseBoundedNumber("rating", values.rating, 4),
     };
   }
 
   if (entity === "trains") {
-    const sleeperFare = parseNumber(values.fareSleeper);
-    const ac3Fare = parseNumber(values.fareAc3);
-    const ac2Fare = parseNumber(values.fareAc2);
-    const ac1Fare = parseNumber(values.fareAc1);
+    const sleeperFare = parseBoundedNumber("fareSleeper", values.fareSleeper);
+    const ac3Fare = parseBoundedNumber("fareAc3", values.fareAc3);
+    const ac2Fare = parseBoundedNumber("fareAc2", values.fareAc2);
+    const ac1Fare = parseBoundedNumber("fareAc1", values.fareAc1);
 
     return {
       trainNumber: values.trainNumber,
       name: values.name,
       from: values.from,
       fromCode: values.fromCode.toUpperCase(),
+      fromStationName: values.fromStationName,
+      fromStationCode: values.fromStationCode.toUpperCase(),
       to: values.to,
       toCode: values.toCode.toUpperCase(),
+      toStationName: values.toStationName,
+      toStationCode: values.toStationCode.toUpperCase(),
+      platformNumber: values.platformNumber,
       departureTime: values.departureTime,
       arrivalTime: values.arrivalTime,
       duration: values.duration,
@@ -453,21 +629,21 @@ const buildCreatePayload = (entity: InventoryEntity, values: EntityState) => {
         ac1st: ac1Fare,
       },
       seatsAvailable: {
-        general: parseNumber(values.seatsSleeper),
-        sleeper: parseNumber(values.seatsSleeper),
-        ac3Tier: parseNumber(values.seatsAc3),
-        ac2Tier: parseNumber(values.seatsAc2),
-        ac1st: parseNumber(values.seatsAc1),
+        general: parseBoundedNumber("seatsSleeper", values.seatsSleeper),
+        sleeper: parseBoundedNumber("seatsSleeper", values.seatsSleeper),
+        ac3Tier: parseBoundedNumber("seatsAc3", values.seatsAc3),
+        ac2Tier: parseBoundedNumber("seatsAc2", values.seatsAc2),
+        ac1st: parseBoundedNumber("seatsAc1", values.seatsAc1),
       },
       type: values.type,
-      stops: parseNumber(values.stops),
-      rating: parseNumber(values.rating, 4),
+      stops: parseBoundedNumber("stops", values.stops),
+      rating: parseBoundedNumber("rating", values.rating, 4),
     };
   }
 
   if (entity === "hotels") {
-    const roomPrice = parseNumber(values.pricePerNight);
-    const roomOriginal = parseNumber(values.originalPrice);
+    const roomPrice = parseBoundedNumber("pricePerNight", values.pricePerNight);
+    const roomOriginal = parseBoundedNumber("originalPrice", values.originalPrice);
 
     return {
       name: values.name,
@@ -475,9 +651,9 @@ const buildCreatePayload = (entity: InventoryEntity, values: EntityState) => {
       address: values.address,
       image: values.image,
       images: parseList(values.images),
-      rating: parseNumber(values.rating, 4),
-      reviewCount: parseNumber(values.reviewCount),
-      stars: parseNumber(values.stars, 4),
+      rating: parseBoundedNumber("rating", values.rating, 4),
+      reviewCount: parseBoundedNumber("reviewCount", values.reviewCount),
+      stars: parseBoundedNumber("stars", values.stars, 4),
       pricePerNight: roomPrice,
       originalPrice: roomOriginal,
       amenities: parseList(values.amenities),
@@ -515,16 +691,19 @@ const buildCreatePayload = (entity: InventoryEntity, values: EntityState) => {
       brand: values.brand,
       type: values.type,
       image: values.image,
-      seatingCapacity: parseNumber(values.seatingCapacity),
+      seatingCapacity: parseBoundedNumber("seatingCapacity", values.seatingCapacity),
       fuelType: values.fuelType,
       ac: parseBoolean(values.ac),
-      baseFare: parseNumber(values.baseFare),
-      pricePerKm: parseNumber(values.pricePerKm),
-      rating: parseNumber(values.rating, 4),
-      reviewCount: parseNumber(values.reviewCount),
+      baseFare: parseBoundedNumber("baseFare", values.baseFare),
+      pricePerKm: parseBoundedNumber("pricePerKm", values.pricePerKm),
+      rating: parseBoundedNumber("rating", values.rating, 4),
+      reviewCount: parseBoundedNumber("reviewCount", values.reviewCount),
       driverName: values.driverName,
-      driverRating: parseNumber(values.driverRating, 4),
+      driverRating: parseBoundedNumber("driverRating", values.driverRating, 4),
       city: values.city,
+      pickupPoints: parseList(values.pickupPoints),
+      dropPoints: parseList(values.dropPoints),
+      distanceMatrix: parseDistanceMatrix(values.routeDistances),
       features: parseList(values.features),
       luggage: values.luggage,
       available: parseBoolean(values.available),
@@ -535,16 +714,40 @@ const buildCreatePayload = (entity: InventoryEntity, values: EntityState) => {
     title: values.title,
     city: values.city,
     country: values.country,
-    durationDays: parseNumber(values.durationDays),
-    basePrice: parseNumber(values.basePrice),
-    discountPrice: values.discountPrice ? parseNumber(values.discountPrice) : undefined,
+    durationDays: parseBoundedNumber("durationDays", values.durationDays),
+    basePrice: parseBoundedNumber("basePrice", values.basePrice),
+    discountPrice: values.discountPrice ? parseBoundedNumber("discountPrice", values.discountPrice) : undefined,
     heroImage: values.heroImage,
     images: parseList(values.images),
     description: values.description,
     tags: parseList(values.tags),
     inclusions: parseList(values.inclusions),
     exclusions: parseList(values.exclusions),
-    offers: [],
+    hotel: values.hotel || undefined,
+    hotelRating: values.hotelRating ? parseBoundedNumber("hotelRating", values.hotelRating) : undefined,
+    food: parseList(values.food),
+    transport: parseList(values.transport),
+    activities: parseList(values.activities),
+    highlights: parseList(values.highlights),
+    bestSeason: values.bestSeason || undefined,
+    groupSize: values.groupSize || undefined,
+    tripType: values.tripType || undefined,
+    hospitality: values.hospitality || undefined,
+    documents: parseList(values.documents),
+    guide: values.guideName
+      ? {
+        name: values.guideName,
+        contact: values.guideContact,
+        languages: parseList(values.guideLanguages),
+        rating: values.guideRating ? parseBoundedNumber("guideRating", values.guideRating) : 4.5,
+        experience: values.guideExperience,
+        speciality: values.guideSpeciality,
+        photo: values.guidePhoto,
+        bio: values.guideBio,
+      }
+      : undefined,
+    isActive: parseBoolean(values.isActive),
+    offers: buildOffersFromCodes(values.offerCodes),
   };
 };
 
@@ -617,6 +820,9 @@ const prefillFormValues = (entity: InventoryEntity, row: unknown, base: EntitySt
     next.airline = getString(record.airline) || next.airline;
     next.from = getString(record.from) || next.from;
     next.fromCode = getString(record.fromCode) || next.fromCode;
+    next.boardingAirport = getString(record.boardingAirport) || next.boardingAirport;
+    next.boardingTerminal = getString(record.boardingTerminal) || next.boardingTerminal;
+    next.boardingTime = getString(record.boardingTime) || next.boardingTime;
     next.to = getString(record.to) || next.to;
     next.toCode = getString(record.toCode) || next.toCode;
     next.departureTime = getString(record.departureTime) || next.departureTime;
@@ -647,8 +853,13 @@ const prefillFormValues = (entity: InventoryEntity, row: unknown, base: EntitySt
     next.name = getString(record.name) || next.name;
     next.from = getString(record.from) || next.from;
     next.fromCode = getString(record.fromCode) || next.fromCode;
+    next.fromStationName = getString(record.fromStationName) || next.fromStationName;
+    next.fromStationCode = getString(record.fromStationCode) || next.fromStationCode;
     next.to = getString(record.to) || next.to;
     next.toCode = getString(record.toCode) || next.toCode;
+    next.toStationName = getString(record.toStationName) || next.toStationName;
+    next.toStationCode = getString(record.toStationCode) || next.toStationCode;
+    next.platformNumber = getString(record.platformNumber) || next.platformNumber;
     next.departureTime = getString(record.departureTime) || next.departureTime;
     next.arrivalTime = getString(record.arrivalTime) || next.arrivalTime;
     next.duration = getString(record.duration) || next.duration;
@@ -731,6 +942,12 @@ const prefillFormValues = (entity: InventoryEntity, row: unknown, base: EntitySt
   next.tags = getList(record.tags) || next.tags;
   next.inclusions = getList(record.inclusions) || next.inclusions;
   next.exclusions = getList(record.exclusions) || next.exclusions;
+  const offerCodes = ((record.offers as Array<Record<string, unknown>> | undefined) || [])
+    .map((offer) => String(offer?.code || "").trim())
+    .filter(Boolean);
+  if (offerCodes.length) {
+    next.offerCodes = offerCodes.join(",");
+  }
   return next;
 };
 
@@ -749,6 +966,7 @@ export default function AdminInventoryPage() {
   const [displayCount, setDisplayCount] = useState(10);
   const [createTagDrafts, setCreateTagDrafts] = useState<EntityState>({});
   const [updateTagDrafts, setUpdateTagDrafts] = useState<EntityState>({});
+  const [createValidationErrors, setCreateValidationErrors] = useState<EntityState>({});
 
   const selectedEntity = useMemo(() => ENTITY_CONFIGS.find((entry) => entry.id === entity)!, [entity]);
   const [createValues, setCreateValues] = useState<EntityState>(selectedEntity.createDefaults);
@@ -776,14 +994,43 @@ export default function AdminInventoryPage() {
     setDisplayCount(10);
     setCreateTagDrafts({});
     setUpdateTagDrafts({});
+    setCreateValidationErrors({});
   }, [selectedEntity]);
 
   const setFieldValue = (kind: "create" | "update", key: string, value: string) => {
     if (kind === "create") {
       setCreateValues((prev) => ({ ...prev, [key]: value }));
+      setCreateValidationErrors((prev) => {
+        if (!prev[key]) return prev;
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
       return;
     }
     setUpdateValues((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const validateCreateValues = (values: EntityState) => {
+    const errors: EntityState = {};
+
+    selectedEntity.createFields.forEach((field) => {
+      if (!field.required || field.type === "checkbox") return;
+      const rawValue = values[field.key] || "";
+
+      if (isListField(field.key)) {
+        if (parseList(rawValue).length === 0) {
+          errors[field.key] = `${field.label} is required.`;
+        }
+        return;
+      }
+
+      if (!rawValue.trim()) {
+        errors[field.key] = `${field.label} is required.`;
+      }
+    });
+
+    return errors;
   };
 
   const refreshList = useCallback(async () => {
@@ -914,11 +1161,13 @@ export default function AdminInventoryPage() {
 
   const removeTagValue = (kind: "create" | "update", key: string, value: string) => {
     const source = kind === "create" ? createValues : updateValues;
-    const next = parseList(source[key] || "").filter((entry) => entry !== value);
+    const next = parseList(source[key] || "");
+    const idx = next.findIndex((entry) => entry.toLowerCase() === value.toLowerCase());
+    if (idx >= 0) next.splice(idx, 1);
     setFieldValue(kind, key, next.join(","));
   };
 
-  const renderField = (kind: "create" | "update", field: EntityField, value: string) => {
+  const renderField = (kind: "create" | "update", field: EntityField, value: string, errorText?: string) => {
     if (field.type === "checkbox") {
       return (
         <label key={field.key} className={styles.checkboxField}>
@@ -960,8 +1209,8 @@ export default function AdminInventoryPage() {
                   addTagValue(kind, field.key, draft);
                 }
               }}
-              onBlur={() => addTagValue(kind, field.key, draft)}
             />
+            {errorText ? <small style={{ color: "#b42318" }}>{errorText}</small> : null}
           </div>
         </label>
       );
@@ -974,8 +1223,12 @@ export default function AdminInventoryPage() {
           type={field.type === "number" ? "number" : "text"}
           value={value}
           placeholder={field.placeholder}
+          min={field.type === "number" ? NUMBER_LIMITS[field.key]?.min : undefined}
+          max={field.type === "number" ? NUMBER_LIMITS[field.key]?.max : undefined}
+          step={field.type === "number" ? "1" : undefined}
           onChange={(e) => setFieldValue(kind, field.key, e.target.value)}
         />
+        {errorText ? <small style={{ color: "#b42318" }}>{errorText}</small> : null}
       </label>
     );
   };
@@ -1029,6 +1282,13 @@ export default function AdminInventoryPage() {
   };
 
   const createItem = async () => {
+    const validationErrors = validateCreateValues(createValues);
+    if (Object.keys(validationErrors).length > 0) {
+      setCreateValidationErrors(validationErrors);
+      showToast.error("Please fix validation errors before creating the item.");
+      return;
+    }
+
     try {
       setProcessingAction("create");
       const payload = buildCreatePayload(entity, createValues);
@@ -1321,7 +1581,7 @@ export default function AdminInventoryPage() {
           <div className={styles.formGrid}>
             {selectedEntity.createFields.map((field) => {
               const value = createValues[field.key] ?? "";
-              return renderField("create", field, value);
+              return renderField("create", field, value, createValidationErrors[field.key]);
             })}
           </div>
           <div className={styles.modalActions}>

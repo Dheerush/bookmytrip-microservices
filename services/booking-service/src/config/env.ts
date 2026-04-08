@@ -9,10 +9,11 @@ const envSchema = z.object({
   RABBITMQ_URL: z.string().min(1, 'RABBITMQ_URL is required'),
   JWT_ACCESS_SECRET: z.string().min(1, 'JWT_ACCESS_SECRET is required'),
   CORS_ORIGINS: z.string().default('http://localhost:3000').transform((value) => value.split(',').map((part) => part.trim()).filter(Boolean)),
-  FLIGHT_SERVICE_URL: z.string().url().default('http://localhost:5003'),
+  FLIGHT_SERVICE_URL: z.string().url().default('http://localhost:5007'),
   TRAIN_SERVICE_URL: z.string().url().default('http://localhost:5004'),
   HOTEL_SERVICE_URL: z.string().url().default('http://localhost:5005'),
   CAB_SERVICE_URL: z.string().url().default('http://localhost:5006'),
+  TOUR_SERVICE_URL: z.string().url().default('http://localhost:5011'),
 });
 
 const parsed = envSchema.safeParse(process.env);

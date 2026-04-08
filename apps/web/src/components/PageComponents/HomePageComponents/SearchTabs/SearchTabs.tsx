@@ -87,13 +87,13 @@ export default function SearchTabs() {
     return () => clearTimeout(timeout);
   }, [focusedField, values]);
 
-  const showTripToggle = activeTab === "flights" || activeTab === "trains";
+  const showTripToggle = activeTab === "flights";
 
   const fields =
     activeTab === "flights"
       ? getFlightFields(tripType)
       : activeTab === "trains"
-        ? getTrainFields(tripType)
+        ? getTrainFields("one-way")
         : activeTab === "cabs"
           ? CAB_FIELDS
           : HOTEL_FIELDS;
@@ -112,7 +112,8 @@ export default function SearchTabs() {
     for (const [k, v] of Object.entries(values)) {
       if (v) params.set(k, v);
     }
-    if (showTripToggle) params.set("trip", tripType);
+    // Only flights support round-trip
+    if (activeTab === "flights" && showTripToggle) params.set("trip", tripType);
     const qs = params.toString();
     router.push(`/${activeTab}${qs ? `?${qs}` : ""}`);
   }, [activeTab, values, tripType, showTripToggle, router]);
@@ -131,11 +132,10 @@ export default function SearchTabs() {
     }
 
     if (activeTab === "trains") {
+      // Show stations only (not train names) so applySuggestion correctly resolves codes
       const pool = trains.flatMap((train) => [
         `${train.from} (${train.fromCode})`,
         `${train.to} (${train.toCode})`,
-        train.trainNumber,
-        train.name,
       ]);
       return Array.from(new Set(pool.filter((entry) => entry.toLowerCase().includes(debouncedTerm)))).slice(0, 6);
     }

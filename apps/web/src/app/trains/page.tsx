@@ -2,9 +2,6 @@
 
 import { useState, useMemo, Suspense, useEffect } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { useBookingFlow } from "@/hooks/useBookingFlow";
-import { useBookingGuard } from "@/hooks/useBookingGuard";
-import { useAuth } from "@/services/auth/context";
 import { parseApiResponse } from "@/lib/http";
 import { showToast } from "@/lib/toast";
 import s from "@/styles/search.module.scss";
@@ -16,18 +13,61 @@ const PER_PAGE = 10;
 type SortKey = "price-asc" | "price-desc" | "duration" | "rating";
 
 type TrainLocationOption = {
+  city: string;
   station: string;
   code: string;
+  label: string;
+  isAllStations: boolean;
+};
+
+const normalizeTrainCity = (station: string): string => {
+  const clean = station.trim();
+  if (!clean) return "";
+
+  if (/delhi|nizamuddin/i.test(clean)) return "Delhi";
+  if (/mumbai|cst|central|ltt/i.test(clean)) return "Mumbai";
+  if (/howrah|sealdah/i.test(clean)) return "Kolkata";
+  if (/chennai/i.test(clean)) return "Chennai";
+  if (/bengaluru|yesvantpur/i.test(clean)) return "Bengaluru";
+
+  return clean.split(" ")[0] || clean;
 };
 
 const trainLocationOptions: TrainLocationOption[] = Array.from(
   new Map(
     trains
       .flatMap((train) => [
-        { station: train.from, code: train.fromCode },
-        { station: train.to, code: train.toCode },
+        {
+          city: normalizeTrainCity(train.from),
+          station: train.from,
+          code: train.fromCode,
+          label: `${train.from} (${train.fromCode})`,
+          isAllStations: false,
+        },
+        {
+          city: normalizeTrainCity(train.to),
+          station: train.to,
+          code: train.toCode,
+          label: `${train.to} (${train.toCode})`,
+          isAllStations: false,
+        },
       ])
       .map((option) => [`${option.station.toLowerCase()}-${option.code.toUpperCase()}`, option]),
+  ).values(),
+);
+
+const trainCityOptions: TrainLocationOption[] = Array.from(
+  new Map(
+    trainLocationOptions.map((option) => [
+      option.city.toLowerCase(),
+      {
+        city: option.city,
+        station: option.station,
+        code: option.code,
+        label: `${option.city} (All Stations)`,
+        isAllStations: true,
+      },
+    ]),
   ).values(),
 );
 
@@ -44,7 +84,25 @@ const resolveTrainCode = (value: string): string | null => {
   const byCode = trainLocationOptions.find((option) => option.code.toUpperCase() === upper);
   if (byCode) return byCode.code.toUpperCase();
 
+  const byCity = trainCityOptions.find((option) => option.city.toLowerCase() === trimmed.toLowerCase());
+  if (byCity) return byCity.code.toUpperCase();
+
   return null;
+};
+
+const getTodayIso = (): string => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const clampTrainDate = (value: string): string => {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  const today = getTodayIso();
+  return trimmed < today ? today : trimmed;
 };
 
 function TrainsContent() {
@@ -52,15 +110,10 @@ function TrainsContent() {
   const router = useRouter();
   const pathname = usePathname();
   const page = Number(searchParams.get("page") || "1");
-  const { guardAction } = useBookingGuard();
-  const { processBookingAndPayment } = useBookingFlow();
-  const { user } = useAuth();
 
-  const [from, setFrom] = useState(searchParams.get("from") || "");
-  const [to, setTo] = useState(searchParams.get("to") || "");
-  const [date, setDate] = useState(searchParams.get("date") || "");
-  const [tripType, setTripType] = useState((searchParams.get("trip") as "one-way" | "round-trip") || "one-way");
-  const [returnDate, setReturnDate] = useState(searchParams.get("return") || "");
+  const [from, setFrom] = useState(searchParams.get("from") || "New Delhi");
+  const [to, setTo] = useState(searchParams.get("to") || "Mumbai Central");
+  const [date, setDate] = useState(clampTrainDate(searchParams.get("date") || "") || getTodayIso());
 
   const [sort, setSort] = useState<SortKey>((searchParams.get("sort") as SortKey) || "price-asc");
   const [selectedTypes, setSelectedTypes] = useState<Set<string>>(
@@ -71,10 +124,17 @@ function TrainsContent() {
   );
   const [selected, setSelected] = useState<Train | null>(null);
   const [activeField, setActiveField] = useState<"from" | "to" | null>(null);
+  const [appliedCouponCode, setAppliedCouponCode] = useState("");
+  const [appliedCouponDiscount, setAppliedCouponDiscount] = useState(0);
   const [apiResults, setApiResults] = useState<Train[] | null>(null);
   const [apiTotalPages, setApiTotalPages] = useState<number | null>(null);
   const [apiLoading, setApiLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
+  // Always true — trains load on mount with defaults so users see results immediately
+  const [hasSearched, setHasSearched] = useState(true);
+  const [committedFrom, setCommittedFrom] = useState(searchParams.get("from") || "New Delhi");
+  const [committedTo, setCommittedTo] = useState(searchParams.get("to") || "Mumbai Central");
+  const [committedDate, setCommittedDate] = useState(clampTrainDate(searchParams.get("date") || "") || getTodayIso());
 
   const updateQuery = (next: Record<string, string | null>, resetPage = true) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -91,8 +151,17 @@ function TrainsContent() {
   };
 
   useEffect(() => {
-    setTripType((searchParams.get("trip") as "one-way" | "round-trip") || "one-way");
-    setReturnDate(searchParams.get("return") || "");
+    setCommittedFrom(searchParams.get("from") || "New Delhi");
+    setCommittedTo(searchParams.get("to") || "Mumbai Central");
+    // Only sync date from URL when the URL actually carries a date value.
+    // If no date param is present (e.g. a filter was applied without re-searching),
+    // preserve the local input state so the user's selection is not reset to today.
+    const urlDate = searchParams.get("date");
+    if (urlDate !== null) {
+      const clamped = clampTrainDate(urlDate) || getTodayIso();
+      setDate(clamped);
+      setCommittedDate(clamped);
+    }
     setSort((searchParams.get("sort") as SortKey) || "price-asc");
     setSelectedTypes(
       new Set((searchParams.get("types") || "").split(",").map((item) => item.trim()).filter(Boolean)),
@@ -116,8 +185,14 @@ function TrainsContent() {
   };
 
   const handleSearch = () => {
-    if (!resolveTrainCode(from) || !resolveTrainCode(to)) {
-      showToast.error("Select valid From and To stations from suggestions (or use station codes like NDLS, BCT).");
+    setHasSearched(true);
+    if (!resolveTrainCode(from)) {
+      showToast.error("Departure station not found. Choose a valid station or code (for example NDLS).");
+      return;
+    }
+
+    if (!resolveTrainCode(to)) {
+      showToast.error("Destination station not found. Choose a valid station or code (for example BCT).");
       return;
     }
 
@@ -125,8 +200,6 @@ function TrainsContent() {
     if (from) params.set("from", from);
     if (to) params.set("to", to);
     if (date) params.set("date", date);
-    if (tripType === "round-trip") params.set("trip", "round-trip");
-    if (tripType === "round-trip" && returnDate) params.set("return", returnDate);
     if (sort !== "price-asc") params.set("sort", sort);
     if (selectedClass !== "sleeper") params.set("class", selectedClass);
     if (selectedTypes.size) params.set("types", Array.from(selectedTypes).join(","));
@@ -137,23 +210,36 @@ function TrainsContent() {
     const term = from.trim().toLowerCase();
     if (!term) return [] as TrainLocationOption[];
 
-    return trainLocationOptions
+    const cityMatches = trainCityOptions
+      .filter((option) => option.city.toLowerCase().includes(term))
+      .slice(0, 3);
+
+    const stationMatches = trainLocationOptions
       .filter((option) => option.station.toLowerCase().includes(term) || option.code.toLowerCase().includes(term))
-      .slice(0, 6);
+      .slice(0, 4);
+
+    return [...cityMatches, ...stationMatches].slice(0, 7);
   }, [from]);
 
   const toSuggestions = useMemo(() => {
     const term = to.trim().toLowerCase();
     if (!term) return [] as TrainLocationOption[];
 
-    return trainLocationOptions
+    const cityMatches = trainCityOptions
+      .filter((option) => option.city.toLowerCase().includes(term))
+      .slice(0, 3);
+
+    const stationMatches = trainLocationOptions
       .filter((option) => option.station.toLowerCase().includes(term) || option.code.toLowerCase().includes(term))
-      .slice(0, 6);
+      .slice(0, 4);
+
+    return [...cityMatches, ...stationMatches].slice(0, 7);
   }, [to]);
 
   const applySuggestion = (field: "from" | "to", option: TrainLocationOption) => {
-    if (field === "from") setFrom(option.station);
-    if (field === "to") setTo(option.station);
+    const chosen = option.isAllStations ? option.city : option.station;
+    if (field === "from") setFrom(chosen);
+    if (field === "to") setTo(chosen);
     setActiveField(null);
   };
 
@@ -175,7 +261,7 @@ function TrainsContent() {
   }, [apiResults]);
 
   useEffect(() => {
-    const canUseApi = Boolean(from && to && date);
+    const canUseApi = Boolean(hasSearched && committedFrom && committedTo && committedDate);
     if (!canUseApi) {
       setApiResults(null);
       setApiTotalPages(null);
@@ -191,9 +277,9 @@ function TrainsContent() {
     };
 
     const params = new URLSearchParams({
-      from: resolveTrainCode(from) || "",
-      to: resolveTrainCode(to) || "",
-      date,
+      from: resolveTrainCode(committedFrom) || "",
+      to: resolveTrainCode(committedTo) || "",
+      date: committedDate,
       class: selectedClass,
       sort: sortMap[sort],
       page: String(page),
@@ -201,7 +287,7 @@ function TrainsContent() {
     });
 
     if (!params.get("from") || !params.get("to")) {
-      setApiError("Select valid From and To stations from suggestions (or use station codes like NDLS, BCT).");
+      setApiError("Please select valid departure and destination stations before searching.");
       setApiResults(null);
       setApiTotalPages(null);
       return;
@@ -254,13 +340,13 @@ function TrainsContent() {
     return () => {
       mounted = false;
     };
-  }, [from, to, date, selectedClass, sort, page, selectedTypes]);
+  }, [hasSearched, committedFrom, committedTo, committedDate, selectedClass, sort, page, selectedTypes]);
 
   useEffect(() => {
-    if (apiError) {
+    if (apiError && hasSearched) {
       showToast.error(apiError);
     }
-  }, [apiError]);
+  }, [apiError, hasSearched]);
 
   const totalPages = apiTotalPages ?? Math.max(1, Math.ceil(filtered.length / PER_PAGE));
   const paged = filtered;
@@ -272,42 +358,34 @@ function TrainsContent() {
     ac1st: "AC First",
   };
 
-  const current = selected ?? paged[0] ?? null;
+  const current = selected ?? null;
   const baseFare = current?.fare[selectedClass] ?? 0;
   const taxes = Math.round(baseFare * 0.05);
   const serviceFee = 149;
 
-  const handleProceedToPayment = (netAmount: number) => {
-    if (!current) return;
-    guardAction(async () => {
-      if (!user) return;
-      await processBookingAndPayment(
-        {
-          itemId: current.id,
-          type: 'train',
-          title: `${current.name} (${current.trainNumber})`,
-          fromCode: current.fromCode,
-          toCode: current.toCode,
-          startDate: date,
-          quantity: 1,
-          amount: baseFare,
-          contact: {
-            name: user.fullName || 'Guest',
-            email: user.email || '',
-            phone: '',
-          },
-          passengers: [],
-        },
-        netAmount,
-      );
+  const handleProceedToPayment = (_netAmount: number) => {
+    if (!current) {
+      showToast.error("Select a train before proceeding.");
+      return;
+    }
+
+    const params = new URLSearchParams({
+      trainId: current.id,
+      date,
+      class: selectedClass,
     });
+    if (appliedCouponCode && appliedCouponDiscount > 0) {
+      params.set("couponCode", appliedCouponCode);
+      params.set("couponDiscount", String(Math.round(appliedCouponDiscount)));
+    }
+    router.push(`/trains/booking?${params.toString()}`);
   };
 
   return (
     <div className={s.page}>
       <div className={s.header}>
         <h1 className={s.title}>Train Search Results</h1>
-        <p className={s.subtitle}>{from && to && date ? `${filtered.length} trains on this page` : "Search to load live trains"}</p>
+        <p className={s.subtitle}>{hasSearched ? `${filtered.length} trains found` : "Search to load live trains"}</p>
       </div>
 
       {/* ── Inline search bar ── */}
@@ -333,7 +411,7 @@ function TrainsContent() {
                     onMouseDown={(event) => event.preventDefault()}
                     onClick={() => applySuggestion("from", option)}
                   >
-                    {option.station} ({option.code})
+                    {option.label}
                   </button>
                 ))}
               </div>
@@ -359,7 +437,7 @@ function TrainsContent() {
                     onMouseDown={(event) => event.preventDefault()}
                     onClick={() => applySuggestion("to", option)}
                   >
-                    {option.station} ({option.code})
+                    {option.label}
                   </button>
                 ))}
               </div>
@@ -367,21 +445,8 @@ function TrainsContent() {
           </div>
           <div className={s.searchFieldGroup}>
             <label className={s.searchFieldLabel}>📅 Journey</label>
-            <input className={s.searchFieldInput} type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+            <input className={s.searchFieldInput} type="date" min={getTodayIso()} value={date} onChange={(e) => setDate(clampTrainDate(e.target.value))} />
           </div>
-          <div className={s.searchFieldGroup}>
-            <label className={s.searchFieldLabel}>↔ Trip</label>
-            <select className={s.searchFieldInput} value={tripType} onChange={(e) => setTripType(e.target.value as "one-way" | "round-trip")}>
-              <option value="one-way">One Way</option>
-              <option value="round-trip">Round Trip</option>
-            </select>
-          </div>
-          {tripType === "round-trip" && (
-            <div className={s.searchFieldGroup}>
-              <label className={s.searchFieldLabel}>📅 Return</label>
-              <input className={s.searchFieldInput} type="date" value={returnDate} onChange={(e) => setReturnDate(e.target.value)} />
-            </div>
-          )}
           <button className={s.searchBarBtn} type="button" onClick={handleSearch}>🔍 Search</button>
         </div>
       </div>
@@ -469,12 +534,12 @@ function TrainsContent() {
             ))}
           </div>
 
-          {paged.length === 0 && <div className={s.noResults}>{from && to && date ? "No trains match your filters." : "Enter From, To and Date to load live trains."}</div>}
-          {apiError && <div className={s.noResults}>{apiError}</div>}
           {apiLoading && <div className={s.noResults}>Fetching latest trains…</div>}
+          {!apiLoading && hasSearched && paged.length === 0 && <div className={s.noResults}>No trains match your filters.</div>}
+          {!apiLoading && hasSearched && apiError && <div className={s.noResults}>{apiError}</div>}
 
           {paged.map((train) => (
-            <div key={train.id} className={s.card}>
+            <div key={train.id} className={`${s.card} ${current?.id === train.id ? s.cardSelected : ""}`}>
               <div className={s.cardRow}>
                 <div className={s.cardMain}>
                   <span className={s.trainName}>{train.name}</span>
@@ -484,7 +549,7 @@ function TrainsContent() {
                   <div className={s.route}>
                     <div>
                       <div className={s.time}>{train.departureTime}</div>
-                      <div className={s.cityCode}>{train.fromCode}</div>
+                      <div className={s.cityCode}>{train.from} ({train.fromCode})</div>
                     </div>
                     <div className={s.routeLine}>
                       <span className={s.duration}>{train.duration}</span>
@@ -495,37 +560,45 @@ function TrainsContent() {
                     </div>
                     <div>
                       <div className={s.time}>{train.arrivalTime}</div>
-                      <div className={s.cityCode}>{train.toCode}</div>
+                      <div className={s.cityCode}>{train.to} ({train.toCode})</div>
                     </div>
                   </div>
 
-                  <div className={s.pnr}>PNR: {train.pnr}</div>
+                  <div className={s.pnr}>PNR: {train.pnr} · Runs: {train.daysOfWeek.join(", ")}</div>
 
                   <div className={s.fareTable}>
+                    {train.fare.general > 0 && (
+                      <span className={s.fareChip}>
+                        General (GN): <strong>₹{train.fare.general.toLocaleString("en-IN")}</strong>
+                        &nbsp;({train.seatsAvailable.general} seats)
+                      </span>
+                    )}
                     <span className={s.fareChip}>
-                      SL: <strong>₹{train.fare.sleeper.toLocaleString("en-IN")}</strong>
+                      Sleeper (SL): <strong>₹{train.fare.sleeper.toLocaleString("en-IN")}</strong>
                       &nbsp;({train.seatsAvailable.sleeper} seats)
                     </span>
                     <span className={s.fareChip}>
-                      3A: <strong>₹{train.fare.ac3Tier.toLocaleString("en-IN")}</strong>
+                      AC 3-Tier (3A): <strong>₹{train.fare.ac3Tier.toLocaleString("en-IN")}</strong>
                       &nbsp;({train.seatsAvailable.ac3Tier} seats)
                     </span>
                     <span className={s.fareChip}>
-                      2A: <strong>₹{train.fare.ac2Tier.toLocaleString("en-IN")}</strong>
+                      AC 2-Tier (2A): <strong>₹{train.fare.ac2Tier.toLocaleString("en-IN")}</strong>
                       &nbsp;({train.seatsAvailable.ac2Tier} seats)
                     </span>
                     <span className={s.fareChip}>
-                      1A: <strong>₹{train.fare.ac1st.toLocaleString("en-IN")}</strong>
+                      AC First (1A): <strong>₹{train.fare.ac1st.toLocaleString("en-IN")}</strong>
                       &nbsp;({train.seatsAvailable.ac1st} seats)
                     </span>
                   </div>
 
-                  <div className={s.tags}>
-                    <span className={s.tag}>👨 Adult: ₹{train.fareCategories[selectedClass].adult.toLocaleString("en-IN")}</span>
-                    <span className={s.tag}>👶 Child: ₹{train.fareCategories[selectedClass].child.toLocaleString("en-IN")}</span>
-                    <span className={s.tag}>👴 Senior: ₹{train.fareCategories[selectedClass].seniorCitizen.toLocaleString("en-IN")}</span>
-                    <span className={s.tag}>🎖 Military: ₹{train.fareCategories[selectedClass].military.toLocaleString("en-IN")}</span>
-                  </div>
+                  {train.fareCategories?.[selectedClass] && (
+                    <div className={s.tags}>
+                      <span className={s.tag}>👨 Adult: ₹{train.fareCategories[selectedClass].adult.toLocaleString("en-IN")}</span>
+                      <span className={s.tag}>👶 Child: ₹{train.fareCategories[selectedClass].child.toLocaleString("en-IN")}</span>
+                      <span className={s.tag}>👴 Senior: ₹{train.fareCategories[selectedClass].seniorCitizen.toLocaleString("en-IN")}</span>
+                      <span className={s.tag}>🎖 Military: ₹{train.fareCategories[selectedClass].military.toLocaleString("en-IN")}</span>
+                    </div>
+                  )}
                 </div>
 
                 <div className={s.cardRight}>
@@ -537,7 +610,7 @@ function TrainsContent() {
                     type="button"
                     onClick={() => setSelected(train)}
                   >
-                    Book Now
+                    {current?.id === train.id ? "Selected" : "Book Now"}
                   </button>
                 </div>
               </div>
@@ -548,13 +621,20 @@ function TrainsContent() {
         </div>
 
         {/* ── Right: Booking sidebar ── */}
-        <BookingSidebar
-          baseFare={baseFare}
-          taxes={taxes}
-          serviceFee={serviceFee}
-          ctaLabel="Proceed to Payment"
-          onProceed={handleProceedToPayment}
-        />
+        {current && (
+          <BookingSidebar
+            baseFare={baseFare}
+            taxes={taxes}
+            serviceFee={serviceFee}
+            serviceType="train"
+            ctaLabel="Proceed to Payment"
+            onCouponApplied={({ code, discount: value }) => {
+              setAppliedCouponCode(code);
+              setAppliedCouponDiscount(value);
+            }}
+            onProceed={handleProceedToPayment}
+          />
+        )}
       </div>
     </div>
   );

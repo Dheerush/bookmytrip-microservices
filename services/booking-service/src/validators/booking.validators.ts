@@ -10,10 +10,11 @@ const passengerSchema = z.object({
   name: z.string().min(2),
   age: z.number().int().min(0).optional(),
   gender: z.string().min(1).optional(),
+  email: z.string().email().optional(),
 });
 
 export const createBookingSchema = z.object({
-  type: z.enum(['flight', 'hotel', 'train', 'cab']),
+  type: z.enum(['flight', 'hotel', 'train', 'cab', 'tour']),
   itemId: z.string().min(1),
   title: z.string().min(3),
   city: z.string().optional(),
@@ -21,6 +22,7 @@ export const createBookingSchema = z.object({
   toCode: z.string().optional(),
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  scheduleTime: z.string().optional(),
   quantity: z.number().int().min(1).max(9),
   amount: z.number().int().min(0),
   contact: contactSchema,
@@ -29,8 +31,8 @@ export const createBookingSchema = z.object({
 });
 
 export const listBookingsSchema = z.object({
-  type: z.enum(['flight', 'hotel', 'train', 'cab']).optional(),
-  status: z.enum(['confirmed', 'completed', 'cancelled', 'pending']).optional(),
+  type: z.enum(['flight', 'hotel', 'train', 'cab', 'tour']).optional(),
+  status: z.enum(['confirmed', 'completed', 'cancelled', 'pending', 'failed']).optional(),
   page: z.string().optional().default('1').transform(Number).pipe(z.number().int().min(1)),
   limit: z.string().optional().default('20').transform(Number).pipe(z.number().int().min(1).max(100)),
 });

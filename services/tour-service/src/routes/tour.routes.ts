@@ -21,6 +21,27 @@ const tourSchema = z.object({
   tags: z.array(z.string()).default([]),
   inclusions: z.array(z.string()).default([]),
   exclusions: z.array(z.string()).default([]),
+  hotel: z.string().optional(),
+  hotelRating: z.number().min(0).max(5).optional(),
+  food: z.array(z.string()).default([]),
+  transport: z.array(z.string()).default([]),
+  activities: z.array(z.string()).default([]),
+  bestSeason: z.string().optional(),
+  groupSize: z.string().optional(),
+  tripType: z.enum(['Leisure', 'Adventure', 'Cultural', 'Honeymoon', 'Family', 'Spiritual']).optional(),
+  hospitality: z.string().optional(),
+  documents: z.array(z.string()).default([]),
+  highlights: z.array(z.string()).default([]),
+  guide: z.object({
+    name: z.string(),
+    contact: z.string(),
+    languages: z.array(z.string()).default([]),
+    rating: z.number().min(0).max(5),
+    experience: z.string(),
+    speciality: z.string(),
+    photo: z.string().optional().default(''),
+    bio: z.string(),
+  }).optional(),
   isActive: z.boolean().optional(),
   offers: z.array(z.object({
     title: z.string(),
@@ -109,7 +130,7 @@ router.get('/:tourId', async (req, res, next) => {
   }
 });
 
-router.post('/create-tour', authenticate, authorizeRoles('admin'), async (req, res, next) => {
+router.post('/', authenticate, authorizeRoles('admin'), async (req, res, next) => {
   try {
     const parsed = tourSchema.safeParse(req.body);
     if (!parsed.success) throw new AppError('Validation failed', 400, 'VALIDATION_ERROR');
@@ -122,7 +143,7 @@ router.post('/create-tour', authenticate, authorizeRoles('admin'), async (req, r
   }
 });
 
-router.patch('/update-tour/:tourId', authenticate, authorizeRoles('admin'), async (req, res, next) => {
+router.patch('/:tourId', authenticate, authorizeRoles('admin'), async (req, res, next) => {
   try {
     const parsed = tourSchema.partial().safeParse(req.body);
     if (!parsed.success) throw new AppError('Validation failed', 400, 'VALIDATION_ERROR');
@@ -139,7 +160,7 @@ router.patch('/update-tour/:tourId', authenticate, authorizeRoles('admin'), asyn
   }
 });
 
-router.delete('/delete-tour/:tourId', authenticate, authorizeRoles('admin'), async (req, res, next) => {
+router.delete('/:tourId', authenticate, authorizeRoles('admin'), async (req, res, next) => {
   try {
     const item = await Tour.findByIdAndUpdate(req.params.tourId, { $set: { isActive: false } }, { new: true }).lean();
     if (!item) throw new AppError('Tour not found', 404, 'NOT_FOUND');

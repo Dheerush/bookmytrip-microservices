@@ -265,6 +265,7 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
   await publishEvent({
     type: 'LOGIN_SUCCESS',
     data: {
+      userId:    user.id,
       email:     user.email,
       loginTime: new Date().toISOString(),
       ip:        req.ip,
@@ -406,8 +407,8 @@ export const resetPassword = asyncHandler(async (req: Request, res: Response) =>
   await RefreshToken.deleteMany({ userId: user.id });
 
   await publishEvent({
-    type: 'PASSWORD_RESET_SUCCESS',
-    data: { email: user.email },
+    type: 'PASSWORD_CHANGED',
+    data: { email: user.email, userId: user.id },
   });
 
   res.json(apiResponse(null, 'Password reset successful.'));
