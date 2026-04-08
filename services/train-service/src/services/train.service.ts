@@ -171,3 +171,16 @@ export const deleteTrain = async (trainId: string): Promise<void> => {
     throw new AppError('Train not found', 404, 'TRAIN_NOT_FOUND');
   }
 };
+
+export const deductTrainSeats = async (trainId: string, seatClass: string, count: number): Promise<void> => {
+  const validClasses = ['general', 'sleeper', 'ac3Tier', 'ac2Tier', 'ac1st'];
+  if (!validClasses.includes(seatClass)) {
+    throw new AppError('Invalid seat class', 400, 'INVALID_SEAT_CLASS');
+  }
+  const train = await Train.findByIdAndUpdate(
+    trainId,
+    { $inc: { [`seatsAvailable.${seatClass}`]: -count } },
+    { new: true },
+  );
+  if (!train) throw new AppError('Train not found', 404, 'TRAIN_NOT_FOUND');
+};

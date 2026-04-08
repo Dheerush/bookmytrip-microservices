@@ -167,6 +167,15 @@ export const deleteFlight = async (flightId: string): Promise<void> => {
   if (!flight) throw new AppError('Flight not found', 404, 'FLIGHT_NOT_FOUND');
 };
 
+export const deductFlightSeats = async (flightId: string, count: number): Promise<void> => {
+  const flight = await Flight.findByIdAndUpdate(
+    flightId,
+    { $inc: { seatsLeft: -count } },
+    { new: true },
+  );
+  if (!flight) throw new AppError('Flight not found', 404, 'FLIGHT_NOT_FOUND');
+};
+
 export const listAllFlights = async (page: number, limit: number) => {
   const skip = (page - 1) * limit;
   const [flights, total] = await Promise.all([

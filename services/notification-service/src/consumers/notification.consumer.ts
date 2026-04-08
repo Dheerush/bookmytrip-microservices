@@ -50,6 +50,16 @@ const normalizeEvent = (raw: any): { type: string; data: Record<string, any> } =
           title: payload.title,
           amount: payload.amount,
           email: payload.email,
+          type: payload.type,
+          contact: payload.contact,
+          passengers: payload.passengers,
+          startDate: payload.startDate,
+          scheduleTime: payload.scheduleTime,
+          fromCode: payload.fromCode,
+          toCode: payload.toCode,
+          seatClass: payload.seatClass,
+          boardingTerminal: payload.boardingTerminal,
+          platformNumber: payload.platformNumber,
         },
       };
     case 'booking.cancelled':
@@ -118,9 +128,28 @@ export const startConsumer = async (): Promise<void> => {
             break;
           }
           case 'BOOKING_CONFIRMED': {
-            const { email, userId, bookingRef, title, amount } = event.data;
+            const { email, userId, bookingRef, title, amount, type, contact, passengers, startDate, scheduleTime, fromCode, toCode, seatClass, boardingTerminal, platformNumber } = event.data;
             if (email) {
-              await sendEmail(email, 'BookMyTrip: Booking Confirmed - ' + bookingRef, bookingTemplate({ bookingRef, title, status: 'confirmed', amount }));
+              await sendEmail(
+                email,
+                'BookMyTrip: Booking Confirmed - ' + bookingRef,
+                bookingTemplate({
+                  bookingRef,
+                  title,
+                  status: 'confirmed',
+                  amount,
+                  type,
+                  contact,
+                  passengers,
+                  startDate,
+                  scheduleTime,
+                  fromCode,
+                  toCode,
+                  seatClass,
+                  boardingTerminal,
+                  platformNumber,
+                }),
+              );
             }
             push(userId, 'booking', 'Booking Confirmed!', title + ' - Rs.' + Number(amount).toLocaleString('en-IN') + '. Ref: ' + bookingRef, '/dashboard/bookings');
             break;

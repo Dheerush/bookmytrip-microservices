@@ -15,6 +15,7 @@ import {
   createFlightHandler,
   updateFlightHandler,
   deleteFlightHandler,
+  deductFlightSeatsHandler,
 } from '../controllers/flight.controller';
 
 const router: Router = Router();
@@ -164,6 +165,9 @@ router.post(
  *     responses:
  *       200: { description: Flight updated }
  */
+// Internal route: deduct seats after booking confirmed (no JWT; uses x-service-secret header)
+router.patch('/:flightId/deduct-seats', deductFlightSeatsHandler);
+
 router.patch(
   '/:flightId',
   authenticate,

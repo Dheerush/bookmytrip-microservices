@@ -1188,7 +1188,7 @@ export default function AdminInventoryPage() {
       const draft = draftMap[field.key] || "";
 
       return (
-        <label key={field.key} className={styles.field}>
+        <div key={field.key} className={styles.field}>
           <span>{field.label}{field.required ? " *" : ""}</span>
           <div className={styles.tagEditor}>
             <div className={styles.tagList}>
@@ -1212,7 +1212,7 @@ export default function AdminInventoryPage() {
             />
             {errorText ? <small style={{ color: "#b42318" }}>{errorText}</small> : null}
           </div>
-        </label>
+        </div>
       );
     }
 

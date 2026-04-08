@@ -9,8 +9,10 @@ import {
   updateFlight,
   deleteFlight,
   listAllFlights,
+  deductFlightSeats,
 } from '../services/flight.service';
 import { SearchFlightsQuery, CreateFlightDto, UpdateFlightDto } from '../validators/flight.validators';
+import { env } from '../config/env';
 
 // ── Public ─────────────────────────────────────────────────────────────────────
 
@@ -52,4 +54,19 @@ export const updateFlightHandler: RequestHandler = asyncHandler(async (req: Requ
 export const deleteFlightHandler: RequestHandler = asyncHandler(async (req: Request, res: Response) => {
   await deleteFlight(req.params.flightId);
   res.status(200).json(apiResponse(null, 'Flight deactivated'));
+});
+
+export const deductFlightSeatsHandler: RequestHandler = asyncHandler(async (req: Request, res: Response) => {
+  const secret = req.headers['x-service-secret'];
+  if (secret !== env.INTERNAL_SERVICE_SECRET) {
+    res.status(403).json({ success: false, message: 'Forbidden', code: 'FORBIDDEN' });
+    return;
+  }
+  const { count } = req.body as { count?: number };
+  if (!count || count < 1) {
+    res.status(400).json({ success: false, message: 'count must be >= 1', code: 'VALIDATION_ERROR' });
+    return;
+  }
+  await deductFlightSeats(req.params.flightId, count);
+  res.status(200).json(apiResponse(null, 'Seats deducted'));
 });

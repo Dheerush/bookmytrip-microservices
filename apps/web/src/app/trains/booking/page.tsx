@@ -29,6 +29,20 @@ function createTravelers(count: number): Traveler[] {
   }));
 }
 
+const COACH_CODES: Record<SeatClass, string> = {
+  sleeper: "S",
+  ac3Tier: "B",
+  ac2Tier: "A",
+  ac1st: "H",
+};
+
+function generateTrainBerth(index: number, cls: SeatClass, seed: string): string {
+  const seedOffset = seed.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0);
+  const coachNum = Math.floor((seedOffset + index * 2) / 8) + 1;
+  const berth = ((seedOffset + index) % 8) + 1;
+  return `${COACH_CODES[cls]}${coachNum}/${berth}`;
+}
+
 function TrainBookingContent() {
   const searchParams = useSearchParams();
   const { user } = useAuth();
@@ -143,6 +157,9 @@ function TrainBookingContent() {
     setTravelers((prev) => prev.map((t, i) => (i === index ? { ...t, [key]: value } : t)));
   };
 
+  const seatsAvailable = train.seatsAvailable?.[seatClass] ?? 999;
+  const maxTravelers = Math.min(9, seatsAvailable);
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
@@ -156,6 +173,29 @@ function TrainBookingContent() {
       showToast.error("Please enter all traveler names.");
       return;
     }
+
+    // Duplicate traveller check
+    const names = travelers.map((t) => t.name.trim().toLowerCase()).filter(Boolean);
+    if (names.length !== new Set(names).size) {
+      showToast.error("Each traveller must have a unique name.");
+      return;
+    }
+
+    // Overbooking guard
+    if (travelersCount > seatsAvailable) {
+      showToast.error(`Only ${seatsAvailable} seat${seatsAvailable !== 1 ? "s" : ""} are available in ${seatClass} class.`);
+      return;
+    }
+
+    // Generate berth assignments
+    const berthSeed = train.trainNumber || train.id;
+    const passengersWithBerths = travelers.map((t, idx) => ({
+      name: t.name.trim(),
+      age: Number(t.age) || undefined,
+      gender: t.gender,
+      email: t.email.trim() || undefined,
+      seatNumber: generateTrainBerth(idx, seatClass, berthSeed),
+    }));
 
     setSubmitting(true);
     try {
@@ -178,12 +218,12 @@ function TrainBookingContent() {
               email: contactEmail.trim(),
               phone: contactPhone.trim(),
             },
-            passengers: travelers.map((t) => ({
-              name: t.name.trim(),
-              age: Number(t.age) || undefined,
-              gender: t.gender,
-              email: t.email.trim() || undefined,
-            })),
+            passengers: passengersWithBerths,
+            metadata: {
+              seatClass,
+              platformNumber: train.platformNumber,
+              berths: passengersWithBerths.map((p) => p.seatNumber),
+            },
           },
           totalAmount,
         );
@@ -230,14 +270,23 @@ function TrainBookingContent() {
                 </div>
                 <div>
                   <label className={s.label}>Travelers</label>
-                  <input
-                    className={s.input}
-                    type="number"
-                    min={1}
-                    max={9}
-                    value={travelersCount}
-                    onChange={(e) => setTravelersCount(Math.max(1, Math.min(9, Number(e.target.value) || 1)))}
-                  />
+                  {seatsAvailable <= 0 ? (
+                    <p style={{ color: "#c0392b", fontWeight: 600, fontSize: "0.82rem", margin: "6px 0 0" }}>No seats available in this class</p>
+                  ) : (
+                    <>
+                      <input
+                        className={s.input}
+                        type="number"
+                        min={1}
+                        max={maxTravelers}
+                        value={travelersCount}
+                        onChange={(e) => setTravelersCount(Math.max(1, Math.min(maxTravelers, Number(e.target.value) || 1)))}
+                      />
+                      {seatsAvailable <= 5 && (
+                        <p style={{ color: "#e67e22", fontSize: "0.75rem", margin: "4px 0 0" }}>Only {seatsAvailable} seat{seatsAvailable !== 1 ? "s" : ""} left!</p>
+                      )}
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -297,8 +346,8 @@ function TrainBookingContent() {
                 </div>
               ))}
 
-              <button className={s.ctaBtn} type="submit" disabled={submitting}>
-                {submitting ? "Processing..." : "Pay And Confirm"}
+              <button className={s.ctaBtn} type="submit" disabled={submitting || seatsAvailable <= 0}>
+                {submitting ? "Processing..." : seatsAvailable <= 0 ? "No Seats Available" : "Pay And Confirm"}
               </button>
             </form>
           </div>

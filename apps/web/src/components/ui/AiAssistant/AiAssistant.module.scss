@@ -158,6 +158,23 @@
   border-bottom-left-radius: 4px;
 }
 
+.actionLink {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 5px 12px;
+  background: var(--deep-navy, #0b1929);
+  color: #fff !important;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 20px;
+  text-decoration: none;
+  transition: background 0.18s;
+
+  &:hover {
+    background: #1e90ff;
+  }
+}
+
 .msgUser .msgBubble {
   background: var(--deep-navy, #0b1929);
   color: #fff;

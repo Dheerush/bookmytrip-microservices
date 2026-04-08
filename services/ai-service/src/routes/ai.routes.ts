@@ -92,25 +92,115 @@ router.post('/support', async (req, res) => {
 
   const { message, context } = parsed.data;
 
-  // Try Gemini first
-  const contextStr = context ? `\nContext: ${JSON.stringify(context)}` : '';
-  const geminiPrompt = `You are Yatra, a friendly and helpful AI assistant for BookMyTrip — an Indian travel booking platform offering flights, trains, cabs, and hotels. Answer the following user message concisely and helpfully in 1-3 sentences. Use a warm, professional tone. If unsure, suggest the user contact support@bookmytrip.com.${contextStr}\n\nUser: ${message}`;
-  const geminiReply = await callGemini(geminiPrompt);
+  const SYSTEM_PROMPT = `You are Yatra, the AI assistant for BookMyTrip — India's travel booking platform for flights, trains, cabs, and hotels.
 
-  if (geminiReply) {
-    res.status(200).json({ success: true, message: 'Support response generated', data: { reply: geminiReply, powered_by: 'gemini' } });
-    return;
+Your capabilities:
+1. Help users search for flights, trains, cabs, and hotels by extracting travel parameters
+2. Explain booking status and travel policies
+3. Guide users through raising or checking support complaints
+4. Answer FAQs about booking, cancellation, refunds, baggage, and travel tips
+5. Provide personalised travel suggestions
+
+Classify the user's intent into exactly one of:
+  FLIGHTS_SEARCH | TRAINS_SEARCH | CABS_SEARCH | HOTELS_SEARCH | BOOKING_STATUS | COMPLAINT | FAQ | GENERAL
+
+Rules:
+- For *_SEARCH intents, extract travel parameters from the message (from, to, date, passengers, budget, cabinClass, seatClass)
+- Dates should be normalised to YYYY-MM-DD format if determinable; otherwise null
+- For COMPLAINT, extract bookingRef and issue description if mentioned
+- Always reply in friendly, helpful, concise Indian-English (mix of formal and warm tone)
+- Never invent booking details — only work with what the user provides
+
+Respond ONLY with a valid JSON object (no markdown, no explanation outside JSON):
+{
+  "intent": "<INTENT>",
+  "params": {
+    "from": "<city or null>",
+    "to": "<city or null>",
+    "date": "<YYYY-MM-DD or null>",
+    "passengers": <number or null>,
+    "budget": <INR number or null>,
+    "cabinClass": "<economy|premiumEconomy|business or null>",
+    "seatClass": "<sleeper|ac3Tier|ac2Tier|ac1st|general or null>",
+    "bookingRef": "<ref or null>",
+    "issue": "<issue description or null>"
+  },
+  "reply": "<Your natural language response to the user — 2-4 sentences>"
+}`;
+
+  const fullPrompt = `${SYSTEM_PROMPT}${context ? `\n\nSession context: ${JSON.stringify(context)}` : ''}\n\nUser message: ${message}`;
+
+  const rawGeminiReply = await callGemini(fullPrompt);
+
+  if (rawGeminiReply) {
+    try {
+      // Strip markdown code fences if Gemini wraps the JSON
+      const jsonStr = rawGeminiReply.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '').trim();
+      const structured = JSON.parse(jsonStr) as {
+        intent: string;
+        params: Record<string, unknown>;
+        reply: string;
+      };
+      res.status(200).json({
+        success: true,
+        message: 'Support response generated',
+        data: {
+          reply: structured.reply ?? rawGeminiReply,
+          intent: structured.intent ?? 'GENERAL',
+          params: structured.params ?? {},
+          powered_by: 'gemini',
+        },
+      });
+      return;
+    } catch {
+      // JSON parse failed — fall back to returning raw reply
+      res.status(200).json({
+        success: true,
+        message: 'Support response generated',
+        data: { reply: rawGeminiReply, intent: 'GENERAL', params: {}, powered_by: 'gemini' },
+      });
+      return;
+    }
   }
 
-  // Fallback to rule-based
+  // Rule-based fallback
   const msg = message.toLowerCase();
-  const reply = msg.includes('refund')
-    ? 'Refunds depend on fare rules and cancellation window. Open your booking and check the refund panel before submitting.'
-    : msg.includes('payment')
-      ? 'For payment failures, verify card details and retry once. If amount is debited, do not retry immediately; check payment status in booking history.'
-      : 'I can help with itinerary, booking status, refunds, and offer eligibility. Share booking reference or route for a precise answer.';
+  let intent = 'GENERAL';
+  let reply: string;
 
-  res.status(200).json({ success: true, message: 'Support response generated', data: { reply, powered_by: 'fallback' } });
+  if (msg.includes('flight') || msg.includes('fly') || msg.includes('plane')) {
+    intent = 'FLIGHTS_SEARCH';
+    reply = 'I can help you search for flights! Please share your departure city, destination, travel date, and number of passengers.';
+  } else if (msg.includes('train') || msg.includes('rail') || msg.includes('irctc')) {
+    intent = 'TRAINS_SEARCH';
+    reply = 'Looking for a train? Tell me your departure city, destination, and travel date.';
+  } else if (msg.includes('cab') || msg.includes('taxi') || msg.includes('car')) {
+    intent = 'CABS_SEARCH';
+    reply = 'I can help you find a cab. Share your pickup city, destination, and travel date.';
+  } else if (msg.includes('hotel') || msg.includes('stay') || msg.includes('room')) {
+    intent = 'HOTELS_SEARCH';
+    reply = 'Looking for accommodation? Let me know the city, check-in date, and number of nights.';
+  } else if (msg.includes('refund')) {
+    intent = 'FAQ';
+    reply = 'Refunds are processed within 5–7 business days after cancellation. You can check refund status in your booking history.';
+  } else if (msg.includes('cancel')) {
+    intent = 'FAQ';
+    reply = 'To cancel a booking, go to My Bookings, select the booking, and click Cancel. Refund eligibility depends on the fare rules.';
+  } else if (msg.includes('complaint') || msg.includes('issue') || msg.includes('problem')) {
+    intent = 'COMPLAINT';
+    reply = 'I\'m sorry you\'re facing an issue. Please share your booking reference and a brief description, and I\'ll raise a support ticket right away.';
+  } else if (msg.includes('booking') || msg.includes('status')) {
+    intent = 'BOOKING_STATUS';
+    reply = 'I can check your booking status. Please share the booking reference number.';
+  } else {
+    reply = 'Hello! I\'m Yatra, your BookMyTrip assistant. I can help with flights, trains, cabs, hotels, booking status, refunds, and more. What can I help you with today?';
+  }
+
+  res.status(200).json({
+    success: true,
+    message: 'Support response generated',
+    data: { reply, intent, params: {}, powered_by: 'fallback' },
+  });
 });
 
 export default router;

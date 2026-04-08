@@ -146,6 +146,23 @@ export const confirmBooking = async (bookingId: string, userId: string): Promise
   booking.status = 'confirmed';
   await booking.save();
 
+  // Fire-and-forget: deduct inventory seats (non-blocking; failures don't affect the booking)
+  if (booking.type === 'flight' && booking.itemId) {
+    const flightId = booking.itemId.includes('|') ? booking.itemId.split('|')[0] : booking.itemId;
+    void fetch(`${env.FLIGHT_SERVICE_URL}/api/flights/${flightId}/deduct-seats`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'x-service-secret': env.INTERNAL_SERVICE_SECRET },
+      body: JSON.stringify({ count: booking.quantity }),
+    }).catch(() => undefined);
+  } else if (booking.type === 'train' && booking.itemId) {
+    const seatClass = (booking.metadata?.seatClass as string) || 'sleeper';
+    void fetch(`${env.TRAIN_SERVICE_URL}/api/trains/${booking.itemId}/deduct-seats`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'x-service-secret': env.INTERNAL_SERVICE_SECRET },
+      body: JSON.stringify({ seatClass, count: booking.quantity }),
+    }).catch(() => undefined);
+  }
+
   publishEvent('booking.created', {
     userId,
     bookingRef: booking.bookingRef,
@@ -153,6 +170,15 @@ export const confirmBooking = async (bookingId: string, userId: string): Promise
     amount: booking.amount,
     title: booking.title,
     email: booking.contact?.email,
+    contact: booking.contact,
+    passengers: booking.passengers,
+    startDate: booking.startDate,
+    scheduleTime: booking.scheduleTime,
+    fromCode: booking.fromCode,
+    toCode: booking.toCode,
+    seatClass: booking.metadata?.seatClass,
+    boardingTerminal: booking.metadata?.boardingTerminal,
+    platformNumber: booking.metadata?.platformNumber,
   });
 
   return booking;

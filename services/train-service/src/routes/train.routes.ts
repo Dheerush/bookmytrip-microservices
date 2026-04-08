@@ -5,6 +5,7 @@ import { validate } from '../middleware/validate.middleware';
 import {
   createTrainHandler,
   deleteTrainHandler,
+  deductTrainSeatsHandler,
   getTrainByIdHandler,
   getTrainByNumberHandler,
   listAllTrainsHandler,
@@ -70,6 +71,9 @@ router.get('/number/:trainNumber', searchLimiter, getTrainByNumberHandler);
 router.get('/', authenticate, authorizeRoles('admin'), listAllTrainsHandler);
 router.post('/', authenticate, authorizeRoles('admin'), mutationLimiter, validate(createTrainSchema), createTrainHandler);
 router.get('/:trainId', searchLimiter, getTrainByIdHandler);
+// Internal route: deduct seats after booking confirmed (no JWT; uses x-service-secret header)
+router.patch('/:trainId/deduct-seats', deductTrainSeatsHandler);
+
 router.patch('/:trainId', authenticate, authorizeRoles('admin'), mutationLimiter, validate(updateTrainSchema), updateTrainHandler);
 router.delete('/:trainId', authenticate, authorizeRoles('admin'), mutationLimiter, deleteTrainHandler);
 

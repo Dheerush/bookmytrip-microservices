@@ -35,6 +35,22 @@ function createTravelers(count: number): Traveler[] {
   }));
 }
 
+function generateFlightSeat(index: number, cabin: CabinClass, seed: string): string {
+  const rows: Record<CabinClass, { start: number; end: number }> = {
+    business:       { start: 1,  end: 4  },
+    premiumEconomy: { start: 5,  end: 9  },
+    economy:        { start: 10, end: 35 },
+  };
+  const cols = cabin === "business" ? "ABCD" : "ABCDEF";
+  const range = rows[cabin];
+  // Simple deterministic offset using seed chars to spread assignments
+  const seedOffset = seed.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0);
+  const span = range.end - range.start + 1;
+  const row = range.start + ((seedOffset + index * 3) % span);
+  const col = cols[(seedOffset + index * 2) % cols.length];
+  return `${row}${col}`;
+}
+
 function FlightBookingContent() {
   const searchParams = useSearchParams();
   const { user } = useAuth();
@@ -176,6 +192,9 @@ function FlightBookingContent() {
     setTravelers((prev) => prev.map((t, i) => (i === index ? { ...t, [key]: value } : t)));
   };
 
+  const seatsLeft = outbound.seatsLeft ?? 999;
+  const maxTravelers = Math.min(9, seatsLeft);
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
@@ -189,6 +208,29 @@ function FlightBookingContent() {
       showToast.error("Please enter all traveler names.");
       return;
     }
+
+    // Duplicate traveller check
+    const names = travelers.map((t) => t.name.trim().toLowerCase()).filter(Boolean);
+    if (names.length !== new Set(names).size) {
+      showToast.error("Each traveller must have a unique name.");
+      return;
+    }
+
+    // Overbooking guard
+    if (travelersCount > seatsLeft) {
+      showToast.error(`Only ${seatsLeft} seat${seatsLeft !== 1 ? "s" : ""} are available on this flight.`);
+      return;
+    }
+
+    // Generate seat assignments
+    const seatSeed = outbound.flightCode || outbound.id;
+    const passengersWithSeats = travelers.map((t, idx) => ({
+      name: t.name.trim(),
+      age: Number(t.age) || undefined,
+      gender: t.gender,
+      email: t.email.trim() || undefined,
+      seatNumber: generateFlightSeat(idx, cabinClass, seatSeed),
+    }));
 
     setSubmitting(true);
     try {
@@ -215,12 +257,12 @@ function FlightBookingContent() {
               email: contactEmail.trim(),
               phone: contactPhone.trim(),
             },
-            passengers: travelers.map((t) => ({
-              name: t.name.trim(),
-              age: Number(t.age) || undefined,
-              gender: t.gender,
-              email: t.email.trim() || undefined,
-            })),
+            passengers: passengersWithSeats,
+            metadata: {
+              seatClass: cabinClass,
+              boardingTerminal: outbound.boardingTerminal,
+              seats: passengersWithSeats.map((p) => p.seatNumber),
+            },
           },
           totalAmount,
         );
@@ -268,14 +310,23 @@ function FlightBookingContent() {
                 </div>
                 <div>
                   <label className={s.label}>Travelers</label>
-                  <input
-                    className={s.input}
-                    type="number"
-                    min={1}
-                    max={9}
-                    value={travelersCount}
-                    onChange={(e) => setTravelersCount(Math.max(1, Math.min(9, Number(e.target.value) || 1)))}
-                  />
+                  {seatsLeft <= 0 ? (
+                    <p style={{ color: "#c0392b", fontWeight: 600, fontSize: "0.82rem", margin: "6px 0 0" }}>No seats available</p>
+                  ) : (
+                    <>
+                      <input
+                        className={s.input}
+                        type="number"
+                        min={1}
+                        max={maxTravelers}
+                        value={travelersCount}
+                        onChange={(e) => setTravelersCount(Math.max(1, Math.min(maxTravelers, Number(e.target.value) || 1)))}
+                      />
+                      {seatsLeft <= 5 && (
+                        <p style={{ color: "#e67e22", fontSize: "0.75rem", margin: "4px 0 0" }}>Only {seatsLeft} seat{seatsLeft !== 1 ? "s" : ""} left!</p>
+                      )}
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -339,8 +390,8 @@ function FlightBookingContent() {
                 </div>
               ))}
 
-              <button className={s.ctaBtn} type="submit" disabled={submitting}>
-                {submitting ? "Processing..." : "Pay And Confirm"}
+              <button className={s.ctaBtn} type="submit" disabled={submitting || seatsLeft <= 0}>
+                {submitting ? "Processing..." : seatsLeft <= 0 ? "No Seats Available" : "Pay And Confirm"}
               </button>
             </form>
           </div>

@@ -45,7 +45,10 @@ interface BookingFlowParams {
     name: string;
     age?: number;
     gender?: string;
+    email?: string;
+    seatNumber?: string;
   }>;
+  metadata?: Record<string, unknown>;
 }
 
 export function useBookingFlow() {
@@ -98,6 +101,7 @@ export function useBookingFlow() {
             contact: safeContact,
             passengers: params.passengers || [],
             metadata: {
+              ...params.metadata,
               couponCode: params.couponCode,
               discountAmount: params.discountAmount,
             },

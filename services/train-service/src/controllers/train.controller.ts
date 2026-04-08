@@ -5,12 +5,14 @@ import { CreateTrainDto, SearchTrainsQuery, UpdateTrainDto } from '../validators
 import {
   createTrain,
   deleteTrain,
+  deductTrainSeats,
   getTrainById,
   getTrainByNumber,
   listAllTrains,
   searchTrains,
   updateTrain,
 } from '../services/train.service';
+import { env } from '../config/env';
 
 export const searchTrainsHandler: RequestHandler = asyncHandler(async (req: Request, res: Response) => {
   const result = await searchTrains(req.query as unknown as SearchTrainsQuery);
@@ -47,4 +49,19 @@ export const updateTrainHandler: RequestHandler = asyncHandler(async (req: Reque
 export const deleteTrainHandler: RequestHandler = asyncHandler(async (req: Request, res: Response) => {
   await deleteTrain(req.params.trainId);
   res.status(200).json(apiResponse(null, 'Train deactivated'));
+});
+
+export const deductTrainSeatsHandler: RequestHandler = asyncHandler(async (req: Request, res: Response) => {
+  const secret = req.headers['x-service-secret'];
+  if (secret !== env.INTERNAL_SERVICE_SECRET) {
+    res.status(403).json({ success: false, message: 'Forbidden', code: 'FORBIDDEN' });
+    return;
+  }
+  const { seatClass, count } = req.body as { seatClass?: string; count?: number };
+  if (!seatClass || !count || count < 1) {
+    res.status(400).json({ success: false, message: 'seatClass and count >= 1 are required', code: 'VALIDATION_ERROR' });
+    return;
+  }
+  await deductTrainSeats(req.params.trainId, seatClass, count);
+  res.status(200).json(apiResponse(null, 'Seats deducted'));
 });

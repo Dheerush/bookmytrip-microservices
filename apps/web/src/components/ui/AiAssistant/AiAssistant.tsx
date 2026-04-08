@@ -7,6 +7,23 @@ interface Message {
   id: string;
   role: "assistant" | "user";
   text: string;
+  actionLink?: { label: string; href: string };
+}
+
+interface AiApiData {
+  reply?: string;
+  intent?: string;
+  params?: {
+    from?: string;
+    to?: string;
+    date?: string;
+    passengers?: number;
+    budget?: number;
+    cabinClass?: string;
+    seatClass?: string;
+    bookingRef?: string;
+    issue?: string;
+  };
 }
 
 const QUICK_ACTIONS = [
@@ -24,7 +41,51 @@ const WELCOME_MESSAGE: Message = {
   text: "👋 Namaste! I'm **Yatra**, your BookMyTrip AI assistant. I can help you with recommendations, bookings, complaints, travel tips, and more. How can I help you today?",
 };
 
-async function fetchBotReply(message: string): Promise<string> {
+function buildActionLink(intent: string, params: AiApiData["params"]): { label: string; href: string } | undefined {
+  if (!intent || !params) return undefined;
+  const { from, to, date, passengers, cabinClass, seatClass } = params;
+
+  if (intent === "FLIGHTS_SEARCH" && from && to) {
+    const p = new URLSearchParams();
+    p.set("from", from);
+    p.set("to", to);
+    if (date) p.set("date", date);
+    if (passengers) p.set("passengers", String(passengers));
+    if (cabinClass) p.set("class", cabinClass);
+    return { label: `Search Flights: ${from} → ${to}`, href: `/flights?${p.toString()}` };
+  }
+  if (intent === "TRAINS_SEARCH" && from && to) {
+    const p = new URLSearchParams();
+    p.set("from", from);
+    p.set("to", to);
+    if (date) p.set("date", date);
+    if (passengers) p.set("passengers", String(passengers));
+    if (seatClass) p.set("class", seatClass);
+    return { label: `Search Trains: ${from} → ${to}`, href: `/trains?${p.toString()}` };
+  }
+  if (intent === "CABS_SEARCH" && from) {
+    const p = new URLSearchParams({ city: from });
+    if (to) p.set("drop", to);
+    if (date) p.set("date", date);
+    return { label: `Search Cabs from ${from}`, href: `/cabs?${p.toString()}` };
+  }
+  if (intent === "HOTELS_SEARCH") {
+    const p = new URLSearchParams();
+    if (to) p.set("city", to);
+    else if (from) p.set("city", from);
+    if (date) p.set("checkIn", date);
+    return { label: "Browse Hotels", href: `/hotels?${p.toString()}` };
+  }
+  if (intent === "BOOKING_STATUS") {
+    return { label: "My Bookings", href: "/dashboard/bookings" };
+  }
+  if (intent === "COMPLAINT") {
+    return { label: "Raise a Ticket", href: "/dashboard/support/new" };
+  }
+  return undefined;
+}
+
+async function fetchBotReply(message: string): Promise<{ text: string; actionLink?: { label: string; href: string } }> {
   try {
     const res = await fetch("/api/ai/support", {
       method: "POST",
@@ -32,10 +93,13 @@ async function fetchBotReply(message: string): Promise<string> {
       body: JSON.stringify({ message }),
     });
     if (!res.ok) throw new Error("API error");
-    const data = await res.json() as { data?: { reply?: string } };
-    return data?.data?.reply ?? "I'm having trouble responding right now. Please try again in a moment.";
+    const json = await res.json() as { data?: AiApiData };
+    const data = json?.data;
+    const reply = data?.reply ?? "I'm having trouble responding right now. Please try again in a moment.";
+    const actionLink = data?.intent ? buildActionLink(data.intent, data.params) : undefined;
+    return { text: reply, actionLink };
   } catch {
-    return "Sorry, I couldn't connect to the assistant. Please try again shortly.";
+    return { text: "Sorry, I couldn't connect to the assistant. Please try again shortly." };
   }
 }
 
@@ -66,13 +130,14 @@ export default function AiAssistant() {
     setInput("");
     setTyping(true);
 
-    const replyText = await fetchBotReply(text.trim());
+    const { text: replyText, actionLink } = await fetchBotReply(text.trim());
 
     msgIdRef.current += 1;
     const botReply: Message = {
       id: `b-${msgIdRef.current}`,
       role: "assistant",
       text: replyText,
+      actionLink,
     };
     setMessages((prev) => [...prev, botReply]);
     setTyping(false);
@@ -130,6 +195,16 @@ export default function AiAssistant() {
                       {i < msg.text.split("\n").length - 1 && <br />}
                     </span>
                   ))}
+                  {msg.actionLink && (
+                    <a
+                      href={msg.actionLink.href}
+                      className={styles.actionLink}
+                      target="_self"
+                      onClick={() => setOpen(false)}
+                    >
+                      {msg.actionLink.label} →
+                    </a>
+                  )}
                 </div>
               </div>
             ))}

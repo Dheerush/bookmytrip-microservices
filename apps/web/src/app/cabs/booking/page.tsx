@@ -65,6 +65,8 @@ function CabBookingContent() {
   const [appliedCouponCode, setAppliedCouponCode] = useState("");
   const [appliedCouponDiscount, setAppliedCouponDiscount] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  // Drop points for cross-city trips: destination city's pickup points
+  const [destCityPickupPoints, setDestCityPickupPoints] = useState<string[]>([]);
 
   // Once cab data is available, default pickup/drop to the first available point
   useEffect(() => {
@@ -76,6 +78,32 @@ function CabBookingContent() {
       setDrop((prev) => cab.dropPoints!.includes(prev) ? prev : (cab.dropPoints![0] ?? prev));
     }
   }, [cab]);
+
+  // For cross-city trips, fetch the destination city's pickup points to use as drop options
+  useEffect(() => {
+    if (!cab || !initialDrop) return;
+    // Same city → keep using cab.dropPoints (already set above)
+    if (initialDrop.toLowerCase() === cab.city.toLowerCase()) return;
+
+    const run = async () => {
+      try {
+        const params = new URLSearchParams({ city: initialDrop, limit: "10" });
+        const res = await fetch(`/api/cabs/search?${params.toString()}`);
+        if (!res.ok) return;
+        const json = (await res.json()) as { data?: { results?: Array<{ cab?: { pickupPoints?: string[] } }> } };
+        const results = json?.data?.results ?? [];
+        const pts = results.flatMap((r) => r.cab?.pickupPoints ?? []);
+        const unique = Array.from(new Set(pts));
+        if (unique.length > 0) {
+          setDestCityPickupPoints(unique);
+          setDrop((prev) => unique.includes(prev) ? prev : unique[0]);
+        }
+      } catch {
+        // falling back to free-text input
+      }
+    };
+    void run();
+  }, [cab, initialDrop]);
 
   if (loadingCab) {
     return (
@@ -303,23 +331,29 @@ function CabBookingContent() {
                 </div>
                 <div>
                   <label className={s.label} htmlFor="bk-drop">Drop *</label>
-                  {cab.dropPoints && cab.dropPoints.length > 0 ? (
-                    <select id="bk-drop" className={s.input} value={drop} onChange={(e) => setDrop(e.target.value)} required>
-                      {cab.dropPoints.map((pt) => (
-                        <option key={pt} value={pt}>{pt}</option>
-                      ))}
-                    </select>
-                  ) : (
-                    <input
-                      id="bk-drop"
-                      className={s.input}
-                      type="text"
-                      value={drop}
-                      onChange={(e) => setDrop(e.target.value)}
-                      placeholder="Drop location"
-                      required
-                    />
-                  )}
+                  {(() => {
+                    // Cross-city trip: show destination city's pickup points as drop options
+                    const dropOptions = destCityPickupPoints.length > 0
+                      ? destCityPickupPoints
+                      : cab.dropPoints && cab.dropPoints.length > 0 ? cab.dropPoints : [];
+                    return dropOptions.length > 0 ? (
+                      <select id="bk-drop" className={s.input} value={drop} onChange={(e) => setDrop(e.target.value)} required>
+                        {dropOptions.map((pt) => (
+                          <option key={pt} value={pt}>{pt}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        id="bk-drop"
+                        className={s.input}
+                        type="text"
+                        value={drop}
+                        onChange={(e) => setDrop(e.target.value)}
+                        placeholder="Drop location"
+                        required
+                      />
+                    );
+                  })()}
                 </div>
               </div>
               <div className={s.fieldRow}>
