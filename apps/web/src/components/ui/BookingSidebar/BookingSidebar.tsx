@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getAuthHeaders } from "@/lib/http";
+import { useAuth } from "@/services/auth/context";
 import styles from "./BookingSidebar.module.scss";
 
 interface FareLine {
@@ -24,6 +25,21 @@ interface BookingSidebarProps {
   onProceed?: (netAmount: number) => void;
 }
 
+interface PublicCoupon {
+  _id?: string;
+  code: string;
+  description?: string;
+  discountType?: "percent" | "fixed";
+  discountValue?: number;
+  minOrderValue?: number;
+  maxDiscount?: number;
+  usageLimit?: number;
+  usedCount?: number;
+  oneTimePerUser?: boolean;
+  usedBy?: string[];
+  applicableOn?: string[];
+}
+
 export default function BookingSidebar({
   baseFare,
   taxes = 0,
@@ -37,14 +53,81 @@ export default function BookingSidebar({
   onCouponApplied,
   onProceed,
 }: BookingSidebarProps) {
+  const { user } = useAuth();
   const [coupon, setCoupon] = useState(initialCouponCode);
+  const [selectedCouponCode, setSelectedCouponCode] = useState(initialCouponCode);
   const [couponDiscount, setCouponDiscount] = useState(initialCouponDiscount);
   const [couponMsg, setCouponMsg] = useState<string | null>(null);
   const [applying, setApplying] = useState(false);
+  const [availableCoupons, setAvailableCoupons] = useState<PublicCoupon[]>([]);
+  const [loadingCoupons, setLoadingCoupons] = useState(false);
 
-  const applyCoupon = async () => {
-    const code = coupon.trim().toUpperCase();
+  const normalizedServiceType = (serviceType || "").trim().toLowerCase();
+
+  useEffect(() => {
+    let mounted = true;
+    const run = async () => {
+      try {
+        setLoadingCoupons(true);
+        const res = await fetch("/api/admin/coupons/public", { cache: "no-store" });
+        const data = await res.json() as { data?: { items?: PublicCoupon[] } };
+        if (!mounted) return;
+        setAvailableCoupons(data?.data?.items || []);
+      } catch {
+        if (!mounted) return;
+        setAvailableCoupons([]);
+      } finally {
+        if (mounted) setLoadingCoupons(false);
+      }
+    };
+    void run();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const eligibleCoupons = useMemo(() => {
+    return availableCoupons.filter((entry) => {
+      const targets = (entry.applicableOn || []).map((value) => value.toLowerCase());
+      if (targets.length === 0) return true;
+      if (!normalizedServiceType) return true;
+      return targets.includes(normalizedServiceType) || targets.includes("all");
+    });
+  }, [availableCoupons, normalizedServiceType]);
+
+  const isCouponDisabled = (entry: PublicCoupon) => {
+    const exhausted = (entry.usageLimit || 0) > 0 && (entry.usedCount || 0) >= (entry.usageLimit || 0);
+    const alreadyUsed = Boolean(
+      entry.oneTimePerUser &&
+      user?.id &&
+      Array.isArray(entry.usedBy) &&
+      entry.usedBy.includes(user.id),
+    );
+    return exhausted || alreadyUsed;
+  };
+
+  const selectedCoupon = useMemo(
+    () => eligibleCoupons.find((entry) => entry.code === selectedCouponCode),
+    [eligibleCoupons, selectedCouponCode],
+  );
+
+  const estimatedSelectedDiscount = useMemo(() => {
+    if (!selectedCoupon) return 0;
+    const extraTotal = extraLines.reduce((s, l) => s + l.amount, 0);
+    const subtotal = Math.max(0, baseFare + taxes + serviceFee + extraTotal - discount);
+    if (selectedCoupon.minOrderValue && subtotal < selectedCoupon.minOrderValue) return 0;
+    if (selectedCoupon.discountType === "percent") {
+      const computed = Math.round((subtotal * Number(selectedCoupon.discountValue || 0)) / 100);
+      return Math.min(computed, Number(selectedCoupon.maxDiscount || computed));
+    }
+    return Math.min(subtotal, Number(selectedCoupon.discountValue || 0));
+  }, [baseFare, discount, extraLines, selectedCoupon, serviceFee, taxes]);
+
+  const applyCoupon = async (inputCode?: unknown) => {
+    const code = String(inputCode ?? selectedCouponCode ?? coupon ?? "").trim().toUpperCase();
     if (!code) return;
+    setCoupon(code);
+    setSelectedCouponCode(code);
     const extraTotal = extraLines.reduce((s, l) => s + l.amount, 0);
     const subtotal = baseFare + taxes + serviceFee + extraTotal - discount;
     try {
@@ -120,23 +203,63 @@ export default function BookingSidebar({
       </div>
 
       {/* Coupon */}
-      <div className={styles.couponBox}>
-        <input
-          className={styles.couponInput}
-          type="text"
-          placeholder="Coupon code"
-          value={coupon}
-          onChange={(e) => setCoupon(e.target.value)}
-        />
-        <button className={styles.couponBtn} type="button" onClick={applyCoupon} disabled={applying}>
-          {applying ? "..." : "Apply"}
-        </button>
+      <div className={styles.couponSection}>
+        <label className={styles.couponLabel} htmlFor="booking-coupon-select">Available Coupons</label>
+        <div className={styles.couponBox}>
+          <select
+            id="booking-coupon-select"
+            className={styles.couponSelect}
+            value={selectedCouponCode}
+            onChange={(e) => {
+              const nextCode = e.target.value;
+              setSelectedCouponCode(nextCode);
+              setCoupon(nextCode);
+              setCouponMsg(null);
+            }}
+          >
+            <option value="">Select a coupon</option>
+            {eligibleCoupons.map((entry) => {
+              const disabled = isCouponDisabled(entry);
+              const alreadyUsed = Boolean(entry.oneTimePerUser && user?.id && entry.usedBy?.includes(user.id));
+              const exhausted = (entry.usageLimit || 0) > 0 && (entry.usedCount || 0) >= (entry.usageLimit || 0);
+              const status = alreadyUsed ? "Used" : exhausted ? "Unavailable" : "";
+              const label = status ? `${entry.code} - ${status}` : entry.code;
+              return (
+                <option key={entry._id || entry.code} value={entry.code} disabled={disabled}>
+                  {label}
+                </option>
+              );
+            })}
+          </select>
+          <button className={styles.couponBtn} type="button" onClick={() => void applyCoupon()} disabled={applying || !selectedCouponCode}>
+            {applying ? "..." : "Apply"}
+          </button>
+        </div>
       </div>
+      {selectedCoupon && (
+        <div className={styles.couponPreview}>
+          <div className={styles.couponPreviewHeader}>
+            <span className={styles.couponCode}>{selectedCoupon.code}</span>
+            {estimatedSelectedDiscount > 0 ? <span className={styles.couponPreviewValue}>Save ₹{estimatedSelectedDiscount.toLocaleString("en-IN")}</span> : null}
+          </div>
+          {selectedCoupon.description ? <p className={styles.couponHint}>{selectedCoupon.description}</p> : null}
+          <div className={styles.couponPreviewMeta}>
+            <span>
+              {selectedCoupon.discountType === "percent"
+                ? `${selectedCoupon.discountValue || 0}% off${selectedCoupon.maxDiscount ? ` up to ₹${selectedCoupon.maxDiscount}` : ""}`
+                : `₹${selectedCoupon.discountValue || 0} off`}
+            </span>
+            {selectedCoupon.minOrderValue ? <span>Min order ₹{Number(selectedCoupon.minOrderValue).toLocaleString("en-IN")}</span> : null}
+          </div>
+        </div>
+      )}
       {couponMsg && (
         <p className={`${styles.couponMsg} ${couponDiscount > 0 ? styles.couponSuccess : styles.couponError}`}>
           {couponMsg}
         </p>
       )}
+      {loadingCoupons ? <p className={styles.couponHint}>Loading coupons...</p> : null}
+      {!loadingCoupons && eligibleCoupons.length === 0 ? <p className={styles.couponHint}>No eligible coupons for this booking.</p> : null}
 
       {/* Net Amount */}
       <div className={styles.netRow}>

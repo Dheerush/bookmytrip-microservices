@@ -21,9 +21,28 @@ interface BookingTemplateInput {
   scheduleTime?: string;
   fromCode?: string;
   toCode?: string;
+  boardingAirport?: string;
+  destinationAirport?: string;
   boardingTerminal?: string;   // flight terminal
   platformNumber?: string;    // train platform
   seatClass?: string;         // economy / sleeper / ac3Tier etc.
+  berthPreference?: string;
+  trainFromStationName?: string;
+  trainFromStationCode?: string;
+  trainToStationName?: string;
+  trainToStationCode?: string;
+  currentLocation?: string;
+  destinationCity?: string;
+  packageTravelMode?: string;
+  packageTravelDetails?: string;
+  cabPickup?: string;
+  cabDrop?: string;
+  cabPickupCity?: string;
+  cabDropCity?: string;
+  cabDistanceKm?: number;
+  cabDriverName?: string;
+  cabDriverPhone?: string;
+  cabNumber?: string;
   contact?: BookingContact;
   passengers?: BookingPassenger[];
 }
@@ -48,9 +67,28 @@ export const bookingTemplate = ({
   scheduleTime,
   fromCode,
   toCode,
+  boardingAirport,
+  destinationAirport,
   boardingTerminal,
   platformNumber,
   seatClass,
+  berthPreference,
+  trainFromStationName,
+  trainFromStationCode,
+  trainToStationName,
+  trainToStationCode,
+  currentLocation,
+  destinationCity,
+  packageTravelMode,
+  packageTravelDetails,
+  cabPickup,
+  cabDrop,
+  cabPickupCity,
+  cabDropCity,
+  cabDistanceKm,
+  cabDriverName,
+  cabDriverPhone,
+  cabNumber,
   contact,
   passengers = [],
 }: BookingTemplateInput): string => {
@@ -66,6 +104,16 @@ export const bookingTemplate = ({
   const routeLabel = fromCode && toCode ? `${fromCode} → ${toCode}` : null;
   const terminalLabel = boardingTerminal ? `Terminal ${boardingTerminal}` : platformNumber ? `Platform ${platformNumber}` : null;
   const classLabelStr = seatClass ? (classLabel[seatClass] || seatClass) : null;
+  const seatColumnLabel = type === 'train' ? 'Berth' : 'Seat';
+  const trainStations = type === 'train'
+    ? [
+      trainFromStationName && `${trainFromStationName}${trainFromStationCode ? ` (${trainFromStationCode})` : ''}`,
+      trainToStationName && `${trainToStationName}${trainToStationCode ? ` (${trainToStationCode})` : ''}`,
+    ].filter(Boolean).join(' → ')
+    : null;
+  const berthPrefLabel = berthPreference
+    ? berthPreference.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, (ch) => ch.toUpperCase())
+    : null;
   const gst = Math.round(amount * 0.05);
   const base = amount - gst;
   const typeLabel = type ? type.charAt(0).toUpperCase() + type.slice(1) : 'Travel';
@@ -131,6 +179,14 @@ export const bookingTemplate = ({
                 <td style="padding:10px 18px;font-size:0.82rem;color:#6b7f93;width:140px">Route</td>
                 <td style="padding:10px 18px;font-size:0.88rem;font-weight:600;color:#0f1f2e">${routeLabel}</td>
               </tr>` : ''}
+              ${boardingAirport && type === 'flight' ? `<tr>
+                <td style="padding:10px 18px;font-size:0.82rem;color:#6b7f93">Boarding Airport</td>
+                <td style="padding:10px 18px;font-size:0.88rem;font-weight:600;color:#0f1f2e">${boardingAirport}</td>
+              </tr>` : ''}
+              ${destinationAirport && type === 'flight' ? `<tr>
+                <td style="padding:10px 18px;font-size:0.82rem;color:#6b7f93">Destination Airport</td>
+                <td style="padding:10px 18px;font-size:0.88rem;font-weight:600;color:#0f1f2e">${destinationAirport}</td>
+              </tr>` : ''}
               ${formattedDate ? `<tr>
                 <td style="padding:10px 18px;font-size:0.82rem;color:#6b7f93">Travel Date</td>
                 <td style="padding:10px 18px;font-size:0.88rem;font-weight:600;color:#0f1f2e">${formattedDate}${formattedTime ? ` at ${formattedTime}` : ''}</td>
@@ -142,6 +198,54 @@ export const bookingTemplate = ({
               ${classLabelStr ? `<tr>
                 <td style="padding:10px 18px;font-size:0.82rem;color:#6b7f93">Class</td>
                 <td style="padding:10px 18px;font-size:0.88rem;font-weight:600;color:#0f1f2e">${classLabelStr}</td>
+              </tr>` : ''}
+              ${berthPrefLabel && type === 'train' ? `<tr>
+                <td style="padding:10px 18px;font-size:0.82rem;color:#6b7f93">Berth Preference</td>
+                <td style="padding:10px 18px;font-size:0.88rem;font-weight:600;color:#0f1f2e">${berthPrefLabel}</td>
+              </tr>` : ''}
+              ${trainStations ? `<tr>
+                <td style="padding:10px 18px;font-size:0.82rem;color:#6b7f93">Stations</td>
+                <td style="padding:10px 18px;font-size:0.88rem;font-weight:600;color:#0f1f2e">${trainStations}</td>
+              </tr>` : ''}
+              ${currentLocation ? `<tr>
+                <td style="padding:10px 18px;font-size:0.82rem;color:#6b7f93">Current Location</td>
+                <td style="padding:10px 18px;font-size:0.88rem;font-weight:600;color:#0f1f2e">${currentLocation}</td>
+              </tr>` : ''}
+              ${destinationCity ? `<tr>
+                <td style="padding:10px 18px;font-size:0.82rem;color:#6b7f93">Package Destination</td>
+                <td style="padding:10px 18px;font-size:0.88rem;font-weight:600;color:#0f1f2e">${destinationCity}</td>
+              </tr>` : ''}
+              ${packageTravelMode ? `<tr>
+                <td style="padding:10px 18px;font-size:0.82rem;color:#6b7f93">Commute Mode</td>
+                <td style="padding:10px 18px;font-size:0.88rem;font-weight:600;color:#0f1f2e;text-transform:capitalize">${packageTravelMode}</td>
+              </tr>` : ''}
+              ${packageTravelDetails ? `<tr>
+                <td style="padding:10px 18px;font-size:0.82rem;color:#6b7f93">Commute Option</td>
+                <td style="padding:10px 18px;font-size:0.88rem;font-weight:600;color:#0f1f2e">${packageTravelDetails}</td>
+              </tr>` : ''}
+              ${cabPickup ? `<tr>
+                <td style="padding:10px 18px;font-size:0.82rem;color:#6b7f93">Cab Pickup</td>
+                <td style="padding:10px 18px;font-size:0.88rem;font-weight:600;color:#0f1f2e">${cabPickup}${cabPickupCity ? ` (${cabPickupCity})` : ''}</td>
+              </tr>` : ''}
+              ${cabDrop ? `<tr>
+                <td style="padding:10px 18px;font-size:0.82rem;color:#6b7f93">Cab Drop</td>
+                <td style="padding:10px 18px;font-size:0.88rem;font-weight:600;color:#0f1f2e">${cabDrop}${cabDropCity ? ` (${cabDropCity})` : ''}</td>
+              </tr>` : ''}
+              ${cabDistanceKm ? `<tr>
+                <td style="padding:10px 18px;font-size:0.82rem;color:#6b7f93">Distance</td>
+                <td style="padding:10px 18px;font-size:0.88rem;font-weight:600;color:#0f1f2e">${cabDistanceKm} km</td>
+              </tr>` : ''}
+              ${cabDriverName ? `<tr>
+                <td style="padding:10px 18px;font-size:0.82rem;color:#6b7f93">Driver Name</td>
+                <td style="padding:10px 18px;font-size:0.88rem;font-weight:600;color:#0f1f2e">${cabDriverName}</td>
+              </tr>` : ''}
+              ${cabNumber ? `<tr>
+                <td style="padding:10px 18px;font-size:0.82rem;color:#6b7f93">Cab Number</td>
+                <td style="padding:10px 18px;font-size:0.88rem;font-weight:700;color:#0f1f2e;letter-spacing:0.05em">${cabNumber}</td>
+              </tr>` : ''}
+              ${(cabDriverPhone || type === 'cab') ? `<tr>
+                <td style="padding:10px 18px;font-size:0.82rem;color:#6b7f93">Driver Contact</td>
+                <td style="padding:10px 18px;font-size:0.88rem;font-weight:600;color:#0f1f2e">${cabDriverPhone || '+91-81XXXXXXX'}</td>
               </tr>` : ''}
               <tr>
                 <td style="padding:10px 18px;font-size:0.82rem;color:#6b7f93">Booking Ref</td>
@@ -169,7 +273,7 @@ export const bookingTemplate = ({
                   <th style="padding:10px 12px;text-align:left;font-size:0.72rem;color:#6b7f93;text-transform:uppercase;letter-spacing:0.06em;font-weight:600">Name</th>
                   <th style="padding:10px 12px;text-align:left;font-size:0.72rem;color:#6b7f93;text-transform:uppercase;letter-spacing:0.06em;font-weight:600">Age</th>
                   <th style="padding:10px 12px;text-align:left;font-size:0.72rem;color:#6b7f93;text-transform:uppercase;letter-spacing:0.06em;font-weight:600">Gender</th>
-                  <th style="padding:10px 12px;text-align:left;font-size:0.72rem;color:#6b7f93;text-transform:uppercase;letter-spacing:0.06em;font-weight:600">Seat / Berth</th>
+                  <th style="padding:10px 12px;text-align:left;font-size:0.72rem;color:#6b7f93;text-transform:uppercase;letter-spacing:0.06em;font-weight:600">${seatColumnLabel}</th>
                 </tr>
               </thead>
               <tbody>${passengerRows}</tbody>

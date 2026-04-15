@@ -19,12 +19,12 @@ const TrainIcon = () => (
 );
 
 const NAV_ITEMS = [
-  { label: "Home",     href: "/",         icon: <Home    size={13} strokeWidth={1.8} /> },
-  { label: "Flights",  href: "/flights",  icon: <Plane   size={13} strokeWidth={1.8} /> },
-  { label: "Hotels",   href: "/hotels",   icon: <Hotel   size={13} strokeWidth={1.8} /> },
-  { label: "Trains",   href: "/trains",   icon: <TrainIcon /> },
+  { label: "Home", href: "/", icon: <Home size={13} strokeWidth={1.8} /> },
+  { label: "Flights", href: "/flights", icon: <Plane size={13} strokeWidth={1.8} /> },
+  { label: "Hotels", href: "/hotels", icon: <Hotel size={13} strokeWidth={1.8} /> },
+  { label: "Trains", href: "/trains", icon: <TrainIcon /> },
   { label: "Packages", href: "/packages", icon: <Package size={13} strokeWidth={1.8} /> },
-  { label: "Reviews",  href: "/reviews",  icon: <MessageSquare size={13} strokeWidth={1.8} /> },
+  { label: "Cabs", href: "/cabs", icon: <MessageSquare size={13} strokeWidth={1.8} /> },
 ];
 
 const NavLink = ({

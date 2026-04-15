@@ -64,7 +64,9 @@ const resolveFlightCode = (value: string): string | null => {
   if (!trimmed) return null;
 
   const upper = trimmed.toUpperCase();
-  if (/^[A-Z]{3}$/.test(upper)) return upper;
+  if (/^[A-Z]{3}$/.test(upper)) {
+    return FLIGHT_CITY_ALIASES[trimmed.toLowerCase()] || upper;
+  }
 
   const byCity = flightLocationOptions.find((option) => option.city.toLowerCase() === trimmed.toLowerCase());
   if (byCity) return byCity.code.toUpperCase();
@@ -479,21 +481,11 @@ function FlightsContent() {
       return;
     }
 
-    if (selectedAirlines.size) {
-      params.set("airlines", Array.from(selectedAirlines).join(","));
-    }
     if (mealsOnly) {
       params.set("meals", "true");
     }
     if (refundableOnly) {
       params.set("refundable", "true");
-    }
-    if (selectedStops.size === 1) {
-      const only = Array.from(selectedStops)[0];
-      if (only === "Non-stop" || only === "1 Stop") {
-        const stopValue = only === "Non-stop" ? 0 : 1;
-        params.set("stops", String(stopValue));
-      }
     }
 
     let mounted = true;
@@ -539,7 +531,7 @@ function FlightsContent() {
     return () => {
       mounted = false;
     };
-  }, [hasSearched, committedFrom, committedTo, committedDate, sort, selectedAirlines, selectedStops, mealsOnly, refundableOnly]);
+  }, [hasSearched, committedFrom, committedTo, committedDate, sort, mealsOnly, refundableOnly]);
 
   useEffect(() => {
     const fromCode = resolveFlightCode(committedTo);
@@ -570,21 +562,11 @@ function FlightsContent() {
       limit: "120",
     });
 
-    if (selectedAirlines.size) {
-      params.set("airlines", Array.from(selectedAirlines).join(","));
-    }
     if (mealsOnly) {
       params.set("meals", "true");
     }
     if (refundableOnly) {
       params.set("refundable", "true");
-    }
-    if (selectedStops.size === 1) {
-      const only = Array.from(selectedStops)[0];
-      if (only === "Non-stop" || only === "1 Stop") {
-        const stopValue = only === "Non-stop" ? 0 : 1;
-        params.set("stops", String(stopValue));
-      }
     }
 
     let mounted = true;
@@ -628,7 +610,7 @@ function FlightsContent() {
     return () => {
       mounted = false;
     };
-  }, [hasSearched, tripType, committedFrom, committedTo, committedReturnDate, sort, selectedAirlines, selectedStops, mealsOnly, refundableOnly]);
+  }, [hasSearched, tripType, committedFrom, committedTo, committedReturnDate, sort, mealsOnly, refundableOnly]);
 
   useEffect(() => {
     if (apiError && hasSearched) {

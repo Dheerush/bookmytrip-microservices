@@ -74,10 +74,14 @@ export function useBookingFlow() {
 
       try {
         const normalizedPhone = (params.contact.phone || '').replace(/\D/g, '');
+        if (normalizedPhone.length !== 10) {
+          showToast.error('Please enter a valid 10-digit contact number.');
+          return;
+        }
         const safeContact = {
           name: params.contact.name?.trim() || 'Guest User',
           email: params.contact.email?.trim() || 'guest@bookmytrip.app',
-          phone: normalizedPhone.length >= 8 ? normalizedPhone : '9999999999',
+          phone: normalizedPhone,
         };
 
         showToast.loading('Creating your booking...');

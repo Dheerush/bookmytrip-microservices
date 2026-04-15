@@ -43,6 +43,20 @@
   margin-bottom: 6px;
 }
 
+.couponSection {
+  margin-bottom: 8px;
+}
+
+.couponLabel {
+  display: block;
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #64748b;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
 .couponInput {
   flex: 1;
   border: 1.5px solid #e2e8f0;
@@ -55,6 +69,23 @@
 }
 
 .couponInput:focus {
+  border-color: var(--sky, #3b9edd);
+}
+
+.couponSelect {
+  flex: 1;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 9px 12px;
+  font-size: 0.85rem;
+  font-family: inherit;
+  color: var(--text-dark, #0f1f2e);
+  background: #fff;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.couponSelect:focus {
   border-color: var(--sky, #3b9edd);
 }
 
@@ -79,6 +110,56 @@
 .couponMsg {
   font-size: 0.78rem;
   margin-bottom: 14px;
+}
+
+.couponHint {
+  font-size: 0.8rem;
+  color: #64748b;
+  margin-bottom: 8px;
+}
+
+.couponPreview {
+  margin-bottom: 14px;
+  border: 1px solid #dbe7f5;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #f8fbff 0%, #fdfefe 100%);
+  padding: 12px;
+}
+
+.couponPreviewHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.couponPreviewValue {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #15803d;
+}
+
+.couponPreviewMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  font-size: 0.76rem;
+  color: #4b5f77;
+  font-weight: 500;
+}
+
+.couponCode {
+  font-size: 0.9rem;
+  color: #0b1929;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.couponMeta {
+  font-size: 0.76rem;
+  color: #4b5f77;
+  font-weight: 500;
 }
 
 .couponSuccess {

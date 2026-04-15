@@ -14,6 +14,7 @@ export interface Cab {
   driverName: string;
   driverRating: number;
   driverPhone?: string;
+  cabNumber?: string;
   city: string;
   features: string[];
   luggage: string;
@@ -39,6 +40,7 @@ export const cabs: Cab[] = [
     driverName: "Rajesh Kumar",
     driverRating: 4.9,
     driverPhone: "9812345678",
+    cabNumber: "DLAW0124",
 
     city: "Delhi",
     features: ["AC", "Music System", "GPS", "Bottle Water"],
@@ -61,6 +63,7 @@ export const cabs: Cab[] = [
     driverName: "Amit Sharma",
     driverRating: 4.6,
     driverPhone: "9823456789",
+    cabNumber: "MHBX4571",
 
     city: "Mumbai",
     features: ["AC", "Music System", "GPS", "Charging Port", "Spacious"],
@@ -83,6 +86,7 @@ export const cabs: Cab[] = [
     driverName: "Vikram Singh",
     driverRating: 4.4,
     driverPhone: "9834567890",
+    cabNumber: "RJZX3902",
 
     city: "Jaipur",
     features: ["AC", "Sunroof", "GPS", "Premium Sound", "Leather Seats"],
@@ -105,6 +109,7 @@ export const cabs: Cab[] = [
     driverName: "Suresh Yadav",
     driverRating: 4.9,
     driverPhone: "9845678901",
+    cabNumber: "DLCB7215",
 
     city: "Delhi",
     features: ["AC", "Music System", "Compact"],

@@ -14,6 +14,7 @@ export interface IBookingPassenger {
   age?: number;
   gender?: string;
   email?: string;
+  seatNumber?: string;
 }
 
 export interface IBooking extends Document {
@@ -56,6 +57,7 @@ const passengerSchema = new Schema<IBookingPassenger>(
     age: { type: Number },
     gender: { type: String },
     email: { type: String },
+    seatNumber: { type: String },
   },
   { _id: false },
 );

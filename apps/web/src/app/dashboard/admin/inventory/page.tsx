@@ -284,17 +284,11 @@ const ENTITY_CONFIGS: EntityConfig[] = [
       { key: "rating", label: "Rating", type: "number", required: true, placeholder: "4.3" },
       { key: "reviewCount", label: "Review Count", type: "number", required: true, placeholder: "54" },
       { key: "driverName", label: "Driver Name", type: "text", required: true, placeholder: "Arun Kumar" },
+      { key: "driverPhone", label: "Driver Phone", type: "text", required: true, placeholder: "9876543210" },
+      { key: "cabNumber", label: "Cab Number", type: "text", required: true, placeholder: "DLAW0124" },
       { key: "driverRating", label: "Driver Rating", type: "number", required: true, placeholder: "4.6" },
       { key: "city", label: "City", type: "text", required: true, placeholder: "Mumbai" },
-      { key: "pickupPoints", label: "Pickup Points", type: "text", required: true, placeholder: "Type pickup point and press Enter" },
-      { key: "dropPoints", label: "Drop Points", type: "text", required: true, placeholder: "Type drop point and press Enter" },
-      {
-        key: "routeDistances",
-        label: "Route Distances",
-        type: "text",
-        required: true,
-        placeholder: "Use format Pickup->Drop:DistanceKm and press Enter",
-      },
+      { key: "cabStands", label: "Cab Stands", type: "text", required: true, placeholder: "Type cab stand and press Enter" },
       { key: "features", label: "Features", type: "text", required: true, placeholder: "Type feature and press Enter" },
       { key: "luggage", label: "Luggage", type: "text", required: true, placeholder: "2 bags" },
       { key: "available", label: "Available", type: "checkbox" },
@@ -303,9 +297,7 @@ const ENTITY_CONFIGS: EntityConfig[] = [
       { key: "baseFare", label: "Base Fare", type: "number", placeholder: "449" },
       { key: "pricePerKm", label: "Price/KM", type: "number", placeholder: "13" },
       { key: "rating", label: "Rating", type: "number", placeholder: "4.5" },
-      { key: "pickupPoints", label: "Pickup Points", type: "text", placeholder: "Type pickup point and press Enter" },
-      { key: "dropPoints", label: "Drop Points", type: "text", placeholder: "Type drop point and press Enter" },
-      { key: "routeDistances", label: "Route Distances", type: "text", placeholder: "Use format Pickup->Drop:DistanceKm and press Enter" },
+      { key: "cabStands", label: "Cab Stands", type: "text", placeholder: "Type cab stand and press Enter" },
       { key: "available", label: "Available", type: "checkbox" },
     ],
     createDefaults: {
@@ -321,11 +313,11 @@ const ENTITY_CONFIGS: EntityConfig[] = [
       rating: "4.3",
       reviewCount: "54",
       driverName: "Arun Kumar",
+      driverPhone: "9876543210",
+      cabNumber: "DLAW0124",
       driverRating: "4.6",
       city: "Mumbai",
-      pickupPoints: "Andheri Station,Bandra West,Airport Terminal 2",
-      dropPoints: "BKC,Lower Parel,Powai",
-      routeDistances: "Andheri Station->BKC:8,Bandra West->Lower Parel:10,Airport Terminal 2->Powai:6",
+      cabStands: "Andheri Station,Bandra West,Airport Terminal 2,BKC,Lower Parel,Powai",
       features: "Music,Charging Port,Sanitized",
       luggage: "2 bags",
       available: "true",
@@ -334,9 +326,7 @@ const ENTITY_CONFIGS: EntityConfig[] = [
       baseFare: "449",
       pricePerKm: "13",
       rating: "4.5",
-      pickupPoints: "Andheri Station,Bandra West,Airport Terminal 2",
-      dropPoints: "BKC,Lower Parel,Powai",
-      routeDistances: "Andheri Station->BKC:8,Bandra West->Lower Parel:10,Airport Terminal 2->Powai:6",
+      cabStands: "Andheri Station,Bandra West,Airport Terminal 2,BKC,Lower Parel,Powai",
       available: "true",
     },
   },
@@ -489,15 +479,17 @@ const parseBoundedNumber = (key: string, value: string, fallback = 0): number =>
 
 const parseBoolean = (value: string): boolean => value === "true";
 
-const parseList = (value: string): string[] =>
-  Array.from(
-    new Set(
-      value
-        .split(",")
-        .map((entry) => entry.trim())
-        .filter(Boolean),
-    ),
-  );
+const parseList = (value: string | undefined | null): string[] =>
+  !value
+    ? []
+    : Array.from(
+        new Set(
+          value
+            .split(",")
+            .map((entry) => entry.trim())
+            .filter(Boolean),
+        ),
+      );
 
 const buildOffersFromCodes = (value: string) => {
   return parseList(value).map((code) => ({
@@ -508,7 +500,7 @@ const buildOffersFromCodes = (value: string) => {
   }));
 };
 
-const parseDistanceMatrix = (value: string) => {
+const parseDistanceMatrix = (value: string | undefined | null) => {
   return parseList(value)
     .map((entry) => {
       const [routePart, distancePart] = entry.split(":");
@@ -539,6 +531,7 @@ const LIST_FIELD_KEYS = new Set([
   "amenities",
   "tags",
   "features",
+  "cabStands",
   "pickupPoints",
   "dropPoints",
   "routeDistances",
@@ -686,6 +679,7 @@ const buildCreatePayload = (entity: InventoryEntity, values: EntityState) => {
   }
 
   if (entity === "cabs") {
+    const cabStands = parseList(values.cabStands || values.pickupPoints || values.dropPoints);
     return {
       carModel: values.carModel,
       brand: values.brand,
@@ -699,10 +693,12 @@ const buildCreatePayload = (entity: InventoryEntity, values: EntityState) => {
       rating: parseBoundedNumber("rating", values.rating, 4),
       reviewCount: parseBoundedNumber("reviewCount", values.reviewCount),
       driverName: values.driverName,
+      driverPhone: (values.driverPhone || "").replace(/\D/g, "").slice(0, 10),
+      cabNumber: (values.cabNumber || "").trim().toUpperCase(),
       driverRating: parseBoundedNumber("driverRating", values.driverRating, 4),
       city: values.city,
-      pickupPoints: parseList(values.pickupPoints),
-      dropPoints: parseList(values.dropPoints),
+      pickupPoints: cabStands,
+      dropPoints: cabStands,
       distanceMatrix: parseDistanceMatrix(values.routeDistances),
       features: parseList(values.features),
       luggage: values.luggage,
@@ -922,8 +918,16 @@ const prefillFormValues = (entity: InventoryEntity, row: unknown, base: EntitySt
     next.rating = getString(record.rating) || next.rating;
     next.reviewCount = getString(record.reviewCount) || next.reviewCount;
     next.driverName = getString(record.driverName) || next.driverName;
+    next.driverPhone = getString(record.driverPhone) || next.driverPhone;
+    next.cabNumber = getString(record.cabNumber) || next.cabNumber;
     next.driverRating = getString(record.driverRating) || next.driverRating;
     next.city = getString(record.city) || next.city;
+    const pickupPoints = Array.isArray(record.pickupPoints) ? record.pickupPoints.map((entry) => String(entry)) : [];
+    const dropPoints = Array.isArray(record.dropPoints) ? record.dropPoints.map((entry) => String(entry)) : [];
+    const mergedStands = Array.from(new Set([...pickupPoints, ...dropPoints]));
+    if (mergedStands.length) {
+      next.cabStands = mergedStands.join(",");
+    }
     next.features = getList(record.features) || next.features;
     next.luggage = getString(record.luggage) || next.luggage;
     next.available = getBool(record.available, next.available);

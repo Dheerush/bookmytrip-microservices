@@ -13,7 +13,7 @@ const envSchema = z.object({
   TRAIN_SERVICE_URL: z.string().url().default('http://localhost:5004'),
   HOTEL_SERVICE_URL: z.string().url().default('http://localhost:5005'),
   CAB_SERVICE_URL: z.string().url().default('http://localhost:5006'),
-  TOUR_SERVICE_URL: z.string().url().default('http://localhost:5011'),
+  TOUR_SERVICE_URL: z.string().url().default('http://localhost:5012'),
   INTERNAL_SERVICE_SECRET: z.string().default('bmt-internal-secret-2026'),
 });
 

@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 export const searchCabsSchema = z.object({
   city: z.string().min(2),
-  distanceKm: z.string().optional().default('50').transform(Number).pipe(z.number().positive().max(500)),
+  distanceKm: z.string().optional().default('50').transform(Number).pipe(z.number().positive().max(5000)),
   passengers: z.string().optional().default('1').transform(Number).pipe(z.number().int().min(1).max(8)),
   type: z.enum(['Sedan', 'SUV', 'MUV', 'Hatchback', 'Luxury']).optional(),
   fuelType: z.enum(['Petrol', 'Diesel', 'CNG', 'Electric']).optional(),
@@ -26,12 +26,14 @@ export const createCabSchema = z.object({
   rating: z.number().min(0).max(5),
   reviewCount: z.number().int().min(0),
   driverName: z.string().min(2),
+  driverPhone: z.string().regex(/^\d{10}$/, 'Driver phone must be a 10-digit number'),
+  cabNumber: z.string().regex(/^[A-Z0-9]{6,12}$/, 'Cab number must be 6-12 uppercase letters/digits (e.g. DLAW0124)'),
   driverRating: z.number().min(0).max(5),
   city: z.string().min(2),
   features: z.array(z.string()).min(1),
   luggage: z.string().min(1),
-  pickupPoints: z.array(z.string().min(1)).max(5).optional().default([]),
-  dropPoints: z.array(z.string().min(1)).max(5).optional().default([]),
+  pickupPoints: z.array(z.string().min(1)).max(20).optional().default([]),
+  dropPoints: z.array(z.string().min(1)).max(20).optional().default([]),
   distanceMatrix: z
     .array(
       z.object({

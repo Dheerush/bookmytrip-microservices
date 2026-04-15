@@ -9,6 +9,7 @@ import { useBookingGuard } from "@/hooks/useBookingGuard";
 import { useBookingFlow } from "@/hooks/useBookingFlow";
 import { showToast } from "@/lib/toast";
 import { getAuthHeaders } from "@/lib/http";
+import BookingSidebar from "@/components/ui/BookingSidebar/BookingSidebar";
 import s from "@/styles/booking.module.scss";
 
 type Traveler = {
@@ -52,8 +53,9 @@ function HotelBookingContent() {
   const [hotel, setHotel] = useState<Hotel | null>(hotels.find((h) => h.id === hotelId) || null);
   const [loading, setLoading] = useState(Boolean(hotelId && !hotel));
 
-  const couponCodeParam = (searchParams.get("couponCode") || "").trim().toUpperCase();
-  const [couponDiscount, setCouponDiscount] = useState(
+  const initialCouponCode = (searchParams.get("couponCode") || "").trim().toUpperCase();
+  const [appliedCouponCode, setAppliedCouponCode] = useState(initialCouponCode);
+  const [appliedCouponDiscount, setAppliedCouponDiscount] = useState(
     Math.max(0, Number(searchParams.get("couponDiscount") || "0") || 0),
   );
 
@@ -113,25 +115,25 @@ function HotelBookingContent() {
   const taxes = Math.round(baseRoomFare * 0.12);
   const serviceFee = 399;
   const subtotal = Math.max(0, baseRoomFare + taxes + serviceFee - discount);
-  const appliedCoupon = Math.min(couponDiscount, subtotal);
+  const appliedCoupon = Math.min(appliedCouponDiscount, subtotal);
   const totalAmount = subtotal - appliedCoupon;
 
   const revalidateCoupon = useCallback(async () => {
-    if (!couponCodeParam || !hotel) return;
+    if (!appliedCouponCode || !hotel) return;
     try {
       const res = await fetch("/api/admin/coupons/validate", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-        body: JSON.stringify({ code: couponCodeParam, amount: subtotal, serviceType: "hotel" }),
+        body: JSON.stringify({ code: appliedCouponCode, amount: subtotal, serviceType: "hotel" }),
       });
       const data = (await res.json()) as { success?: boolean; data?: { discount?: number } };
       if (data.success && data.data?.discount != null) {
-        setCouponDiscount(data.data.discount);
+        setAppliedCouponDiscount(data.data.discount);
       }
     } catch {
       // ignore network errors silently
     }
-  }, [couponCodeParam, hotel, subtotal]);
+  }, [appliedCouponCode, hotel, subtotal]);
 
   useEffect(() => {
     void revalidateCoupon();
@@ -156,11 +158,13 @@ function HotelBookingContent() {
     setTravelers((prev) => prev.map((t, i) => (i === index ? { ...t, [key]: value } : t)));
   };
 
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-
+  const submitBooking = async (finalAmount: number) => {
     if (!contactName.trim() || !contactEmail.trim() || !contactPhone.trim()) {
       showToast.error("Please fill contact details.");
+      return;
+    }
+    if (contactPhone.replace(/\D/g, "").length !== 10) {
+      showToast.error("Please enter a valid 10-digit contact number.");
       return;
     }
 
@@ -183,7 +187,7 @@ function HotelBookingContent() {
             endDate: addDays(checkIn, nights),
             quantity: rooms,
             amount: baseRoomFare,
-            couponCode: couponCodeParam || undefined,
+            couponCode: appliedCouponCode || undefined,
             discountAmount: appliedCoupon > 0 ? appliedCoupon : undefined,
             contact: {
               name: contactName.trim(),
@@ -197,12 +201,17 @@ function HotelBookingContent() {
               email: t.email.trim() || undefined,
             })),
           },
-          totalAmount,
+          finalAmount,
         );
       });
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    await submitBooking(totalAmount);
   };
 
   return (
@@ -338,41 +347,24 @@ function HotelBookingContent() {
           </div>
         </div>
 
-        <div className={s.fareCard}>
-          <h2 className={s.fareTitle}>Fare Summary</h2>
-          <div className={s.fareLine}>
-            <span>{selectedRoom.type} x {rooms}</span>
-            <span>INR {selectedRoom.price.toLocaleString("en-IN")} / night</span>
-          </div>
-          <div className={s.fareLine}>
-            <span>Base fare ({nights} night{nights > 1 ? "s" : ""})</span>
-            <span>INR {baseRoomFare.toLocaleString("en-IN")}</span>
-          </div>
-          {discount > 0 && (
-            <div className={`${s.fareLine} ${s.fareDiscount}`}>
-              <span>Discount</span>
-              <span>-INR {discount.toLocaleString("en-IN")}</span>
-            </div>
-          )}
-          <div className={s.fareLine}>
-            <span>Taxes (12%)</span>
-            <span>INR {taxes.toLocaleString("en-IN")}</span>
-          </div>
-          <div className={s.fareLine}>
-            <span>Service fee</span>
-            <span>INR {serviceFee.toLocaleString("en-IN")}</span>
-          </div>
-          {appliedCoupon > 0 && (
-            <div className={s.fareLine} style={{ color: "var(--color-success, #15803d)" }}>
-              <span>Coupon ({couponCodeParam})</span>
-              <span>-INR {appliedCoupon.toLocaleString("en-IN")}</span>
-            </div>
-          )}
-          <div className={s.fareTotal}>
-            <span>Total</span>
-            <span>INR {totalAmount.toLocaleString("en-IN")}</span>
-          </div>
-        </div>
+        <BookingSidebar
+          baseFare={baseRoomFare}
+          taxes={taxes}
+          serviceFee={serviceFee}
+          discount={discount}
+          serviceType="hotel"
+          initialCouponCode={appliedCouponCode}
+          initialCouponDiscount={appliedCoupon}
+          onCouponApplied={({ code, discount: value }) => {
+            setAppliedCouponCode(code);
+            setAppliedCouponDiscount(value);
+          }}
+          ctaLabel={submitting ? "Processing..." : "Pay And Confirm"}
+          onProceed={(netAmount) => {
+            if (submitting) return;
+            void submitBooking(netAmount);
+          }}
+        />
       </div>
     </div>
   );

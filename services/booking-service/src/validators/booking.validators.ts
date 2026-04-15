@@ -3,7 +3,10 @@ import { z } from 'zod';
 const contactSchema = z.object({
   name: z.string().min(2),
   email: z.string().email(),
-  phone: z.string().min(8),
+  phone: z
+    .string()
+    .transform((value) => value.replace(/\D/g, ''))
+    .pipe(z.string().regex(/^\d{10}$/)),
 });
 
 const passengerSchema = z.object({
@@ -11,6 +14,7 @@ const passengerSchema = z.object({
   age: z.number().int().min(0).optional(),
   gender: z.string().min(1).optional(),
   email: z.string().email().optional(),
+  seatNumber: z.string().min(1).max(20).optional(),
 });
 
 export const createBookingSchema = z.object({

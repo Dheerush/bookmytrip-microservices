@@ -16,6 +16,8 @@ export interface ICab extends Document {
   rating: number;
   reviewCount: number;
   driverName: string;
+  driverPhone?: string;
+  cabNumber: string;
   driverRating: number;
   city: string;
   features: string[];
@@ -46,6 +48,8 @@ const cabSchema = new Schema<ICab>({
   rating: { type: Number, required: true, min: 0, max: 5 },
   reviewCount: { type: Number, required: true, min: 0 },
   driverName: { type: String, required: true },
+  driverPhone: { type: String },
+  cabNumber: { type: String, required: true, uppercase: true, trim: true },
   driverRating: { type: Number, required: true, min: 0, max: 5 },
   city: { type: String, required: true, index: true },
   features: [{ type: String, required: true }],

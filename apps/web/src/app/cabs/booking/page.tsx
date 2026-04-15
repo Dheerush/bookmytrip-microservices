@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useBookingFlow } from "@/hooks/useBookingFlow";
@@ -58,6 +58,8 @@ function CabBookingContent() {
   const [name, setName] = useState(user?.fullName || "");
   const [email, setEmail] = useState(user?.email || "");
   const [phone, setPhone] = useState("");
+  const [age, setAge] = useState("");
+  const [gender, setGender] = useState<"male" | "female" | "other">("male");
   const [pickup, setPickup] = useState(initialPickup);
   const [drop, setDrop] = useState(initialDrop);
   const [travelDate, setTravelDate] = useState(initialDate);
@@ -67,17 +69,19 @@ function CabBookingContent() {
   const [submitting, setSubmitting] = useState(false);
   // Drop points for cross-city trips: destination city's pickup points
   const [destCityPickupPoints, setDestCityPickupPoints] = useState<string[]>([]);
+  const cabStands = useMemo(
+    () => (cab ? Array.from(new Set([...(cab.pickupPoints || []), ...(cab.dropPoints || [])])) : []),
+    [cab],
+  );
 
   // Once cab data is available, default pickup/drop to the first available point
   useEffect(() => {
     if (!cab) return;
-    if (cab.pickupPoints && cab.pickupPoints.length > 0) {
-      setPickup((prev) => cab.pickupPoints!.includes(prev) ? prev : (cab.pickupPoints![0] ?? prev));
+    if (cabStands.length > 0) {
+      setPickup((prev) => cabStands.includes(prev) ? prev : (cabStands[0] ?? prev));
+      setDrop((prev) => cabStands.includes(prev) ? prev : (cabStands[0] ?? prev));
     }
-    if (cab.dropPoints && cab.dropPoints.length > 0) {
-      setDrop((prev) => cab.dropPoints!.includes(prev) ? prev : (cab.dropPoints![0] ?? prev));
-    }
-  }, [cab]);
+  }, [cab, cabStands]);
 
   // For cross-city trips, fetch the destination city's pickup points to use as drop options
   useEffect(() => {
@@ -104,6 +108,11 @@ function CabBookingContent() {
     };
     void run();
   }, [cab, initialDrop]);
+
+  useEffect(() => {
+    if (!confirmedRef) return;
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [confirmedRef]);
 
   if (loadingCab) {
     return (
@@ -132,6 +141,25 @@ function CabBookingContent() {
   const serviceFee = 49;
   const totalBeforeCoupon = baseFare + distanceFare + taxes + serviceFee;
   const totalAmount = Math.max(0, totalBeforeCoupon - appliedCouponDiscount);
+  const pickupCity = cab.city;
+  const dropCity = initialDrop && initialDrop.trim().toLowerCase() !== cab.city.trim().toLowerCase()
+    ? initialDrop.trim()
+    : cab.city;
+
+  const now = new Date();
+  const minDate = now.toISOString().split("T")[0] || "";
+  const isToday = travelDate === minDate;
+  const minTime = isToday
+    ? `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`
+    : undefined;
+
+  const formatDriverPhone = (phoneValue?: string) => {
+    const digits = (phoneValue || "").replace(/\D/g, "");
+    if (digits.length === 10) {
+      return `+91-${digits}`;
+    }
+    return "+91-81XXXXXXX";
+  };
 
   const submitBooking = async (finalAmount: number) => {
     if (!name.trim() || !email.trim() || !phone.trim()) {
@@ -146,8 +174,21 @@ function CabBookingContent() {
       showToast.error("Please select a travel date.");
       return;
     }
+    if (pickup.trim() && drop.trim() && pickup.trim().toLowerCase() === drop.trim().toLowerCase()) {
+      showToast.error("Pickup and drop cab stands cannot be the same.");
+      return;
+    }
     if (!pickupTime) {
       showToast.error("Please select pickup time.");
+      return;
+    }
+    if (!age || Number(age) < 1 || Number(age) > 120) {
+      showToast.error("Please enter a valid age.");
+      return;
+    }
+    const selectedPickupDateTime = new Date(`${travelDate}T${pickupTime}:00`);
+    if (!Number.isNaN(selectedPickupDateTime.getTime()) && selectedPickupDateTime.getTime() < Date.now()) {
+      showToast.error("Pickup time cannot be in the past.");
       return;
     }
     if (phone.replace(/\D/g, "").length !== 10) {
@@ -172,7 +213,26 @@ function CabBookingContent() {
             couponCode: appliedCouponCode || undefined,
             discountAmount: appliedCouponDiscount,
             contact: { name: name.trim(), email: email.trim(), phone: phone.trim() },
-            passengers: [],
+            passengers: [
+              {
+                name: name.trim(),
+                age: Number(age),
+                gender,
+                email: email.trim() || undefined,
+              },
+            ],
+            metadata: {
+              cabTravel: {
+                pickup,
+                drop,
+                pickupCity,
+                dropCity,
+                distanceKm,
+                driverName: cab.driverName,
+                driverPhone: formatDriverPhone(cab.driverPhone),
+                cabNumber: (cab.cabNumber || "").trim().toUpperCase(),
+              },
+            },
           },
           finalAmount,
           {
@@ -218,11 +278,14 @@ function CabBookingContent() {
               Your Driver
             </p>
             <p style={{ fontWeight: 600, color: "var(--text-dark)" }}>{cab.driverName} · ★ {cab.driverRating}</p>
-            {cab.driverPhone && (
-              <p style={{ marginTop: 6, color: "var(--sky)", fontWeight: 600, fontSize: "1.05rem" }}>
-                📞 {cab.driverPhone}
+            {cab.cabNumber ? (
+              <p style={{ marginTop: 6, color: "var(--text-dark)", fontWeight: 700, letterSpacing: "0.04em" }}>
+                Cab Number: {cab.cabNumber.toUpperCase()}
               </p>
-            )}
+            ) : null}
+            <p style={{ marginTop: 6, color: "var(--sky)", fontWeight: 600, fontSize: "1.05rem" }}>
+              📞 {formatDriverPhone(cab.driverPhone)}
+            </p>
             <p style={{ marginTop: 4, fontSize: "0.82rem", color: "var(--text-muted)" }}>
               You may contact your driver for pickup coordination.
             </p>
@@ -310,10 +373,40 @@ function CabBookingContent() {
               </div>
               <div className={s.fieldRow}>
                 <div>
+                  <label className={s.label} htmlFor="bk-age">Age *</label>
+                  <input
+                    id="bk-age"
+                    className={s.input}
+                    type="number"
+                    min={1}
+                    max={120}
+                    value={age}
+                    onChange={(e) => setAge(e.target.value.replace(/\D/g, "").slice(0, 3))}
+                    placeholder="Age"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className={s.label} htmlFor="bk-gender">Gender *</label>
+                  <select
+                    id="bk-gender"
+                    className={s.input}
+                    value={gender}
+                    onChange={(e) => setGender(e.target.value as "male" | "female" | "other")}
+                    required
+                  >
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+              </div>
+              <div className={s.fieldRow}>
+                <div>
                   <label className={s.label} htmlFor="bk-pickup">Pickup *</label>
-                  {cab.pickupPoints && cab.pickupPoints.length > 0 ? (
+                  {cabStands.length > 0 ? (
                     <select id="bk-pickup" className={s.input} value={pickup} onChange={(e) => setPickup(e.target.value)} required>
-                      {cab.pickupPoints.map((pt) => (
+                      {cabStands.map((pt) => (
                         <option key={pt} value={pt}>{pt}</option>
                       ))}
                     </select>
@@ -335,7 +428,7 @@ function CabBookingContent() {
                     // Cross-city trip: show destination city's pickup points as drop options
                     const dropOptions = destCityPickupPoints.length > 0
                       ? destCityPickupPoints
-                      : cab.dropPoints && cab.dropPoints.length > 0 ? cab.dropPoints : [];
+                      : cabStands;
                     return dropOptions.length > 0 ? (
                       <select id="bk-drop" className={s.input} value={drop} onChange={(e) => setDrop(e.target.value)} required>
                         {dropOptions.map((pt) => (
@@ -364,6 +457,7 @@ function CabBookingContent() {
                     className={s.input}
                     type="date"
                     value={travelDate}
+                    min={minDate}
                     onChange={(e) => setTravelDate(e.target.value)}
                     required
                   />
@@ -375,6 +469,7 @@ function CabBookingContent() {
                     className={s.input}
                     type="time"
                     value={pickupTime}
+                    min={minTime}
                     onChange={(e) => setPickupTime(e.target.value)}
                     required
                   />

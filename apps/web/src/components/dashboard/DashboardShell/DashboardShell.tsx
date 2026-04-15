@@ -48,6 +48,7 @@ const buildNavItems = (unreadCount: number) => ({
   ] as SidebarItem[],
   admin: [
     { label: "Admin Dashboard", href: "/dashboard/admin", icon: <LayoutDashboard size={18} strokeWidth={1.6} /> },
+    { label: "Booking History", href: "/dashboard/bookings", icon: <ClipboardList size={18} strokeWidth={1.6} /> },
     { label: "Inventory", href: "/dashboard/admin/inventory", icon: <Database size={18} strokeWidth={1.6} /> },
     { label: "Requests", href: "/dashboard/admin/requests", icon: <FileClock size={18} strokeWidth={1.6} /> },
     { label: "Coupons & Deals", href: "/dashboard/admin/coupons", icon: <Tag size={18} strokeWidth={1.6} /> },

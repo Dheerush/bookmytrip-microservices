@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { io, Socket } from "socket.io-client";
 import { useAuth } from "@/services/auth/context";
 
@@ -39,23 +39,20 @@ let socket: Socket | null = null;
 
 export function useNotifications() {
   const { user, token } = useAuth();
-  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const userId = user?.id ?? null;
+  const [notificationMap, setNotificationMap] = useState<Record<string, AppNotification[]>>({});
   const [connected, setConnected] = useState(false);
-  const loadedRef = useRef(false);
 
-  // Load persisted notifications from localStorage once per user session
-  useEffect(() => {
-    if (!user?.id || loadedRef.current) return;
-    loadedRef.current = true;
-    const stored = loadFromStorage(user.id);
-    if (stored.length > 0) setNotifications(stored);
-  }, [user?.id]);
+  const notifications = useMemo(() => {
+    if (!userId) return [];
+    return notificationMap[userId] ?? loadFromStorage(userId);
+  }, [notificationMap, userId]);
 
   // Persist to localStorage whenever notifications list changes
   useEffect(() => {
-    if (!user?.id || !loadedRef.current) return;
-    saveToStorage(user.id, notifications);
-  }, [notifications, user?.id]);
+    if (!userId) return;
+    saveToStorage(userId, notifications);
+  }, [notifications, userId]);
 
   useEffect(() => {
     if (!user || !token) {
@@ -77,10 +74,13 @@ export function useNotifications() {
     socket.on("connect", () => setConnected(true));
     socket.on("disconnect", () => setConnected(false));
     socket.on("notification", (payload: Omit<AppNotification, "read">) => {
-      setNotifications((prev) => {
-        // Deduplicate by id
-        if (prev.some((n) => n.id === payload.id)) return prev;
-        return [{ ...payload, read: false }, ...prev].slice(0, 50);
+      setNotificationMap((prev) => {
+        const existing = prev[user.id] ?? loadFromStorage(user.id);
+        if (existing.some((n) => n.id === payload.id)) return prev;
+        return {
+          ...prev,
+          [user.id]: [{ ...payload, read: false }, ...existing].slice(0, 50),
+        };
       });
     });
 
@@ -90,20 +90,16 @@ export function useNotifications() {
     };
   }, [user, token]);
 
-  // Disconnect cleanly when user logs out
-  useEffect(() => {
-    if (!user && socket) {
-      socket.disconnect();
-      socket = null;
-      loadedRef.current = false;
-      setNotifications([]);
-      setConnected(false);
-    }
-  }, [user]);
-
   const markAllRead = useCallback(() => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-  }, []);
+    if (!userId) return;
+    setNotificationMap((prev) => {
+      const existing = prev[userId] ?? loadFromStorage(userId);
+      return {
+        ...prev,
+        [userId]: existing.map((n) => ({ ...n, read: true })),
+      };
+    });
+  }, [userId]);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
   return { notifications, unreadCount, connected, markAllRead };

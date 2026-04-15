@@ -9,9 +9,11 @@ import { useBookingGuard } from "@/hooks/useBookingGuard";
 import { useBookingFlow } from "@/hooks/useBookingFlow";
 import { showToast } from "@/lib/toast";
 import { getAuthHeaders } from "@/lib/http";
+import BookingSidebar from "@/components/ui/BookingSidebar/BookingSidebar";
 import s from "@/styles/booking.module.scss";
 
 type SeatClass = "sleeper" | "ac3Tier" | "ac2Tier" | "ac1st";
+type BerthPreference = "noPreference" | "lower" | "middle" | "upper";
 
 type Traveler = {
   name: string;
@@ -36,11 +38,29 @@ const COACH_CODES: Record<SeatClass, string> = {
   ac1st: "H",
 };
 
-function generateTrainBerth(index: number, cls: SeatClass, seed: string): string {
-  const seedOffset = seed.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0);
-  const coachNum = Math.floor((seedOffset + index * 2) / 8) + 1;
-  const berth = ((seedOffset + index) % 8) + 1;
+function generateTrainBerth(index: number, cls: SeatClass, coachNum: number, preference: BerthPreference): string {
+  const lowerSeq = [1, 4, 7];
+  const middleSeq = [2, 5, 8];
+  const upperSeq = [3, 6];
+  const preferredOrder =
+    preference === "lower"
+      ? [...lowerSeq, ...middleSeq, ...upperSeq]
+      : preference === "middle"
+        ? [...middleSeq, ...lowerSeq, ...upperSeq]
+        : preference === "upper"
+          ? [...upperSeq, ...lowerSeq, ...middleSeq]
+          : [1, 2, 3, 4, 5, 6, 7, 8];
+  const berth = preferredOrder[index % preferredOrder.length] || ((index % 8) + 1);
   return `${COACH_CODES[cls]}${coachNum}/${berth}`;
+}
+
+function parseBerthType(seatNumber: string): "Lower" | "Middle" | "Upper" | "Unknown" {
+  const match = seatNumber.match(/\/(\d+)$/);
+  const berth = Number(match?.[1] || 0);
+  if ([1, 4, 7].includes(berth)) return "Lower";
+  if ([2, 5, 8].includes(berth)) return "Middle";
+  if ([3, 6].includes(berth)) return "Upper";
+  return "Unknown";
 }
 
 function TrainBookingContent() {
@@ -56,12 +76,14 @@ function TrainBookingContent() {
   const [train, setTrain] = useState<Train | null>(trains.find((t) => t.id === trainId) || null);
   const [loading, setLoading] = useState(Boolean(trainId && !train));
 
-  const couponCodeParam = (searchParams.get("couponCode") || "").trim().toUpperCase();
-  const [couponDiscount, setCouponDiscount] = useState(
+  const initialCouponCode = (searchParams.get("couponCode") || "").trim().toUpperCase();
+  const [appliedCouponCode, setAppliedCouponCode] = useState(initialCouponCode);
+  const [appliedCouponDiscount, setAppliedCouponDiscount] = useState(
     Math.max(0, Number(searchParams.get("couponDiscount") || "0") || 0),
   );
 
   const [seatClass, setSeatClass] = useState<SeatClass>(defaultClass);
+  const [berthPreference, setBerthPreference] = useState<BerthPreference>("noPreference");
   const [travelersCount, setTravelersCount] = useState(1);
   const [travelers, setTravelers] = useState<Traveler[]>(createTravelers(1));
 
@@ -114,25 +136,25 @@ function TrainBookingContent() {
   const taxes = Math.round(baseFare * 0.05);
   const serviceFee = 149;
   const subtotal = baseFare + taxes + serviceFee;
-  const appliedCoupon = Math.min(couponDiscount, subtotal);
+  const appliedCoupon = Math.min(appliedCouponDiscount, subtotal);
   const totalAmount = subtotal - appliedCoupon;
 
   const revalidateCoupon = useCallback(async () => {
-    if (!couponCodeParam || !train) return;
+    if (!appliedCouponCode || !train) return;
     try {
       const res = await fetch("/api/admin/coupons/validate", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-        body: JSON.stringify({ code: couponCodeParam, amount: subtotal, serviceType: "train" }),
+        body: JSON.stringify({ code: appliedCouponCode, amount: subtotal, serviceType: "train" }),
       });
       const data = (await res.json()) as { success?: boolean; data?: { discount?: number } };
       if (data.success && data.data?.discount != null) {
-        setCouponDiscount(data.data.discount);
+        setAppliedCouponDiscount(data.data.discount);
       }
     } catch {
       // ignore network errors silently
     }
-  }, [couponCodeParam, train, subtotal]);
+  }, [appliedCouponCode, train, subtotal]);
 
   useEffect(() => {
     void revalidateCoupon();
@@ -160,11 +182,13 @@ function TrainBookingContent() {
   const seatsAvailable = train.seatsAvailable?.[seatClass] ?? 999;
   const maxTravelers = Math.min(9, seatsAvailable);
 
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-
+  const submitBooking = async (finalAmount: number) => {
     if (!contactName.trim() || !contactEmail.trim() || !contactPhone.trim()) {
       showToast.error("Please fill contact details.");
+      return;
+    }
+    if (contactPhone.replace(/\D/g, "").length !== 10) {
+      showToast.error("Please enter a valid 10-digit contact number.");
       return;
     }
 
@@ -189,13 +213,26 @@ function TrainBookingContent() {
 
     // Generate berth assignments
     const berthSeed = train.trainNumber || train.id;
+    const seedOffset = berthSeed.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0);
+    const groupCoach = Math.max(1, Math.floor(seedOffset / 9) + 1);
     const passengersWithBerths = travelers.map((t, idx) => ({
       name: t.name.trim(),
       age: Number(t.age) || undefined,
       gender: t.gender,
       email: t.email.trim() || undefined,
-      seatNumber: generateTrainBerth(idx, seatClass, berthSeed),
+      seatNumber: generateTrainBerth(idx, seatClass, groupCoach, berthPreference),
     }));
+    const passengerBerths = passengersWithBerths.map((passenger) => {
+      const seat = passenger.seatNumber || "";
+      const [coach = "", berthNum = ""] = seat.split("/");
+      return {
+        name: passenger.name,
+        seatNumber: seat,
+        coach,
+        berthNumber: berthNum,
+        berthType: parseBerthType(seat),
+      };
+    });
 
     setSubmitting(true);
     try {
@@ -211,7 +248,7 @@ function TrainBookingContent() {
             scheduleTime: train.departureTime || undefined,
             quantity: travelersCount,
             amount: baseFare,
-            couponCode: couponCodeParam || undefined,
+            couponCode: appliedCouponCode || undefined,
             discountAmount: appliedCoupon > 0 ? appliedCoupon : undefined,
             contact: {
               name: contactName.trim(),
@@ -221,16 +258,27 @@ function TrainBookingContent() {
             passengers: passengersWithBerths,
             metadata: {
               seatClass,
+              berthPreference,
               platformNumber: train.platformNumber,
               berths: passengersWithBerths.map((p) => p.seatNumber),
+              passengerBerths,
+              trainFromStationName: train.fromStationName || train.from,
+              trainFromStationCode: train.fromStationCode || train.fromCode,
+              trainToStationName: train.toStationName || train.to,
+              trainToStationCode: train.toStationCode || train.toCode,
             },
           },
-          totalAmount,
+          finalAmount,
         );
       });
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    await submitBooking(totalAmount);
   };
 
   return (
@@ -266,6 +314,15 @@ function TrainBookingContent() {
                     <option value="ac3Tier">AC 3 Tier</option>
                     <option value="ac2Tier">AC 2 Tier</option>
                     <option value="ac1st">AC First</option>
+                  </select>
+                </div>
+                <div>
+                  <label className={s.label}>Berth Preference</label>
+                  <select className={s.input} value={berthPreference} onChange={(e) => setBerthPreference(e.target.value as BerthPreference)}>
+                    <option value="noPreference">No Preference</option>
+                    <option value="lower">Lower</option>
+                    <option value="middle">Middle</option>
+                    <option value="upper">Upper</option>
                   </select>
                 </div>
                 <div>
@@ -353,35 +410,23 @@ function TrainBookingContent() {
           </div>
         </div>
 
-        <div className={s.fareCard}>
-          <h2 className={s.fareTitle}>Fare Summary</h2>
-          <div className={s.fareLine}>
-            <span>Per traveler ({seatClass})</span>
-            <span>INR {farePerTraveler.toLocaleString("en-IN")}</span>
-          </div>
-          <div className={s.fareLine}>
-            <span>Travelers x {travelersCount}</span>
-            <span>INR {baseFare.toLocaleString("en-IN")}</span>
-          </div>
-          <div className={s.fareLine}>
-            <span>Taxes (5%)</span>
-            <span>INR {taxes.toLocaleString("en-IN")}</span>
-          </div>
-          <div className={s.fareLine}>
-            <span>Service fee</span>
-            <span>INR {serviceFee.toLocaleString("en-IN")}</span>
-          </div>
-          {appliedCoupon > 0 && (
-            <div className={s.fareLine} style={{ color: "var(--color-success, #15803d)" }}>
-              <span>Coupon ({couponCodeParam})</span>
-              <span>-INR {appliedCoupon.toLocaleString("en-IN")}</span>
-            </div>
-          )}
-          <div className={s.fareTotal}>
-            <span>Total</span>
-            <span>INR {totalAmount.toLocaleString("en-IN")}</span>
-          </div>
-        </div>
+        <BookingSidebar
+          baseFare={baseFare}
+          taxes={taxes}
+          serviceFee={serviceFee}
+          serviceType="train"
+          initialCouponCode={appliedCouponCode}
+          initialCouponDiscount={appliedCoupon}
+          onCouponApplied={({ code, discount }) => {
+            setAppliedCouponCode(code);
+            setAppliedCouponDiscount(discount);
+          }}
+          ctaLabel={submitting ? "Processing..." : seatsAvailable <= 0 ? "No Seats Available" : "Pay And Confirm"}
+          onProceed={(netAmount) => {
+            if (submitting || seatsAvailable <= 0) return;
+            void submitBooking(netAmount);
+          }}
+        />
       </div>
     </div>
   );

@@ -293,11 +293,6 @@ function TrainsContent() {
       return;
     }
 
-    const selectedType = Array.from(selectedTypes)[0];
-    if (selectedType) {
-      params.set("trainType", selectedType);
-    }
-
     let mounted = true;
     const run = async () => {
       try {
@@ -340,7 +335,7 @@ function TrainsContent() {
     return () => {
       mounted = false;
     };
-  }, [hasSearched, committedFrom, committedTo, committedDate, selectedClass, sort, page, selectedTypes]);
+  }, [hasSearched, committedFrom, committedTo, committedDate, selectedClass, sort, page]);
 
   useEffect(() => {
     if (apiError && hasSearched) {
@@ -539,19 +534,21 @@ function TrainsContent() {
           {!apiLoading && hasSearched && apiError && <div className={s.noResults}>{apiError}</div>}
 
           {paged.map((train) => (
-            <div key={train.id} className={`${s.card} ${current?.id === train.id ? s.cardSelected : ""}`}>
-              <div className={s.cardRow}>
+            <div key={train.id} className={`${s.card} ${s.trainCard} ${current?.id === train.id ? s.cardSelected : ""}`}>
+              <div className={`${s.cardRow} ${s.trainCardRow}`}>
                 <div className={s.cardMain}>
-                  <span className={s.trainName}>{train.name}</span>
-                  <span className={s.trainNumber}> #{train.trainNumber}</span>
-                  <span className={s.trainType}>{train.type}</span>
+                  <div className={s.trainHeader}>
+                    <span className={s.trainName}>{train.name}</span>
+                    <span className={s.trainNumber}> #{train.trainNumber}</span>
+                    <span className={s.trainType}>{train.type}</span>
+                  </div>
 
-                  <div className={s.route}>
+                  <div className={`${s.route} ${s.trainRoute}`}>
                     <div>
                       <div className={s.time}>{train.departureTime}</div>
                       <div className={s.cityCode}>{train.from} ({train.fromCode})</div>
                     </div>
-                    <div className={s.routeLine}>
+                    <div className={`${s.routeLine} ${s.trainRouteLine}`}>
                       <span className={s.duration}>{train.duration}</span>
                       <div className={s.dashes} />
                       <span className={s.stops}>
@@ -564,9 +561,9 @@ function TrainsContent() {
                     </div>
                   </div>
 
-                  <div className={s.pnr}>PNR: {train.pnr} · Runs: {train.daysOfWeek.join(", ")}</div>
+                  <div className={`${s.pnr} ${s.trainMeta}`}>PNR: {train.pnr} · Runs: {train.daysOfWeek.join(", ")}</div>
 
-                  <div className={s.fareTable}>
+                  <div className={`${s.fareTable} ${s.trainFareTable}`}>
                     {train.fare.general > 0 && (
                       <span className={s.fareChip}>
                         General (GN): <strong>₹{train.fare.general.toLocaleString("en-IN")}</strong>
@@ -592,7 +589,7 @@ function TrainsContent() {
                   </div>
 
                   {train.fareCategories?.[selectedClass] && (
-                    <div className={s.tags}>
+                    <div className={`${s.tags} ${s.trainTags}`}>
                       <span className={s.tag}>👨 Adult: ₹{train.fareCategories[selectedClass].adult.toLocaleString("en-IN")}</span>
                       <span className={s.tag}>👶 Child: ₹{train.fareCategories[selectedClass].child.toLocaleString("en-IN")}</span>
                       <span className={s.tag}>👴 Senior: ₹{train.fareCategories[selectedClass].seniorCitizen.toLocaleString("en-IN")}</span>
@@ -601,7 +598,7 @@ function TrainsContent() {
                   )}
                 </div>
 
-                <div className={s.cardRight}>
+                <div className={`${s.cardRight} ${s.trainCardRight}`}>
                   <div className={s.price}>₹{train.fare[selectedClass].toLocaleString("en-IN")}</div>
                   <div className={s.perPerson}>per adult · {classLabel[selectedClass]}</div>
                   <div className={s.rating}>★ {train.rating}</div>

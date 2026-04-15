@@ -58,8 +58,28 @@ const normalizeEvent = (raw: any): { type: string; data: Record<string, any> } =
           fromCode: payload.fromCode,
           toCode: payload.toCode,
           seatClass: payload.seatClass,
+          berthPreference: payload.berthPreference,
           boardingTerminal: payload.boardingTerminal,
+          boardingAirport: payload.boardingAirport,
+          destinationAirport: payload.destinationAirport,
           platformNumber: payload.platformNumber,
+          trainFromStationName: payload.trainFromStationName,
+          trainFromStationCode: payload.trainFromStationCode,
+          trainToStationName: payload.trainToStationName,
+          trainToStationCode: payload.trainToStationCode,
+          currentLocation: payload.currentLocation,
+          destinationCity: payload.destinationCity,
+          packageTravelMode: payload.packageTravelMode,
+          packageTravelOptionLabel: payload.packageTravelOptionLabel,
+          packageTravelOptionMeta: payload.packageTravelOptionMeta,
+          cabPickup: payload.cabPickup,
+          cabDrop: payload.cabDrop,
+          cabPickupCity: payload.cabPickupCity,
+          cabDropCity: payload.cabDropCity,
+          cabDistanceKm: payload.cabDistanceKm,
+          cabDriverName: payload.cabDriverName,
+          cabDriverPhone: payload.cabDriverPhone,
+          cabNumber: payload.cabNumber,
         },
       };
     case 'booking.cancelled':
@@ -128,7 +148,7 @@ export const startConsumer = async (): Promise<void> => {
             break;
           }
           case 'BOOKING_CONFIRMED': {
-            const { email, userId, bookingRef, title, amount, type, contact, passengers, startDate, scheduleTime, fromCode, toCode, seatClass, boardingTerminal, platformNumber } = event.data;
+            const { email, userId, bookingRef, title, amount, type, contact, passengers, startDate, scheduleTime, fromCode, toCode, seatClass, berthPreference, boardingTerminal, boardingAirport, destinationAirport, platformNumber, trainFromStationName, trainFromStationCode, trainToStationName, trainToStationCode, currentLocation, destinationCity, packageTravelMode, packageTravelOptionLabel, packageTravelOptionMeta, cabPickup, cabDrop, cabPickupCity, cabDropCity, cabDistanceKm, cabDriverName, cabDriverPhone, cabNumber } = event.data;
             if (email) {
               await sendEmail(
                 email,
@@ -146,8 +166,27 @@ export const startConsumer = async (): Promise<void> => {
                   fromCode,
                   toCode,
                   seatClass,
+                  berthPreference,
                   boardingTerminal,
+                  boardingAirport,
+                  destinationAirport,
                   platformNumber,
+                  trainFromStationName,
+                  trainFromStationCode,
+                  trainToStationName,
+                  trainToStationCode,
+                  currentLocation,
+                  destinationCity,
+                  packageTravelMode,
+                  packageTravelDetails: [packageTravelOptionLabel, packageTravelOptionMeta].filter(Boolean).join(' • '),
+                  cabPickup,
+                  cabDrop,
+                  cabPickupCity,
+                  cabDropCity,
+                  cabDistanceKm,
+                  cabDriverName,
+                  cabDriverPhone,
+                  cabNumber,
                 }),
               );
             }

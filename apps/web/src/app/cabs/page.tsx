@@ -9,6 +9,7 @@ import { cabs, type Cab } from "@/data/cabs";
 import Pagination from "@/components/ui/Pagination/Pagination";
 
 const PER_PAGE = 10;
+const MIN_LOADER_MS = 350;
 type SortKey = "price-asc" | "price-desc" | "rating" | "seats";
 
 const cabCities = Array.from(new Set(cabs.map((cab) => cab.city)));
@@ -93,6 +94,8 @@ const CITY_COORDS: Record<string, [number, number]> = {
   "jammu": [32.7266, 74.8570],
 };
 
+const knownCabCities = Array.from(new Set([...cabCities, ...Object.keys(CITY_COORDS)]));
+
 const haversineKm = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
   const R = 6371;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
@@ -122,12 +125,54 @@ const estimateDistanceKm = (pickup: string, drop: string): number => {
   return 30;
 };
 
+const levenshteinDistance = (a: string, b: string): number => {
+  const dp = Array.from({ length: a.length + 1 }, () => Array<number>(b.length + 1).fill(0));
+  for (let i = 0; i <= a.length; i += 1) dp[i][0] = i;
+  for (let j = 0; j <= b.length; j += 1) dp[0][j] = j;
+
+  for (let i = 1; i <= a.length; i += 1) {
+    for (let j = 1; j <= b.length; j += 1) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      dp[i][j] = Math.min(
+        dp[i - 1][j] + 1,
+        dp[i][j - 1] + 1,
+        dp[i - 1][j - 1] + cost,
+      );
+    }
+  }
+
+  return dp[a.length][b.length];
+};
+
 const resolveCabCity = (value: string): string | null => {
-  const trimmed = value.trim();
+  const trimmed = value.trim().replace(/\s+/g, " ");
   if (!trimmed) return null;
 
-  const byCity = cabCities.find((city) => city.toLowerCase() === trimmed.toLowerCase());
-  return byCity || trimmed;
+  const normalized = trimmed.toLowerCase();
+
+  const exact = knownCabCities.find((city) => city.toLowerCase() === normalized);
+  if (exact) return exact;
+
+  const prefix = knownCabCities.find((city) => city.toLowerCase().startsWith(normalized));
+  if (prefix) return prefix;
+
+  const contains = knownCabCities.find((city) => city.toLowerCase().includes(normalized));
+  if (contains) return contains;
+
+  if (normalized.length >= 4) {
+    let best: string | null = null;
+    let bestScore = Number.POSITIVE_INFINITY;
+    for (const city of knownCabCities) {
+      const score = levenshteinDistance(normalized, city.toLowerCase());
+      if (score < bestScore) {
+        best = city;
+        bestScore = score;
+      }
+    }
+    if (best && bestScore <= 2) return best;
+  }
+
+  return trimmed;
 };
 
 function CabsContent() {
@@ -201,14 +246,27 @@ function CabsContent() {
   };
 
   const handleSearch = () => {
-    if (!resolveCabCity(pickup)) {
+    const resolvedPickup = resolveCabCity(pickup);
+    const resolvedDrop = resolveCabCity(drop);
+
+    if (!resolvedPickup) {
       showToast.error("Please select a valid pickup city from suggestions.");
       return;
     }
 
+    if (!resolvedDrop) {
+      showToast.error("Please select a valid destination city from suggestions.");
+      return;
+    }
+
+    if (resolvedPickup.trim().toLowerCase() === resolvedDrop.trim().toLowerCase()) {
+      showToast.error("For intercity cab bookings, pickup and destination cities cannot be the same.");
+      return;
+    }
+
     const params = new URLSearchParams();
-    if (pickup) params.set("pickup", pickup);
-    if (drop) params.set("drop", drop);
+    if (resolvedPickup) params.set("pickup", resolvedPickup);
+    if (resolvedDrop) params.set("drop", resolvedDrop);
     if (date) params.set("date", date);
     if (pickupTime) params.set("time", pickupTime);
     if (sort !== "price-asc") params.set("sort", sort);
@@ -277,19 +335,15 @@ function CabsContent() {
       limit: "50",
     });
 
-    const selectedType = Array.from(selectedTypes)[0];
-    if (selectedType) params.set("type", selectedType);
-
-    const selectedFuelType = Array.from(selectedFuel)[0];
-    if (selectedFuelType) params.set("fuelType", selectedFuelType);
-
     if (acOnly) params.set("ac", "true");
 
     let mounted = true;
     const run = async () => {
+      const startedAt = Date.now();
       try {
         setApiLoading(true);
         setApiError(null);
+        setApiResults(null);
 
         const res = await fetch(`/api/cabs/search?${params.toString()}`);
         const parsed = await parseApiResponse<{
@@ -320,6 +374,11 @@ function CabsContent() {
         setApiError(error instanceof Error ? error.message : "Unable to fetch cabs right now.");
         setApiResults(null);
       } finally {
+        const elapsed = Date.now() - startedAt;
+        const remaining = Math.max(0, MIN_LOADER_MS - elapsed);
+        if (remaining > 0) {
+          await new Promise((resolve) => setTimeout(resolve, remaining));
+        }
         if (mounted) setApiLoading(false);
       }
     };
@@ -328,7 +387,7 @@ function CabsContent() {
     return () => {
       mounted = false;
     };
-  }, [committedPickup, drop, sort, selectedTypes, selectedFuel, acOnly]);
+  }, [committedPickup, drop, sort, acOnly]);
 
   useEffect(() => {
     if (apiError) {
@@ -530,11 +589,13 @@ function CabsContent() {
             ))}
           </div>
 
-          {paged.length === 0 && <div className={s.noResults}>{pickup ? "No cabs match your filters." : "Enter Pickup to load live cabs."}</div>}
-          {apiError && <div className={s.noResults}>{apiError}</div>}
-          {apiLoading && <div className={s.noResults}>Fetching latest cabs…</div>}
-
-          {paged.map((cab) => (
+          {apiLoading ? (
+            <div className={s.noResults}>Fetching latest cabs…</div>
+          ) : apiError ? (
+            <div className={s.noResults}>{apiError}</div>
+          ) : paged.length === 0 ? (
+            <div className={s.noResults}>{pickup ? "No cabs match your filters." : "Enter Pickup to load live cabs."}</div>
+          ) : paged.map((cab) => (
             <div key={cab.id} className={s.card}>
               <div className={s.cabCard}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -576,6 +637,11 @@ function CabsContent() {
                       }
                       if (!pickupTime) {
                         showToast.error("Please select a pickup time before booking.");
+                        return;
+                      }
+                      const selectedPickupDateTime = new Date(`${date}T${pickupTime}:00`);
+                      if (!Number.isNaN(selectedPickupDateTime.getTime()) && selectedPickupDateTime.getTime() < Date.now()) {
+                        showToast.error("Pickup time cannot be in the past.");
                         return;
                       }
                       const bp = new URLSearchParams({

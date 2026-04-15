@@ -26,6 +26,55 @@ type TourApiDetail = {
   discountPrice?: number;
 };
 
+type TravelMode = "flight" | "train" | "self";
+
+type TravelOption = {
+  id: string;
+  label: string;
+  amount: number;
+  meta?: string;
+};
+
+const FLIGHT_CITY_ALIASES: Record<string, string> = {
+  delhi: "DEL",
+  "new delhi": "DEL",
+  mumbai: "BOM",
+  bangalore: "BLR",
+  bengaluru: "BLR",
+  kolkata: "CCU",
+  chennai: "MAA",
+  hyderabad: "HYD",
+  pune: "PNQ",
+  goa: "GOI",
+  jaipur: "JAI",
+  ahmedabad: "AMD",
+  lucknow: "LKO",
+};
+
+const TRAIN_CITY_ALIASES: Record<string, string> = {
+  delhi: "NDLS",
+  "new delhi": "NDLS",
+  mumbai: "BCT",
+  kolkata: "HWH",
+  chennai: "MAS",
+  bangalore: "SBC",
+  bengaluru: "SBC",
+  hyderabad: "HYB",
+  lucknow: "LKO",
+  goa: "MAO",
+};
+
+const resolveAliasCode = (value: string, aliases: Record<string, string>, min = 3, max = 3): string | null => {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const upper = trimmed.toUpperCase();
+  const regex = new RegExp(`^[A-Z]{${min},${max}}$`);
+  if (regex.test(upper)) {
+    return aliases[trimmed.toLowerCase()] || upper;
+  }
+  return aliases[trimmed.toLowerCase()] || null;
+};
+
 const createTravelers = (count: number): Traveler[] =>
   Array.from({ length: count }, () => ({
     name: "",
@@ -52,6 +101,11 @@ function PackageBookingContent() {
   const [contactName, setContactName] = useState(user?.fullName || "");
   const [contactEmail, setContactEmail] = useState(user?.email || "");
   const [contactPhone, setContactPhone] = useState("");
+  const [currentLocation, setCurrentLocation] = useState("");
+  const [travelMode, setTravelMode] = useState<TravelMode>("flight");
+  const [travelOptions, setTravelOptions] = useState<TravelOption[]>([]);
+  const [travelLoading, setTravelLoading] = useState(false);
+  const [selectedTravelOptionId, setSelectedTravelOptionId] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -132,6 +186,96 @@ function PackageBookingContent() {
     };
   }, [packageId, staticPackage]);
 
+  useEffect(() => {
+    const run = async () => {
+      const fromCode = resolveAliasCode(currentLocation, FLIGHT_CITY_ALIASES, 3, 3);
+      const toCode = resolveAliasCode(pkg?.subRegion || "", FLIGHT_CITY_ALIASES, 3, 3);
+
+      if (!pkg || !fromCode || !toCode || !startDate || travelMode !== "flight") {
+        setTravelOptions([]);
+        setSelectedTravelOptionId("");
+        return;
+      }
+
+      setTravelLoading(true);
+      try {
+        const params = new URLSearchParams({
+          from: fromCode,
+          to: toCode,
+          date: startDate,
+          sort: "price_asc",
+          page: "1",
+          limit: "5",
+        });
+        const res = await fetch(`/api/flights/search?${params.toString()}`);
+        const json = (await res.json()) as {
+          data?: { results?: Array<{ flight?: { _id?: string; flightCode?: string; airline?: string; departureTime?: string; arrivalTime?: string }; unitPrice?: number }> };
+        };
+
+        const options = (json.data?.results || []).map((entry) => ({
+          id: entry.flight?._id || entry.flight?.flightCode || Math.random().toString(36),
+          label: `${entry.flight?.airline || "Flight"} • ${entry.flight?.flightCode || ""}`.trim(),
+          amount: Number(entry.unitPrice || 0),
+          meta: `${entry.flight?.departureTime || ""} - ${entry.flight?.arrivalTime || ""}`.trim(),
+        }));
+
+        setTravelOptions(options);
+        setSelectedTravelOptionId(options[0]?.id || "");
+      } catch {
+        setTravelOptions([]);
+        setSelectedTravelOptionId("");
+      } finally {
+        setTravelLoading(false);
+      }
+    };
+
+    void run();
+  }, [currentLocation, pkg, startDate, travelMode]);
+
+  useEffect(() => {
+    const run = async () => {
+      const fromCode = resolveAliasCode(currentLocation, TRAIN_CITY_ALIASES, 3, 4);
+      const toCode = resolveAliasCode(pkg?.subRegion || "", TRAIN_CITY_ALIASES, 3, 4);
+
+      if (!pkg || !fromCode || !toCode || !startDate || travelMode !== "train") {
+        return;
+      }
+
+      setTravelLoading(true);
+      try {
+        const params = new URLSearchParams({
+          from: fromCode,
+          to: toCode,
+          date: startDate,
+          sort: "price_asc",
+          page: "1",
+          limit: "5",
+        });
+        const res = await fetch(`/api/trains/search?${params.toString()}`);
+        const json = (await res.json()) as {
+          data?: { results?: Array<{ train?: { _id?: string; trainNumber?: string; name?: string; departureTime?: string; arrivalTime?: string }; unitPrice?: number }> };
+        };
+
+        const options = (json.data?.results || []).map((entry) => ({
+          id: entry.train?._id || entry.train?.trainNumber || Math.random().toString(36),
+          label: `${entry.train?.name || "Train"} • ${entry.train?.trainNumber || ""}`.trim(),
+          amount: Number(entry.unitPrice || 0),
+          meta: `${entry.train?.departureTime || ""} - ${entry.train?.arrivalTime || ""}`.trim(),
+        }));
+
+        setTravelOptions(options);
+        setSelectedTravelOptionId(options[0]?.id || "");
+      } catch {
+        setTravelOptions([]);
+        setSelectedTravelOptionId("");
+      } finally {
+        setTravelLoading(false);
+      }
+    };
+
+    void run();
+  }, [currentLocation, pkg, startDate, travelMode]);
+
   if (loadingPkg) {
     return <div className={s.page} style={{ padding: "18vh 24px", textAlign: "center" }}>Loading package details...</div>;
   }
@@ -165,6 +309,11 @@ function PackageBookingContent() {
       return;
     }
 
+    if (!currentLocation.trim()) {
+      showToast.error("Please provide your current location.");
+      return;
+    }
+
     const hasInvalidTraveler = travelers.some((traveler) => !traveler.name.trim());
     if (hasInvalidTraveler) {
       showToast.error("Please enter all additional traveler names.");
@@ -173,6 +322,10 @@ function PackageBookingContent() {
 
     setSubmitting(true);
     try {
+      const flightFromCode = resolveAliasCode(currentLocation, FLIGHT_CITY_ALIASES, 3, 3);
+      const flightToCode = resolveAliasCode(pkg.subRegion, FLIGHT_CITY_ALIASES, 3, 3);
+      const selectedTravelOption = travelOptions.find((option) => option.id === selectedTravelOptionId) || null;
+
       await guardAction(async () => {
         await processBookingAndPayment(
           {
@@ -180,6 +333,8 @@ function PackageBookingContent() {
             type: "tour",
             title: `${pkg.name} (${pkg.subRegion})`,
             city: pkg.subRegion,
+            fromCode: flightFromCode || undefined,
+            toCode: flightToCode || undefined,
             startDate,
             quantity: totalTravelers,
             amount: baseFare,
@@ -196,6 +351,14 @@ function PackageBookingContent() {
                 gender: traveler.gender,
               })),
             ],
+            metadata: {
+              packageTravel: {
+                currentLocation: currentLocation.trim(),
+                destinationCity: pkg.subRegion,
+                travelMode,
+                selectedOption: selectedTravelOption,
+              },
+            },
           },
           totalAmount,
         );
@@ -260,6 +423,55 @@ function PackageBookingContent() {
                     onChange={(e) => setContactPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
                   />
                 </div>
+              </div>
+
+              <div className={s.fieldFull}>
+                <label className={s.label}>Current Location (city or code)</label>
+                <input
+                  className={s.input}
+                  placeholder="Delhi or DEL"
+                  value={currentLocation}
+                  onChange={(e) => setCurrentLocation(e.target.value)}
+                />
+              </div>
+
+              <div className={s.fieldFull}>
+                <label className={s.label}>Travel To Package Destination</label>
+                <div className={s.fieldRow}>
+                  <button className={s.input} type="button" onClick={() => setTravelMode("flight")} style={{ cursor: "pointer", fontWeight: travelMode === "flight" ? 700 : 500 }}>
+                    Flight
+                  </button>
+                  <button className={s.input} type="button" onClick={() => setTravelMode("train")} style={{ cursor: "pointer", fontWeight: travelMode === "train" ? 700 : 500 }}>
+                    Train
+                  </button>
+                  <button className={s.input} type="button" onClick={() => { setTravelMode("self"); setTravelOptions([]); setSelectedTravelOptionId(""); }} style={{ cursor: "pointer", fontWeight: travelMode === "self" ? 700 : 500 }}>
+                    Self-arranged
+                  </button>
+                </div>
+
+                {travelMode !== "self" && (
+                  <div style={{ marginTop: 10 }}>
+                    {travelLoading ? (
+                      <p className={s.summaryMeta}>Checking {travelMode} options...</p>
+                    ) : travelOptions.length > 0 ? (
+                      <div style={{ display: "grid", gap: 8 }}>
+                        {travelOptions.map((option) => (
+                          <label key={option.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <input
+                              type="radio"
+                              name="packageTravelOption"
+                              checked={selectedTravelOptionId === option.id}
+                              onChange={() => setSelectedTravelOptionId(option.id)}
+                            />
+                            <span>{option.label} {option.meta ? `(${option.meta})` : ""} - INR {option.amount.toLocaleString("en-IN")}</span>
+                          </label>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className={s.summaryMeta}>No direct {travelMode} options found for this route/date.</p>
+                    )}
+                  </div>
+                )}
               </div>
 
               {travelers.map((traveler, index) => (

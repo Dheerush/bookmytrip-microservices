@@ -43,6 +43,12 @@ const ensureInventoryItemExists = async (type: BookingType, itemId: string): Pro
     ? itemId.split('|').map((entry) => entry.trim()).filter(Boolean)
     : [itemId.trim()];
 
+  // Tour bookings can originate from curated static package cards in the web app.
+  // Those ids are not Mongo ObjectIds, so strict service validation would fail.
+  if (type === 'tour' && candidateIds.some((id) => !/^[a-fA-F0-9]{24}$/.test(id))) {
+    return;
+  }
+
   if (candidateIds.length === 0) {
     throw new AppError(`Invalid ${type} inventory identifier`, 400, 'INVENTORY_NOT_FOUND');
   }
@@ -177,8 +183,28 @@ export const confirmBooking = async (bookingId: string, userId: string): Promise
     fromCode: booking.fromCode,
     toCode: booking.toCode,
     seatClass: booking.metadata?.seatClass,
+    berthPreference: booking.metadata?.berthPreference,
     boardingTerminal: booking.metadata?.boardingTerminal,
+    boardingAirport: (booking.metadata?.flightTravel as Record<string, unknown> | undefined)?.boardingAirport,
+    destinationAirport: (booking.metadata?.flightTravel as Record<string, unknown> | undefined)?.destinationAirport,
     platformNumber: booking.metadata?.platformNumber,
+    trainFromStationName: booking.metadata?.trainFromStationName,
+    trainFromStationCode: booking.metadata?.trainFromStationCode,
+    trainToStationName: booking.metadata?.trainToStationName,
+    trainToStationCode: booking.metadata?.trainToStationCode,
+    currentLocation: (booking.metadata?.packageTravel as Record<string, unknown> | undefined)?.currentLocation,
+    destinationCity: (booking.metadata?.packageTravel as Record<string, unknown> | undefined)?.destinationCity,
+    packageTravelMode: (booking.metadata?.packageTravel as Record<string, unknown> | undefined)?.travelMode,
+    packageTravelOptionLabel: ((booking.metadata?.packageTravel as Record<string, unknown> | undefined)?.selectedOption as Record<string, unknown> | undefined)?.label,
+    packageTravelOptionMeta: ((booking.metadata?.packageTravel as Record<string, unknown> | undefined)?.selectedOption as Record<string, unknown> | undefined)?.meta,
+    cabPickup: (booking.metadata?.cabTravel as Record<string, unknown> | undefined)?.pickup,
+    cabDrop: (booking.metadata?.cabTravel as Record<string, unknown> | undefined)?.drop,
+    cabPickupCity: (booking.metadata?.cabTravel as Record<string, unknown> | undefined)?.pickupCity,
+    cabDropCity: (booking.metadata?.cabTravel as Record<string, unknown> | undefined)?.dropCity,
+    cabDistanceKm: (booking.metadata?.cabTravel as Record<string, unknown> | undefined)?.distanceKm,
+    cabDriverName: (booking.metadata?.cabTravel as Record<string, unknown> | undefined)?.driverName,
+    cabDriverPhone: (booking.metadata?.cabTravel as Record<string, unknown> | undefined)?.driverPhone,
+    cabNumber: (booking.metadata?.cabTravel as Record<string, unknown> | undefined)?.cabNumber,
   });
 
   return booking;

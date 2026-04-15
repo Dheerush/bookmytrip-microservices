@@ -2,12 +2,12 @@
 
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plane, Hotel, Train, Package, Eye, Download, Filter, X, MapPin, Calendar, Users, CreditCard, Ban } from "lucide-react";
+import { Plane, Hotel, Train, Package, Car, Eye, Download, Filter, X, MapPin, Calendar, Users, CreditCard, Ban } from "lucide-react";
 import { showToast } from "@/lib/toast";
 import { getApiErrorMessage, getAuthHeaders, parseApiResponse } from "@/lib/http";
 import styles from "./BookingHistory.module.scss";
 
-type BookingType = "all" | "flight" | "hotel" | "train" | "package";
+type BookingType = "all" | "flight" | "hotel" | "train" | "cab" | "package";
 type BookingStatus = "confirmed" | "completed" | "cancelled" | "pending" | "failed";
 
 interface Passenger {
@@ -15,6 +15,7 @@ interface Passenger {
   age?: number;
   gender?: string;
   email?: string;
+  seatNumber?: string;
 }
 
 interface BookingContact {
@@ -23,10 +24,76 @@ interface BookingContact {
   phone: string;
 }
 
+interface PackageTravelOption {
+  id?: string;
+  label?: string;
+  amount?: number;
+  meta?: string;
+}
+
+interface PackageTravelMetadata {
+  currentLocation?: string;
+  destinationCity?: string;
+  travelMode?: string;
+  selectedOption?: PackageTravelOption | null;
+}
+
+interface CabTravelMetadata {
+  pickup?: string;
+  drop?: string;
+  pickupCity?: string;
+  dropCity?: string;
+  distanceKm?: number;
+  driverName?: string;
+  driverPhone?: string;
+  cabNumber?: string;
+}
+
+interface TrainPassengerBerth {
+  name?: string;
+  seatNumber?: string;
+  coach?: string;
+  berthNumber?: string;
+  berthType?: string;
+}
+
+interface TrainTravelMetadata {
+  berthPreference?: string;
+  seatClass?: string;
+  platformNumber?: string;
+  trainFromStationName?: string;
+  trainFromStationCode?: string;
+  trainToStationName?: string;
+  trainToStationCode?: string;
+  passengerBerths?: TrainPassengerBerth[];
+}
+
+interface FlightTravelMetadata {
+  boardingAirport?: string;
+  destinationAirport?: string;
+  boardingTerminal?: string;
+}
+
+interface BookingMetadata {
+  packageTravel?: PackageTravelMetadata;
+  cabTravel?: CabTravelMetadata;
+  trainTravel?: TrainTravelMetadata;
+  flightTravel?: FlightTravelMetadata;
+  berthPreference?: string;
+  seatClass?: string;
+  platformNumber?: string;
+  trainFromStationName?: string;
+  trainFromStationCode?: string;
+  trainToStationName?: string;
+  trainToStationCode?: string;
+  passengerBerths?: TrainPassengerBerth[];
+  [key: string]: unknown;
+}
+
 interface Booking {
   id: string;
   _id?: string;
-  type: "flight" | "hotel" | "train" | "cab" | "package";
+  type: "flight" | "hotel" | "train" | "cab" | "package" | "tour";
   title: string;
   bookingDate?: string;
   startDate?: string;
@@ -42,6 +109,7 @@ interface Booking {
   contact?: BookingContact;
   passengers?: Passenger[];
   city?: string;
+  metadata?: BookingMetadata;
 }
 
 interface BookingApiItem {
@@ -63,6 +131,7 @@ interface BookingApiItem {
   contact?: BookingContact;
   passengers?: Passenger[];
   city?: string;
+  metadata?: BookingMetadata;
 }
 
 const SAMPLE_BOOKINGS: Booking[] = [
@@ -77,6 +146,7 @@ const SAMPLE_BOOKINGS: Booking[] = [
 const TYPE_FILTERS: { label: string; value: BookingType; icon: React.ReactNode }[] = [
   { label: "All", value: "all", icon: <Filter size={13} strokeWidth={1.6} /> },
   { label: "Flights", value: "flight", icon: <Plane size={13} strokeWidth={1.6} /> },
+  { label: "Cabs", value: "cab", icon: <Car size={13} strokeWidth={1.6} /> },
   { label: "Hotels", value: "hotel", icon: <Hotel size={13} strokeWidth={1.6} /> },
   { label: "Trains", value: "train", icon: <Train size={13} strokeWidth={1.6} /> },
   { label: "Packages", value: "package", icon: <Package size={13} strokeWidth={1.6} /> },
@@ -85,8 +155,10 @@ const TYPE_FILTERS: { label: string; value: BookingType; icon: React.ReactNode }
 const typeIcon = (type: string) => {
   switch (type) {
     case "flight": return <Plane size={16} strokeWidth={1.5} />;
+    case "cab": return <Car size={16} strokeWidth={1.5} />;
     case "hotel": return <Hotel size={16} strokeWidth={1.5} />;
     case "train": return <Train size={16} strokeWidth={1.5} />;
+    case "tour": return <Package size={16} strokeWidth={1.5} />;
     case "package": return <Package size={16} strokeWidth={1.5} />;
     default: return <Plane size={16} strokeWidth={1.5} />;
   }
@@ -99,6 +171,32 @@ const getRefundPct = (type: string, startDate?: string): number => {
   const hoursUntil = (new Date(startDate).getTime() - Date.now()) / (1000 * 60 * 60);
   if (hoursUntil < 24) return 0;
   return REFUND_PCTS[type] ?? 60;
+};
+
+const parseTrainBerth = (seatNumber?: string) => {
+  const seat = (seatNumber || "").trim();
+  const match = seat.match(/^([A-Za-z]\d+)\/(\d+)$/);
+  if (!match) {
+    return { coach: "", berthNumber: "", berthType: "" };
+  }
+  const coach = match[1] || "";
+  const berthNumber = match[2] || "";
+  const berth = Number(berthNumber);
+  const berthType = [1, 4, 7].includes(berth)
+    ? "Lower"
+    : [2, 5, 8].includes(berth)
+      ? "Middle"
+      : [3, 6].includes(berth)
+        ? "Upper"
+        : "";
+  return { coach, berthNumber, berthType };
+};
+
+const titleCase = (value?: string) => {
+  if (!value) return "";
+  return value
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/^./, (ch) => ch.toUpperCase());
 };
 
 export default function BookingHistoryPage() {
@@ -199,6 +297,7 @@ export default function BookingHistoryPage() {
           contact: b.contact,
           passengers: b.passengers,
           city: b.city,
+          metadata: b.metadata,
         } : prev);
       }
     } catch { /* keep partial data */ } finally {
@@ -220,9 +319,63 @@ export default function BookingHistoryPage() {
     const gst = Math.round(booking.amount * 0.05);
     const baseAmount = booking.amount - gst;
     const routeInfo = [booking.fromCode, booking.toCode].filter(Boolean).join(" → ") || booking.city || "N/A";
+    const packageTravel = booking.metadata?.packageTravel;
+    const cabTravel = booking.metadata?.cabTravel;
+    const flightTravel = booking.metadata?.flightTravel;
+    const trainStationFrom = booking.metadata?.trainFromStationName
+      ? `${booking.metadata.trainFromStationName}${booking.metadata.trainFromStationCode ? ` (${booking.metadata.trainFromStationCode})` : ""}`
+      : "";
+    const trainStationTo = booking.metadata?.trainToStationName
+      ? `${booking.metadata.trainToStationName}${booking.metadata.trainToStationCode ? ` (${booking.metadata.trainToStationCode})` : ""}`
+      : "";
+    const trainStations = [trainStationFrom, trainStationTo].filter(Boolean).join(" → ");
+    const showCabNumber = booking.status === "confirmed" || booking.status === "completed";
+    const packageTravelInfo = packageTravel
+      ? [
+          packageTravel.currentLocation && `From ${packageTravel.currentLocation}`,
+          packageTravel.destinationCity && `To ${packageTravel.destinationCity}`,
+          packageTravel.travelMode && `By ${packageTravel.travelMode}`,
+          packageTravel.selectedOption?.label,
+          packageTravel.selectedOption?.meta,
+        ].filter(Boolean).join(" • ")
+      : "";
+    const cabRouteInfo = cabTravel
+      ? [
+          cabTravel.pickup && `Pickup: ${cabTravel.pickup}${cabTravel.pickupCity ? ` (${cabTravel.pickupCity})` : ""}`,
+          cabTravel.drop && `Drop: ${cabTravel.drop}${cabTravel.dropCity ? ` (${cabTravel.dropCity})` : ""}`,
+        ].filter(Boolean).join(" • ")
+      : "";
+    const cabTravelBullets = cabTravel
+      ? [
+          cabTravel.pickup && `Pickup: ${cabTravel.pickup}${cabTravel.pickupCity ? ` (${cabTravel.pickupCity})` : ""}`,
+          cabTravel.drop && `Drop: ${cabTravel.drop}${cabTravel.dropCity ? ` (${cabTravel.dropCity})` : ""}`,
+          cabTravel.distanceKm && `Distance: ${cabTravel.distanceKm} km`,
+          cabTravel.driverName && `Driver: ${cabTravel.driverName}`,
+          showCabNumber && cabTravel.cabNumber && `Cab Number: ${cabTravel.cabNumber}`,
+          (cabTravel.driverPhone || booking.type === "cab") && `Driver Contact: ${cabTravel.driverPhone || "+91-81XXXXXXX"}`,
+        ].filter(Boolean)
+      : [];
+    const seatColumnTitle = booking.type === "train" ? "Berth" : "Seat";
+    const flightDetails = booking.type === "flight"
+      ? [
+          flightTravel?.boardingAirport && `Boarding: ${flightTravel.boardingAirport}`,
+          flightTravel?.destinationAirport && `Destination: ${flightTravel.destinationAirport}`,
+          (flightTravel?.boardingTerminal || booking.metadata?.boardingTerminal) && `Terminal: ${flightTravel?.boardingTerminal || booking.metadata?.boardingTerminal}`,
+        ].filter(Boolean).join(" • ")
+      : "";
     const travelerRows = (booking.passengers || []).length > 0
-      ? (booking.passengers || []).map((p, idx) => `<tr><td>${idx + 1}</td><td>${p.name || "—"}</td><td>${p.age ?? "—"}</td><td style="text-transform:capitalize">${p.gender || "—"}</td><td>${p.email || "—"}</td></tr>`).join("")
-      : `<tr><td>1</td><td>${booking.contact?.name || "Primary traveler"}</td><td>—</td><td>—</td><td>${booking.contact?.email || "—"}</td></tr>`;
+      ? (booking.passengers || []).map((p, idx) => {
+        const parsed = parseTrainBerth(p.seatNumber);
+        const seatValue = booking.type === "train"
+          ? [
+              p.seatNumber || "—",
+              parsed.coach ? `Coach ${parsed.coach}` : "",
+              parsed.berthType || "",
+            ].filter(Boolean).join(" · ")
+          : p.seatNumber || "—";
+        return `<tr><td>${idx + 1}</td><td>${p.name || "—"}</td><td>${seatValue}</td><td>${p.age ?? "—"}</td><td style="text-transform:capitalize">${p.gender || "—"}</td><td>${p.email || "—"}</td></tr>`;
+      }).join("")
+      : `<tr><td>1</td><td>${booking.contact?.name || "Primary traveler"}</td><td>—</td><td>—</td><td>—</td><td>${booking.contact?.email || "—"}</td></tr>`;
 
     win.document.write(`<!DOCTYPE html>
 <html lang="en">
@@ -272,10 +425,19 @@ export default function BookingHistoryPage() {
       <div class="meta-block"><label>Booking Reference</label><p>${booking.bookingRef}</p></div>
       <div class="meta-block"><label>Type</label><p style="text-transform:capitalize">${booking.type}</p></div>
       <div class="meta-block"><label>Travel Date</label><p>${dateStr}</p></div>
-      <div class="meta-block"><label>Route / City</label><p>${routeInfo}</p></div>
+      <div class="meta-block"><label>Route / City</label><p>${cabRouteInfo || routeInfo}</p></div>
       <div class="meta-block"><label>Status</label><span class="status">${booking.status}</span></div>
     </div>
     ${booking.contact ? `<div class="meta-row"><div class="meta-block"><label>Billed To</label><p>${booking.contact.name}</p><p style="font-weight:400;font-size:0.85rem">${booking.contact.email} · ${booking.contact.phone}</p></div></div>` : ""}
+    ${booking.type === "train" ? `<div class="meta-row"><div class="meta-block"><label>Train Details</label><p style="font-weight:500;font-size:0.88rem">${[
+      trainStations && `Stations: ${trainStations}`,
+      booking.metadata?.platformNumber && `Platform: ${booking.metadata.platformNumber}`,
+      booking.metadata?.seatClass && `Class: ${titleCase(String(booking.metadata.seatClass))}`,
+      booking.metadata?.berthPreference && `Preference: ${titleCase(String(booking.metadata.berthPreference))}`,
+    ].filter(Boolean).join(" • ") || "—"}</p></div></div>` : ""}
+    ${flightDetails ? `<div class="meta-row"><div class="meta-block"><label>Flight Details</label><p style="font-weight:500;font-size:0.88rem">${flightDetails}</p></div></div>` : ""}
+    ${packageTravelInfo ? `<div class="meta-row"><div class="meta-block"><label>Package Commute</label><p style="font-weight:500;font-size:0.88rem">${packageTravelInfo}</p></div></div>` : ""}
+    ${cabTravelBullets.length > 0 ? `<div class="meta-row"><div class="meta-block"><label>Cab Details</label><ul style="margin:0;padding-left:18px;font-size:0.88rem;line-height:1.55;color:#0f1f2e;font-weight:500">${cabTravelBullets.map((item) => `<li>${item}</li>`).join("")}</ul></div></div>` : ""}
     <table>
       <thead><tr><th>Description</th><th>Qty</th><th class="amount-col">Amount</th></tr></thead>
       <tbody>
@@ -290,7 +452,7 @@ export default function BookingHistoryPage() {
       <div class="meta-block"><label>Traveler Details</label></div>
     </div>
     <table class="traveler-table">
-      <thead><tr><th>#</th><th>Name</th><th>Age</th><th>Gender</th><th>Email</th></tr></thead>
+      <thead><tr><th>#</th><th>Name</th><th>${seatColumnTitle}</th><th>Age</th><th>Gender</th><th>Email</th></tr></thead>
       <tbody>${travelerRows}</tbody>
     </table>
     <p style="font-size:0.78rem;color:#6b7f93">This is a computer-generated invoice and does not require a signature.</p>
@@ -365,6 +527,7 @@ export default function BookingHistoryPage() {
           contact: b.contact,
           passengers: b.passengers,
           city: b.city,
+          metadata: b.metadata,
         }));
         setBookings(transformedBookings.length > 0 ? transformedBookings : SAMPLE_BOOKINGS);
         setError(null);
@@ -385,7 +548,12 @@ export default function BookingHistoryPage() {
   const filtered =
     filter === "all"
       ? bookings
-      : bookings.filter((booking) => booking.type === filter);
+      : bookings.filter((booking) => {
+        if (filter === "package") {
+          return booking.type === "package" || booking.type === "tour";
+        }
+        return booking.type === filter;
+      });
 
   return (
     <div className={styles.page}>
@@ -512,9 +680,93 @@ export default function BookingHistoryPage() {
                   <div className={styles.modalSection}>
                     <p className={styles.modalSectionLabel}><MapPin size={12} /> Route / Location</p>
                     <p className={styles.modalSectionValue}>
-                      {detailBooking.fromCode && detailBooking.toCode
+                      {detailBooking.type === "cab" && detailBooking.metadata?.cabTravel
+                        ? [
+                            detailBooking.metadata.cabTravel.pickup && `Pickup: ${detailBooking.metadata.cabTravel.pickup}${detailBooking.metadata.cabTravel.pickupCity ? ` (${detailBooking.metadata.cabTravel.pickupCity})` : ""}`,
+                            detailBooking.metadata.cabTravel.drop && `Drop: ${detailBooking.metadata.cabTravel.drop}${detailBooking.metadata.cabTravel.dropCity ? ` (${detailBooking.metadata.cabTravel.dropCity})` : ""}`,
+                          ].filter(Boolean).join(" • ")
+                        : detailBooking.fromCode && detailBooking.toCode
                         ? `${detailBooking.fromCode} → ${detailBooking.toCode}`
                         : detailBooking.city || "—"}
+                    </p>
+                  </div>
+                )}
+
+                {detailBooking.metadata?.packageTravel && (
+                  <div className={styles.modalSection}>
+                    <p className={styles.modalSectionLabel}><MapPin size={12} /> Package Commute</p>
+                    <p className={styles.modalSectionValue}>
+                      {[
+                        detailBooking.metadata.packageTravel.currentLocation && `From ${detailBooking.metadata.packageTravel.currentLocation}`,
+                        detailBooking.metadata.packageTravel.destinationCity && `To ${detailBooking.metadata.packageTravel.destinationCity}`,
+                        detailBooking.metadata.packageTravel.travelMode && `By ${detailBooking.metadata.packageTravel.travelMode}`,
+                        detailBooking.metadata.packageTravel.selectedOption?.label,
+                        detailBooking.metadata.packageTravel.selectedOption?.meta,
+                      ].filter(Boolean).join(" • ") || "—"}
+                    </p>
+                  </div>
+                )}
+
+                {detailBooking.metadata?.cabTravel && (
+                  <div className={styles.modalSection}>
+                    <p className={styles.modalSectionLabel}><MapPin size={12} /> Cab Details</p>
+                    <ul style={{ margin: 0, paddingLeft: 18, lineHeight: 1.6 }}>
+                      {detailBooking.metadata.cabTravel.pickup ? (
+                        <li>{`Pickup: ${detailBooking.metadata.cabTravel.pickup}${detailBooking.metadata.cabTravel.pickupCity ? ` (${detailBooking.metadata.cabTravel.pickupCity})` : ""}`}</li>
+                      ) : null}
+                      {detailBooking.metadata.cabTravel.drop ? (
+                        <li>{`Drop: ${detailBooking.metadata.cabTravel.drop}${detailBooking.metadata.cabTravel.dropCity ? ` (${detailBooking.metadata.cabTravel.dropCity})` : ""}`}</li>
+                      ) : null}
+                      {detailBooking.metadata.cabTravel.distanceKm ? <li>{`Distance: ${detailBooking.metadata.cabTravel.distanceKm} km`}</li> : null}
+                      {detailBooking.metadata.cabTravel.driverName ? <li>{`Driver: ${detailBooking.metadata.cabTravel.driverName}`}</li> : null}
+                      {(detailBooking.status === "confirmed" || detailBooking.status === "completed") && detailBooking.metadata.cabTravel.cabNumber ? (
+                        <li>{`Cab Number: ${detailBooking.metadata.cabTravel.cabNumber}`}</li>
+                      ) : null}
+                      {(detailBooking.metadata.cabTravel.driverPhone || detailBooking.type === "cab") ? (
+                        <li>{`Driver Contact: ${detailBooking.metadata.cabTravel.driverPhone || "+91-81XXXXXXX"}`}</li>
+                      ) : null}
+                    </ul>
+                  </div>
+                )}
+
+                {detailBooking.type === "train" && (
+                  <div className={styles.modalSection}>
+                    <p className={styles.modalSectionLabel}><MapPin size={12} /> Train Details</p>
+                    <p className={styles.modalSectionValue}>
+                      {[
+                        detailBooking.metadata?.trainFromStationName
+                          ? `${detailBooking.metadata.trainFromStationName}${detailBooking.metadata.trainFromStationCode ? ` (${detailBooking.metadata.trainFromStationCode})` : ""}`
+                          : "",
+                        detailBooking.metadata?.trainToStationName
+                          ? `${detailBooking.metadata.trainToStationName}${detailBooking.metadata.trainToStationCode ? ` (${detailBooking.metadata.trainToStationCode})` : ""}`
+                          : "",
+                      ].filter(Boolean).join(" → ") || "—"}
+                    </p>
+                    <p className={styles.modalSectionValue} style={{ marginTop: 4 }}>
+                      {[
+                        detailBooking.metadata?.platformNumber ? `Platform ${detailBooking.metadata.platformNumber}` : "",
+                        detailBooking.metadata?.seatClass ? `Class ${titleCase(String(detailBooking.metadata.seatClass))}` : "",
+                        detailBooking.metadata?.berthPreference ? `Preference ${titleCase(String(detailBooking.metadata.berthPreference))}` : "",
+                      ].filter(Boolean).join(" • ") || "—"}
+                    </p>
+                  </div>
+                )}
+
+                {detailBooking.type === "flight" && (
+                  <div className={styles.modalSection}>
+                    <p className={styles.modalSectionLabel}><MapPin size={12} /> Flight Details</p>
+                    <p className={styles.modalSectionValue}>
+                      {[
+                        detailBooking.metadata?.flightTravel?.boardingAirport
+                          ? `Boarding: ${detailBooking.metadata.flightTravel.boardingAirport}`
+                          : "",
+                        detailBooking.metadata?.flightTravel?.destinationAirport
+                          ? `Destination: ${detailBooking.metadata.flightTravel.destinationAirport}`
+                          : "",
+                        (detailBooking.metadata?.flightTravel?.boardingTerminal || detailBooking.metadata?.boardingTerminal)
+                          ? `Terminal ${detailBooking.metadata?.flightTravel?.boardingTerminal || detailBooking.metadata?.boardingTerminal}`
+                          : "",
+                      ].filter(Boolean).join(" • ") || "—"}
                     </p>
                   </div>
                 )}
@@ -542,6 +794,16 @@ export default function BookingHistoryPage() {
                         <div key={idx} className={styles.passengerRow}>
                           <span className={styles.passengerNum}>{idx + 1}</span>
                           <span className={styles.passengerName}>{p.name}</span>
+                          {p.seatNumber && (
+                            <span className={styles.passengerMeta}>
+                              {detailBooking.type === "train" ? "Berth" : "Seat"} {p.seatNumber}
+                            </span>
+                          )}
+                          {detailBooking.type === "train" && p.seatNumber ? (() => {
+                            const parsed = parseTrainBerth(p.seatNumber);
+                            const meta = [parsed.coach ? `Coach ${parsed.coach}` : "", parsed.berthType].filter(Boolean).join(" · ");
+                            return meta ? <span className={styles.passengerMeta}>{meta}</span> : null;
+                          })() : null}
                           {p.age != null && <span className={styles.passengerMeta}>Age {p.age}</span>}
                           {p.gender && <span className={styles.passengerMeta}>{p.gender}</span>}
                           {p.email && <span className={styles.passengerEmail}>{p.email}</span>}

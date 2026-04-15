@@ -377,6 +377,56 @@
   color: var(--deep-navy, #0b1929);
 }
 
+.trainCard {
+  padding: 24px;
+}
+
+.trainCardRow {
+  align-items: flex-start;
+  gap: 22px;
+}
+
+.trainHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.trainRoute {
+  margin-top: 4px;
+  margin-bottom: 8px;
+}
+
+.trainRouteLine {
+  min-width: 180px;
+}
+
+.trainMeta {
+  margin-top: 8px;
+  line-height: 1.5;
+}
+
+.trainFareTable {
+  margin-top: 14px;
+  gap: 10px;
+}
+
+.trainFareTable .fareChip {
+  padding: 6px 12px;
+  font-size: 0.75rem;
+}
+
+.trainTags {
+  margin-top: 12px;
+  gap: 8px;
+}
+
+.trainCardRight {
+  min-width: 122px;
+}
+
 /* ── Hotel card specifics ── */
 .hotelCard {
   display: flex;

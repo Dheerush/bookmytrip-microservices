@@ -32,6 +32,12 @@ const parseDurationMinutes = (duration: string): number => {
   return parseInt(match[1], 10) * 60 + parseInt(match[2] ?? '0', 10);
 };
 
+const AIRPORT_CODE_ALIASES: Record<string, string> = {
+  GOA: 'GOI',
+};
+
+const normalizeAirportCode = (code: string): string => AIRPORT_CODE_ALIASES[code.toUpperCase()] || code.toUpperCase();
+
 // ── Service ───────────────────────────────────────────────────────────────────
 
 export const searchFlights = async (query: SearchFlightsQuery): Promise<PaginatedFlights> => {
@@ -40,11 +46,14 @@ export const searchFlights = async (query: SearchFlightsQuery): Promise<Paginate
     airlines, maxPrice, stops, refundable, meals, sort, page, limit,
   } = query;
 
+  const normalizedFrom = normalizeAirportCode(from);
+  const normalizedTo = normalizeAirportCode(to);
+
   const dayToken = new Date(`${date}T00:00:00`).toLocaleDateString('en-US', { weekday: 'short' });
 
   const filter: FilterQuery<IFlight> = {
-    fromCode: from,
-    toCode: to,
+    fromCode: normalizedFrom,
+    toCode: normalizedTo,
     isActive: true,
     operatingDays: dayToken,
   };
