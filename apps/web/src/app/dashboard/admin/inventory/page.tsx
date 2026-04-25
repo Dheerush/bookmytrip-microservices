@@ -214,6 +214,8 @@ const ENTITY_CONFIGS: EntityConfig[] = [
       { key: "stars", label: "Stars", type: "number", required: true, placeholder: "4" },
       { key: "pricePerNight", label: "Price/Night", type: "number", required: true, placeholder: "4999" },
       { key: "originalPrice", label: "Original Price", type: "number", required: true, placeholder: "6199" },
+      { key: "deluxeRooms", label: "Deluxe Rooms Available", type: "number", required: true, placeholder: "12" },
+      { key: "suiteRooms", label: "Suite Rooms Available", type: "number", required: true, placeholder: "4" },
       { key: "amenities", label: "Amenities", type: "text", required: true, placeholder: "Type amenity and press Enter" },
       { key: "foodIncluded", label: "Food Included", type: "text", required: true, placeholder: "breakfast" },
       { key: "wifi", label: "WiFi", type: "checkbox" },
@@ -246,6 +248,8 @@ const ENTITY_CONFIGS: EntityConfig[] = [
       stars: "4",
       pricePerNight: "4999",
       originalPrice: "6199",
+      deluxeRooms: "12",
+      suiteRooms: "4",
       amenities: "Pool,WiFi,Breakfast,Gym",
       foodIncluded: "breakfast",
       wifi: "true",
@@ -453,6 +457,8 @@ const NUMBER_LIMITS: Record<string, NumberLimit> = {
   seatsAc1: { min: 0, max: 500 },
   stars: { min: 1, max: 5 },
   pricePerNight: { min: 0, max: 1000000 },
+  deluxeRooms: { min: 0, max: 10000 },
+  suiteRooms: { min: 0, max: 10000 },
   seatingCapacity: { min: 1, max: 20 },
   baseFare: { min: 0, max: 500000 },
   pricePerKm: { min: 0, max: 10000 },
@@ -637,6 +643,8 @@ const buildCreatePayload = (entity: InventoryEntity, values: EntityState) => {
   if (entity === "hotels") {
     const roomPrice = parseBoundedNumber("pricePerNight", values.pricePerNight);
     const roomOriginal = parseBoundedNumber("originalPrice", values.originalPrice);
+    const deluxeRooms = parseBoundedNumber("deluxeRooms", values.deluxeRooms, 12);
+    const suiteRooms = parseBoundedNumber("suiteRooms", values.suiteRooms, 4);
 
     return {
       name: values.name,
@@ -669,7 +677,16 @@ const buildCreatePayload = (entity: InventoryEntity, values: EntityState) => {
           maxGuests: 2,
           bedType: "Queen",
           size: "280 sqft",
-          available: 12,
+          available: deluxeRooms,
+        },
+        {
+          type: "Suite",
+          price: roomPrice + 2200,
+          originalPrice: roomOriginal + 2600,
+          maxGuests: 4,
+          bedType: "King",
+          size: "420 sqft",
+          available: suiteRooms,
         },
       ],
       offers: [],
@@ -888,6 +905,11 @@ const prefillFormValues = (entity: InventoryEntity, row: unknown, base: EntitySt
     next.stars = getString(record.stars) || next.stars;
     next.pricePerNight = getString(record.pricePerNight) || next.pricePerNight;
     next.originalPrice = getString(record.originalPrice) || next.originalPrice;
+    const rooms = Array.isArray(record.rooms) ? record.rooms as Array<Record<string, unknown>> : [];
+    const deluxe = rooms.find((entry) => String(entry.type || '').toLowerCase() === 'deluxe');
+    const suite = rooms.find((entry) => String(entry.type || '').toLowerCase() === 'suite');
+    next.deluxeRooms = getString(deluxe?.available) || next.deluxeRooms;
+    next.suiteRooms = getString(suite?.available) || next.suiteRooms;
     next.amenities = getList(record.amenities) || next.amenities;
     next.foodIncluded = getString(record.foodIncluded) || next.foodIncluded;
     next.wifi = getBool(record.wifi, next.wifi);

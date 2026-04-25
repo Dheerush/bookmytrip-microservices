@@ -1,5 +1,33 @@
 import { z } from 'zod';
 
+const toDateOnly = (value: string): Date | null => {
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(year, month - 1, day);
+
+  if (
+    Number.isNaN(date.getTime()) ||
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
+  ) {
+    return null;
+  }
+
+  date.setHours(0, 0, 0, 0);
+  return date;
+};
+
+const todayDateOnly = (): Date => {
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  return now;
+};
+
 export const searchHotelsSchema = z.object({
   city: z.string().min(2),
   checkIn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -19,6 +47,44 @@ export const searchHotelsSchema = z.object({
   sort: z.enum(['price_asc', 'price_desc', 'rating', 'stars']).optional().default('price_asc'),
   page: z.string().optional().default('1').transform(Number).pipe(z.number().int().min(1)),
   limit: z.string().optional().default('10').transform(Number).pipe(z.number().int().min(1).max(50)),
+}).superRefine((value, ctx) => {
+  const checkIn = toDateOnly(value.checkIn);
+  const checkOut = toDateOnly(value.checkOut);
+  const today = todayDateOnly();
+
+  if (!checkIn) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['checkIn'],
+      message: 'checkIn must be a valid date',
+    });
+  }
+
+  if (!checkOut) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['checkOut'],
+      message: 'checkOut must be a valid date',
+    });
+  }
+
+  if (!checkIn || !checkOut) return;
+
+  if (checkIn < today) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['checkIn'],
+      message: 'checkIn cannot be in the past',
+    });
+  }
+
+  if (checkOut <= checkIn) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['checkOut'],
+      message: 'checkOut must be after checkIn',
+    });
+  }
 });
 
 const roomSchema = z.object({

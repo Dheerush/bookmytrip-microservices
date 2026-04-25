@@ -31,6 +31,11 @@ function createTravelers(count: number): Traveler[] {
   }));
 }
 
+const getTodayIso = (): string => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+};
+
 const COACH_CODES: Record<SeatClass, string> = {
   sleeper: "S",
   ac3Tier: "B",
@@ -183,6 +188,11 @@ function TrainBookingContent() {
   const maxTravelers = Math.min(9, seatsAvailable);
 
   const submitBooking = async (finalAmount: number) => {
+    if (date < getTodayIso()) {
+      showToast.error("Journey date cannot be in the past.");
+      return;
+    }
+
     if (!contactName.trim() || !contactEmail.trim() || !contactPhone.trim()) {
       showToast.error("Please fill contact details.");
       return;

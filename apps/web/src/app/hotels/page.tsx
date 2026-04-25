@@ -34,7 +34,7 @@ const resolveHotelCity = (value: string): string | null => {
   const byHotel = hotels.find((hotel) => hotel.name.toLowerCase() === trimmed.toLowerCase());
   if (byHotel) return byHotel.city;
 
-  return trimmed;
+  return null;
 };
 
 const getTodayIso = (): string => {
@@ -48,6 +48,12 @@ const getTomorrowIso = (): string => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
 
+const clampToTodayIso = (value: string): string => {
+  if (!value) return getTodayIso();
+  const today = getTodayIso();
+  return value < today ? today : value;
+};
+
 function HotelsContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -55,8 +61,8 @@ function HotelsContent() {
   const page = Number(searchParams.get("page") || "1");
 
   const [city, setCity] = useState(searchParams.get("city") || "Delhi");
-  const [checkin, setCheckin] = useState(searchParams.get("checkin") || getTodayIso());
-  const [checkout, setCheckout] = useState(searchParams.get("checkout") || getTomorrowIso());
+  const [checkin, setCheckin] = useState(clampToTodayIso(searchParams.get("checkin") || getTodayIso()));
+  const [checkout, setCheckout] = useState(clampToTodayIso(searchParams.get("checkout") || getTomorrowIso()));
 
   const [sort, setSort] = useState<SortKey>((searchParams.get("sort") as SortKey) || "price-asc");
   const [selectedCities, setSelectedCities] = useState<Set<string>>(
@@ -86,6 +92,9 @@ function HotelsContent() {
   };
 
   useEffect(() => {
+    setCity(searchParams.get("city") || "Delhi");
+    setCheckin(clampToTodayIso(searchParams.get("checkin") || getTodayIso()));
+    setCheckout(clampToTodayIso(searchParams.get("checkout") || getTomorrowIso()));
     setSort((searchParams.get("sort") as SortKey) || "price-asc");
     setSelectedCities(
       new Set((searchParams.get("cities") || "").split(",").map((item) => item.trim()).filter(Boolean)),
@@ -111,8 +120,19 @@ function HotelsContent() {
   };
 
   const handleSearch = () => {
-    if (!resolveHotelCity(city)) {
+    const resolvedCity = resolveHotelCity(city);
+    if (!resolvedCity) {
       showToast.error("Choose a valid city or hotel from suggestions.");
+      return;
+    }
+
+    if (checkin < getTodayIso()) {
+      showToast.error("Check-in date cannot be in the past.");
+      return;
+    }
+
+    if (checkout <= checkin) {
+      showToast.error("Check-out must be after check-in.");
       return;
     }
 
@@ -158,7 +178,8 @@ function HotelsContent() {
   }, [apiResults]);
 
   useEffect(() => {
-    const canUseApi = Boolean(city && checkin && checkout);
+    const resolvedCity = resolveHotelCity(city);
+    const canUseApi = Boolean(resolvedCity && checkin && checkout && checkout > checkin);
     if (!canUseApi) {
       setApiResults(null);
       setApiTotalPages(null);
@@ -174,7 +195,7 @@ function HotelsContent() {
     };
 
     const params = new URLSearchParams({
-      city: resolveHotelCity(city) || city,
+      city: resolvedCity || "",
       checkIn: checkin,
       checkOut: checkout,
       sort: sortMap[sort],
@@ -219,7 +240,12 @@ function HotelsContent() {
         setApiTotalPages(parsed.payload.data.totalPages || 1);
       } catch (error) {
         if (!mounted) return;
-        setApiError(error instanceof Error ? error.message : "Unable to fetch hotels right now.");
+        const message = error instanceof Error ? error.message : "Unable to fetch hotels right now.";
+        if (/validation failed/i.test(message)) {
+          setApiError("Please choose a city/hotel from suggestions and valid check-in/check-out dates.");
+        } else {
+          setApiError(message);
+        }
         setApiResults(null);
         setApiTotalPages(null);
       } finally {
@@ -234,7 +260,7 @@ function HotelsContent() {
   }, [city, checkin, checkout, sort, wifiOnly, foodOnly, poolOnly, page]);
 
   useEffect(() => {
-    if (apiError) {
+    if (apiError && !/choose a city\/hotel from suggestions/i.test(apiError)) {
       showToast.error(apiError);
     }
   }, [apiError]);
@@ -283,11 +309,31 @@ function HotelsContent() {
           </div>
           <div className={s.searchFieldGroup}>
             <label className={s.searchFieldLabel}>📅 Check-in</label>
-            <input className={s.searchFieldInput} type="date" value={checkin} onChange={(e) => setCheckin(e.target.value)} />
+            <input
+              className={s.searchFieldInput}
+              type="date"
+              min={getTodayIso()}
+              value={checkin}
+              onChange={(e) => {
+                const next = clampToTodayIso(e.target.value);
+                setCheckin(next);
+                if (checkout <= next) {
+                  const d = new Date(next);
+                  d.setDate(d.getDate() + 1);
+                  setCheckout(d.toISOString().split("T")[0] || getTomorrowIso());
+                }
+              }}
+            />
           </div>
           <div className={s.searchFieldGroup}>
             <label className={s.searchFieldLabel}>📅 Check-out</label>
-            <input className={s.searchFieldInput} type="date" value={checkout} onChange={(e) => setCheckout(e.target.value)} />
+            <input
+              className={s.searchFieldInput}
+              type="date"
+              min={checkin || getTomorrowIso()}
+              value={checkout}
+              onChange={(e) => setCheckout(clampToTodayIso(e.target.value))}
+            />
           </div>
           <button className={s.searchBarBtn} type="button" onClick={handleSearch}>🔍 Search</button>
         </div>

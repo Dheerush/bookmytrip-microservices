@@ -65,8 +65,8 @@ export default function AdminDataPage() {
 
   return (
     <section style={{ display: "grid", gap: 16 }}>
-      <h1 style={{ fontSize: "1.5rem", margin: 0 }}>Data Management</h1>
-      <p style={{ margin: 0, color: "var(--text-muted)" }}>Live snapshot from your backend services.</p>
+      <h1 style={{ fontSize: "1.5rem", margin: 0 }}>Service Health</h1>
+      <p style={{ margin: 0, color: "var(--text-muted)" }}>Live health snapshot from your backend services.</p>
       {loading && <div style={{ color: "var(--text-muted)" }}>Loading live counts...</div>}
       {error && <div style={{ color: "crimson" }}>{error}</div>}
       <div style={{ display: "grid", gap: 10 }}>

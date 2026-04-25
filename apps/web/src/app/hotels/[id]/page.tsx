@@ -59,6 +59,7 @@ export default function HotelDetailPage({ params }: Props) {
   if (!hotel) return notFound();
 
   const room = hotel.rooms[selectedRoom];
+  const isFullyBooked = (room?.available || 0) <= 0;
   const baseTotal = room.price * nights;
   const discount = (room.originalPrice - room.price) * nights;
   const taxes = Math.round(baseTotal * 0.12);
@@ -66,6 +67,9 @@ export default function HotelDetailPage({ params }: Props) {
   const netAmount = baseTotal + taxes + serviceFee - discount;
 
   const handleProceedToPayment = (_netAmount: number) => {
+    if (isFullyBooked) {
+      return;
+    }
     const params = new URLSearchParams({
       hotelId: hotel.id,
       roomIndex: String(selectedRoom),
@@ -226,7 +230,7 @@ export default function HotelDetailPage({ params }: Props) {
               { label: `${room.type} × ${nights} night${nights > 1 ? "s" : ""}`, amount: 0 },
             ]}
             serviceType="hotel"
-            ctaLabel="Proceed to Payment"
+            ctaLabel={isFullyBooked ? "Fully Booked" : "Proceed to Payment"}
             onCouponApplied={({ code, discount: value }) => {
               setAppliedCouponCode(code);
               setAppliedCouponDiscount(value);

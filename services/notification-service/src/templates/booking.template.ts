@@ -18,6 +18,7 @@ interface BookingTemplateInput {
   status: 'confirmed' | 'cancelled';
   amount: number;
   startDate?: string;
+  endDate?: string;
   scheduleTime?: string;
   fromCode?: string;
   toCode?: string;
@@ -43,6 +44,13 @@ interface BookingTemplateInput {
   cabDriverName?: string;
   cabDriverPhone?: string;
   cabNumber?: string;
+  hotelAddress?: string;
+  hotelRoomType?: string;
+  hotelRoomNumber?: string;
+  hotelCheckInTime?: string;
+  hotelCheckOutTime?: string;
+  hotelNights?: number;
+  hotelRoomsBooked?: number;
   contact?: BookingContact;
   passengers?: BookingPassenger[];
 }
@@ -64,6 +72,7 @@ export const bookingTemplate = ({
   status,
   amount,
   startDate,
+  endDate,
   scheduleTime,
   fromCode,
   toCode,
@@ -89,6 +98,13 @@ export const bookingTemplate = ({
   cabDriverName,
   cabDriverPhone,
   cabNumber,
+  hotelAddress,
+  hotelRoomType,
+  hotelRoomNumber,
+  hotelCheckInTime,
+  hotelCheckOutTime,
+  hotelNights,
+  hotelRoomsBooked,
   contact,
   passengers = [],
 }: BookingTemplateInput): string => {
@@ -100,11 +116,14 @@ export const bookingTemplate = ({
   const formattedDate = startDate
     ? new Date(startDate).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })
     : null;
+  const formattedEndDate = endDate
+    ? new Date(endDate).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })
+    : null;
   const formattedTime = scheduleTime || null;
   const routeLabel = fromCode && toCode ? `${fromCode} → ${toCode}` : null;
   const terminalLabel = boardingTerminal ? `Terminal ${boardingTerminal}` : platformNumber ? `Platform ${platformNumber}` : null;
   const classLabelStr = seatClass ? (classLabel[seatClass] || seatClass) : null;
-  const seatColumnLabel = type === 'train' ? 'Berth' : 'Seat';
+  const seatColumnLabel = type === 'train' ? 'Berth' : type === 'hotel' ? 'Room No' : 'Seat';
   const trainStations = type === 'train'
     ? [
       trainFromStationName && `${trainFromStationName}${trainFromStationCode ? ` (${trainFromStationCode})` : ''}`,
@@ -125,7 +144,7 @@ export const bookingTemplate = ({
         <td style="padding:10px 12px;font-size:0.88rem;font-weight:500;color:#0f1f2e">${p.name || '—'}</td>
         <td style="padding:10px 12px;font-size:0.88rem;color:#6b7f93">${p.age ?? '—'}</td>
         <td style="padding:10px 12px;font-size:0.88rem;color:#6b7f93;text-transform:capitalize">${p.gender || '—'}</td>
-        <td style="padding:10px 12px;font-size:0.88rem;color:#1e90ff;font-weight:600">${p.seatNumber || '—'}</td>
+        <td style="padding:10px 12px;font-size:0.88rem;color:#1e90ff;font-weight:600">${(type === 'hotel' ? hotelRoomNumber : p.seatNumber) || '—'}</td>
       </tr>`).join('')
     : `<tr><td colspan="5" style="padding:12px;font-size:0.85rem;color:#6b7f93;text-align:center">No passenger details available</td></tr>`;
 
@@ -188,8 +207,36 @@ export const bookingTemplate = ({
                 <td style="padding:10px 18px;font-size:0.88rem;font-weight:600;color:#0f1f2e">${destinationAirport}</td>
               </tr>` : ''}
               ${formattedDate ? `<tr>
-                <td style="padding:10px 18px;font-size:0.82rem;color:#6b7f93">Travel Date</td>
+                <td style="padding:10px 18px;font-size:0.82rem;color:#6b7f93">${type === 'hotel' ? 'Check-in Date' : 'Travel Date'}</td>
                 <td style="padding:10px 18px;font-size:0.88rem;font-weight:600;color:#0f1f2e">${formattedDate}${formattedTime ? ` at ${formattedTime}` : ''}</td>
+              </tr>` : ''}
+              ${formattedEndDate && type === 'hotel' ? `<tr>
+                <td style="padding:10px 18px;font-size:0.82rem;color:#6b7f93">Check-out Date</td>
+                <td style="padding:10px 18px;font-size:0.88rem;font-weight:600;color:#0f1f2e">${formattedEndDate}${hotelCheckOutTime ? ` at ${hotelCheckOutTime}` : ''}</td>
+              </tr>` : ''}
+              ${hotelCheckInTime && type === 'hotel' ? `<tr>
+                <td style="padding:10px 18px;font-size:0.82rem;color:#6b7f93">Check-in Time</td>
+                <td style="padding:10px 18px;font-size:0.88rem;font-weight:600;color:#0f1f2e">${hotelCheckInTime}</td>
+              </tr>` : ''}
+              ${hotelRoomType && type === 'hotel' ? `<tr>
+                <td style="padding:10px 18px;font-size:0.82rem;color:#6b7f93">Room Type</td>
+                <td style="padding:10px 18px;font-size:0.88rem;font-weight:600;color:#0f1f2e">${hotelRoomType}</td>
+              </tr>` : ''}
+              ${hotelRoomNumber && type === 'hotel' ? `<tr>
+                <td style="padding:10px 18px;font-size:0.82rem;color:#6b7f93">Room Number</td>
+                <td style="padding:10px 18px;font-size:0.88rem;font-weight:700;color:#0f1f2e">${hotelRoomNumber}</td>
+              </tr>` : ''}
+              ${hotelRoomsBooked && type === 'hotel' ? `<tr>
+                <td style="padding:10px 18px;font-size:0.82rem;color:#6b7f93">Rooms Booked</td>
+                <td style="padding:10px 18px;font-size:0.88rem;font-weight:600;color:#0f1f2e">${hotelRoomsBooked}</td>
+              </tr>` : ''}
+              ${hotelNights && type === 'hotel' ? `<tr>
+                <td style="padding:10px 18px;font-size:0.82rem;color:#6b7f93">Duration</td>
+                <td style="padding:10px 18px;font-size:0.88rem;font-weight:600;color:#0f1f2e">${hotelNights} night${hotelNights > 1 ? 's' : ''}</td>
+              </tr>` : ''}
+              ${hotelAddress && type === 'hotel' ? `<tr>
+                <td style="padding:10px 18px;font-size:0.82rem;color:#6b7f93">Address</td>
+                <td style="padding:10px 18px;font-size:0.88rem;font-weight:600;color:#0f1f2e">${hotelAddress}</td>
               </tr>` : ''}
               ${terminalLabel ? `<tr>
                 <td style="padding:10px 18px;font-size:0.82rem;color:#6b7f93">${boardingTerminal ? 'Terminal' : 'Platform'}</td>

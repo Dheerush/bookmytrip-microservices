@@ -167,6 +167,15 @@ export const confirmBooking = async (bookingId: string, userId: string): Promise
       headers: { 'Content-Type': 'application/json', 'x-service-secret': env.INTERNAL_SERVICE_SECRET },
       body: JSON.stringify({ seatClass, count: booking.quantity }),
     }).catch(() => undefined);
+  } else if (booking.type === 'hotel' && booking.itemId) {
+    const roomType = (booking.metadata?.hotelStay as Record<string, unknown> | undefined)?.roomType as string | undefined;
+    if (roomType) {
+      void fetch(`${env.HOTEL_SERVICE_URL}/api/hotels/${booking.itemId}/deduct-rooms`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'x-service-secret': env.INTERNAL_SERVICE_SECRET },
+        body: JSON.stringify({ roomType, count: booking.quantity }),
+      }).catch(() => undefined);
+    }
   }
 
   publishEvent('booking.created', {
@@ -179,6 +188,7 @@ export const confirmBooking = async (bookingId: string, userId: string): Promise
     contact: booking.contact,
     passengers: booking.passengers,
     startDate: booking.startDate,
+    endDate: booking.endDate,
     scheduleTime: booking.scheduleTime,
     fromCode: booking.fromCode,
     toCode: booking.toCode,
@@ -205,6 +215,13 @@ export const confirmBooking = async (bookingId: string, userId: string): Promise
     cabDriverName: (booking.metadata?.cabTravel as Record<string, unknown> | undefined)?.driverName,
     cabDriverPhone: (booking.metadata?.cabTravel as Record<string, unknown> | undefined)?.driverPhone,
     cabNumber: (booking.metadata?.cabTravel as Record<string, unknown> | undefined)?.cabNumber,
+    hotelAddress: (booking.metadata?.hotelStay as Record<string, unknown> | undefined)?.address,
+    hotelRoomType: (booking.metadata?.hotelStay as Record<string, unknown> | undefined)?.roomType,
+    hotelRoomNumber: (booking.metadata?.hotelStay as Record<string, unknown> | undefined)?.roomNumber,
+    hotelCheckInTime: (booking.metadata?.hotelStay as Record<string, unknown> | undefined)?.checkInTime,
+    hotelCheckOutTime: (booking.metadata?.hotelStay as Record<string, unknown> | undefined)?.checkOutTime,
+    hotelNights: (booking.metadata?.hotelStay as Record<string, unknown> | undefined)?.nights,
+    hotelRoomsBooked: (booking.metadata?.hotelStay as Record<string, unknown> | undefined)?.roomsBooked,
   });
 
   return booking;

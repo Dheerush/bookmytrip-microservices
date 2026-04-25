@@ -33,6 +33,17 @@ interface Field {
   type?: string;
 }
 
+const getTodayIso = (): string => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+};
+
+const clampToTodayIso = (value: string): string => {
+  if (!value) return "";
+  const today = getTodayIso();
+  return value < today ? today : value;
+};
+
 const getFlightFields = (tripType: TripType): Field[] => {
   const base: Field[] = [
     { key: "from",  label: "📍 From",   placeholder: "Delhi, Mumbai…" },
@@ -104,7 +115,26 @@ export default function SearchTabs() {
   };
 
   const handleChange = (key: string, value: string) => {
-    setValues((prev) => ({ ...prev, [key]: value }));
+    setValues((prev) => {
+      const next = { ...prev };
+      const normalized = key === "date" || key === "return" || key === "checkin" || key === "checkout"
+        ? clampToTodayIso(value)
+        : value;
+
+      next[key] = normalized;
+
+      if (key === "date" && next.return && next.return < normalized) {
+        next.return = normalized;
+      }
+
+      if (key === "checkin") {
+        if (next.checkout && next.checkout <= normalized) {
+          next.checkout = normalized;
+        }
+      }
+
+      return next;
+    });
   };
 
   const handleSearch = useCallback(() => {
@@ -202,6 +232,7 @@ export default function SearchTabs() {
               type={field.type ?? "text"}
               placeholder={field.placeholder}
               value={values[field.key] ?? ""}
+              min={field.type === "date" ? (field.key === "return" ? (values.date || getTodayIso()) : field.key === "checkout" ? (values.checkin || getTodayIso()) : getTodayIso()) : undefined}
               onFocus={() => setFocusedField(field.key)}
               onChange={(e) => handleChange(field.key, e.target.value)}
             />
@@ -224,23 +255,6 @@ export default function SearchTabs() {
 
         <button className={styles.searchBtn} type="button" onClick={handleSearch}>
           🔍 Search
-        </button>
-        <button
-          className={styles.searchBtn}
-          type="button"
-          onClick={() => {
-            const params = new URLSearchParams();
-            if (values.from) params.set("from", values.from.toUpperCase());
-            if (values.to) params.set("to", values.to.toUpperCase());
-            if (values.date) params.set("date", values.date);
-            if (values.city) params.set("city", values.city);
-            if (values.checkin) params.set("checkIn", values.checkin);
-            if (values.checkout) params.set("checkOut", values.checkout);
-            if (values.pickup) params.set("cabCity", values.pickup);
-            router.push(`/search/aggregate${params.toString() ? `?${params.toString()}` : ""}`);
-          }}
-        >
-          ⚡ Aggregate
         </button>
       </div>
     </div>

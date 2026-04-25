@@ -54,6 +54,7 @@ const normalizeEvent = (raw: any): { type: string; data: Record<string, any> } =
           contact: payload.contact,
           passengers: payload.passengers,
           startDate: payload.startDate,
+          endDate: payload.endDate,
           scheduleTime: payload.scheduleTime,
           fromCode: payload.fromCode,
           toCode: payload.toCode,
@@ -80,6 +81,13 @@ const normalizeEvent = (raw: any): { type: string; data: Record<string, any> } =
           cabDriverName: payload.cabDriverName,
           cabDriverPhone: payload.cabDriverPhone,
           cabNumber: payload.cabNumber,
+          hotelAddress: payload.hotelAddress,
+          hotelRoomType: payload.hotelRoomType,
+          hotelRoomNumber: payload.hotelRoomNumber,
+          hotelCheckInTime: payload.hotelCheckInTime,
+          hotelCheckOutTime: payload.hotelCheckOutTime,
+          hotelNights: payload.hotelNights,
+          hotelRoomsBooked: payload.hotelRoomsBooked,
         },
       };
     case 'booking.cancelled':
@@ -148,7 +156,7 @@ export const startConsumer = async (): Promise<void> => {
             break;
           }
           case 'BOOKING_CONFIRMED': {
-            const { email, userId, bookingRef, title, amount, type, contact, passengers, startDate, scheduleTime, fromCode, toCode, seatClass, berthPreference, boardingTerminal, boardingAirport, destinationAirport, platformNumber, trainFromStationName, trainFromStationCode, trainToStationName, trainToStationCode, currentLocation, destinationCity, packageTravelMode, packageTravelOptionLabel, packageTravelOptionMeta, cabPickup, cabDrop, cabPickupCity, cabDropCity, cabDistanceKm, cabDriverName, cabDriverPhone, cabNumber } = event.data;
+            const { email, userId, bookingRef, title, amount, type, contact, passengers, startDate, endDate, scheduleTime, fromCode, toCode, seatClass, berthPreference, boardingTerminal, boardingAirport, destinationAirport, platformNumber, trainFromStationName, trainFromStationCode, trainToStationName, trainToStationCode, currentLocation, destinationCity, packageTravelMode, packageTravelOptionLabel, packageTravelOptionMeta, cabPickup, cabDrop, cabPickupCity, cabDropCity, cabDistanceKm, cabDriverName, cabDriverPhone, cabNumber, hotelAddress, hotelRoomType, hotelRoomNumber, hotelCheckInTime, hotelCheckOutTime, hotelNights, hotelRoomsBooked } = event.data;
             if (email) {
               await sendEmail(
                 email,
@@ -162,6 +170,7 @@ export const startConsumer = async (): Promise<void> => {
                   contact,
                   passengers,
                   startDate,
+                  endDate,
                   scheduleTime,
                   fromCode,
                   toCode,
@@ -187,6 +196,13 @@ export const startConsumer = async (): Promise<void> => {
                   cabDriverName,
                   cabDriverPhone,
                   cabNumber,
+                  hotelAddress,
+                  hotelRoomType,
+                  hotelRoomNumber,
+                  hotelCheckInTime,
+                  hotelCheckOutTime,
+                  hotelNights,
+                  hotelRoomsBooked,
                 }),
               );
             }

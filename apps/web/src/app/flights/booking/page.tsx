@@ -27,6 +27,11 @@ const addDays = (isoDate: string, days: number): string => {
   return d.toISOString().split("T")[0] || isoDate;
 };
 
+const getTodayIso = (): string => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+};
+
 function createTravelers(count: number): Traveler[] {
   return Array.from({ length: count }, () => ({
     name: "",
@@ -239,6 +244,22 @@ function FlightBookingContent() {
   };
 
   const submitBooking = async (finalAmount: number) => {
+    const today = getTodayIso();
+    if (date < today) {
+      showToast.error("Departure date cannot be in the past.");
+      return;
+    }
+    if (tripType === "round-trip") {
+      if (returnDate < today) {
+        showToast.error("Return date cannot be in the past.");
+        return;
+      }
+      if (returnDate < date) {
+        showToast.error("Return date cannot be before departure date.");
+        return;
+      }
+    }
+
     if (!contactName.trim() || !contactEmail.trim() || !contactPhone.trim()) {
       showToast.error("Please fill contact details.");
       return;

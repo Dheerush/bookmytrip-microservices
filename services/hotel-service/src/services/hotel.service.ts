@@ -147,3 +147,22 @@ export const deleteHotel = async (hotelId: string): Promise<void> => {
     throw new AppError('Hotel not found', 404, 'HOTEL_NOT_FOUND');
   }
 };
+
+export const deductHotelRooms = async (hotelId: string, roomType: string, count: number): Promise<void> => {
+  const hotel = await Hotel.findById(hotelId);
+  if (!hotel || !hotel.isActive) {
+    throw new AppError('Hotel not found', 404, 'HOTEL_NOT_FOUND');
+  }
+
+  const room = hotel.rooms.find((entry) => entry.type.toLowerCase() === roomType.toLowerCase());
+  if (!room) {
+    throw new AppError('Room type not found', 404, 'ROOM_TYPE_NOT_FOUND');
+  }
+
+  if (room.available < count) {
+    throw new AppError('Not enough rooms available', 400, 'INSUFFICIENT_ROOMS');
+  }
+
+  room.available -= count;
+  await hotel.save();
+};

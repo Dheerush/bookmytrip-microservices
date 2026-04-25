@@ -8,13 +8,24 @@ import { AppError } from '../shared';
 
 const router: Router = Router();
 
+const normalizeTripType = (value: string): string => {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'leisure') return 'Leisure';
+  if (normalized === 'adventure') return 'Adventure';
+  if (normalized === 'cultural') return 'Cultural';
+  if (normalized === 'honeymoon') return 'Honeymoon';
+  if (normalized === 'family') return 'Family';
+  if (normalized === 'spiritual') return 'Spiritual';
+  return value;
+};
+
 const tourSchema = z.object({
   title: z.string().min(3),
   city: z.string().min(2),
   country: z.string().default('India'),
-  durationDays: z.number().int().min(1),
-  basePrice: z.number().nonnegative(),
-  discountPrice: z.number().nonnegative().optional(),
+  durationDays: z.coerce.number().int().min(1),
+  basePrice: z.coerce.number().nonnegative(),
+  discountPrice: z.coerce.number().nonnegative().optional(),
   heroImage: z.string().min(1),
   images: z.array(z.string()).min(1),
   description: z.string().min(20),
@@ -22,13 +33,16 @@ const tourSchema = z.object({
   inclusions: z.array(z.string()).default([]),
   exclusions: z.array(z.string()).default([]),
   hotel: z.string().optional(),
-  hotelRating: z.number().min(0).max(5).optional(),
+  hotelRating: z.coerce.number().min(0).max(5).optional(),
   food: z.array(z.string()).default([]),
   transport: z.array(z.string()).default([]),
   activities: z.array(z.string()).default([]),
   bestSeason: z.string().optional(),
   groupSize: z.string().optional(),
-  tripType: z.enum(['Leisure', 'Adventure', 'Cultural', 'Honeymoon', 'Family', 'Spiritual']).optional(),
+  tripType: z.preprocess((value) => {
+    if (typeof value !== 'string') return value;
+    return normalizeTripType(value);
+  }, z.enum(['Leisure', 'Adventure', 'Cultural', 'Honeymoon', 'Family', 'Spiritual'])).optional(),
   hospitality: z.string().optional(),
   documents: z.array(z.string()).default([]),
   highlights: z.array(z.string()).default([]),
@@ -36,7 +50,7 @@ const tourSchema = z.object({
     name: z.string(),
     contact: z.string(),
     languages: z.array(z.string()).default([]),
-    rating: z.number().min(0).max(5),
+    rating: z.coerce.number().min(0).max(5),
     experience: z.string(),
     speciality: z.string(),
     photo: z.string().optional().default(''),
@@ -47,7 +61,7 @@ const tourSchema = z.object({
     title: z.string(),
     code: z.string(),
     discountType: z.enum(['percent', 'fixed']),
-    discountValue: z.number().nonnegative(),
+    discountValue: z.coerce.number().nonnegative(),
     isActive: z.boolean().default(true),
     startsAt: z.string().datetime().optional(),
     endsAt: z.string().datetime().optional(),
@@ -133,7 +147,13 @@ router.get('/:tourId', async (req, res, next) => {
 router.post('/', authenticate, authorizeRoles('admin'), async (req, res, next) => {
   try {
     const parsed = tourSchema.safeParse(req.body);
-    if (!parsed.success) throw new AppError('Validation failed', 400, 'VALIDATION_ERROR');
+    if (!parsed.success) {
+      const details = parsed.error.issues.map((issue) => {
+        const path = issue.path.join('.') || 'payload';
+        return `${path}: ${issue.message}`;
+      }).join('; ');
+      throw new AppError(`Validation failed: ${details}`, 400, 'VALIDATION_ERROR');
+    }
     const payload = parsed.data;
     const slug = slugify(payload.title, { lower: true, strict: true });
     const item = await Tour.create({ ...payload, slug, offers: payload.offers.map((offer) => ({ ...offer, code: offer.code.toUpperCase() })) });

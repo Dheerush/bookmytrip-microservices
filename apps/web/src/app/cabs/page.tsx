@@ -22,6 +22,12 @@ const getTodayIso = (): string => {
   return `${year}-${month}-${day}`;
 };
 
+const clampToTodayIso = (value: string): string => {
+  if (!value) return getTodayIso();
+  const today = getTodayIso();
+  return value < today ? today : value;
+};
+
 const CITY_COORDS: Record<string, [number, number]> = {
   "delhi": [28.6139, 77.2090],
   "new delhi": [28.6139, 77.2090],
@@ -183,7 +189,7 @@ function CabsContent() {
 
   const [pickup, setPickup] = useState(searchParams.get("pickup") || "Delhi");
   const [drop, setDrop] = useState(searchParams.get("drop") || "Jaipur");
-  const [date, setDate] = useState(searchParams.get("date") || getTodayIso());
+  const [date, setDate] = useState(clampToTodayIso(searchParams.get("date") || getTodayIso()));
   const [pickupTime, setPickupTime] = useState(searchParams.get("time") || "10:00");
   // committedPickup only updates when user clicks Search (URL param changes)
   // so typing in the field does NOT trigger API calls
@@ -219,7 +225,7 @@ function CabsContent() {
   useEffect(() => {
     setCommittedPickup(searchParams.get("pickup") || "Delhi");
     setDrop(searchParams.get("drop") || "Jaipur");
-    setDate(searchParams.get("date") || getTodayIso());
+    setDate(clampToTodayIso(searchParams.get("date") || getTodayIso()));
     setPickupTime(searchParams.get("time") || "10:00");
     setSort((searchParams.get("sort") as SortKey) || "price-asc");
     setSelectedTypes(
@@ -476,7 +482,7 @@ function CabsContent() {
           </div>
           <div className={s.searchFieldGroup}>
             <label className={s.searchFieldLabel}>📅 Date</label>
-            <input className={s.searchFieldInput} type="date" min={todayIso} value={date} onChange={(e) => setDate(e.target.value)} />
+            <input className={s.searchFieldInput} type="date" min={todayIso} value={date} onChange={(e) => setDate(clampToTodayIso(e.target.value))} />
           </div>
           <div className={s.searchFieldGroup}>
             <label className={s.searchFieldLabel}>🕒 Pickup Time</label>

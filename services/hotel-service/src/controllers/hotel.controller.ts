@@ -2,7 +2,8 @@ import { Request, RequestHandler, Response } from 'express';
 import { asyncHandler } from '../utils/asyncHandler';
 import { apiResponse } from '../utils/apiResponse';
 import { CreateHotelDto, SearchHotelsQuery, UpdateHotelDto } from '../validators/hotel.validators';
-import { createHotel, deleteHotel, getHotelById, listAllHotels, searchHotels, updateHotel } from '../services/hotel.service';
+import { createHotel, deductHotelRooms, deleteHotel, getHotelById, listAllHotels, searchHotels, updateHotel } from '../services/hotel.service';
+import { env } from '../config/env';
 
 export const searchHotelsHandler: RequestHandler = asyncHandler(async (req: Request, res: Response) => {
   const result = await searchHotels(req.query as unknown as SearchHotelsQuery);
@@ -34,4 +35,21 @@ export const updateHotelHandler: RequestHandler = asyncHandler(async (req: Reque
 export const deleteHotelHandler: RequestHandler = asyncHandler(async (req: Request, res: Response) => {
   await deleteHotel(req.params.hotelId);
   res.status(200).json(apiResponse(null, 'Hotel deactivated'));
+});
+
+export const deductHotelRoomsHandler: RequestHandler = asyncHandler(async (req: Request, res: Response) => {
+  const secret = req.headers['x-service-secret'];
+  if (secret !== env.INTERNAL_SERVICE_SECRET) {
+    res.status(403).json({ success: false, message: 'Forbidden', code: 'FORBIDDEN' });
+    return;
+  }
+
+  const { roomType, count } = req.body as { roomType?: string; count?: number };
+  if (!roomType || !count || count < 1) {
+    res.status(400).json({ success: false, message: 'roomType and count >= 1 are required', code: 'VALIDATION_ERROR' });
+    return;
+  }
+
+  await deductHotelRooms(req.params.hotelId, roomType, count);
+  res.status(200).json(apiResponse(null, 'Rooms deducted'));
 });

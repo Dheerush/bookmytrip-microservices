@@ -54,7 +54,7 @@ const buildNavItems = (unreadCount: number) => ({
     { label: "Coupons & Deals", href: "/dashboard/admin/coupons", icon: <Tag size={18} strokeWidth={1.6} /> },
     { label: "Notifications", href: "/dashboard/notifications", icon: <Bell size={18} strokeWidth={1.6} />, badge: unreadCount > 0 ? unreadCount : undefined },
     { label: "Complaints", href: "/dashboard/issues", icon: <AlertTriangle size={18} strokeWidth={1.6} /> },
-    { label: "Data Management", href: "/dashboard/admin/data", icon: <Database size={18} strokeWidth={1.6} /> },
+    { label: "Service Health", href: "/dashboard/admin/data", icon: <Database size={18} strokeWidth={1.6} /> },
     { label: "Settings", href: "/dashboard/settings", icon: <Settings size={18} strokeWidth={1.6} /> },
   ] as SidebarItem[],
 });

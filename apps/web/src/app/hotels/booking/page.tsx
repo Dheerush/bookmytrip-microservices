@@ -30,6 +30,18 @@ const addDays = (isoDate: string, days: number): string => {
   return d.toISOString().split("T")[0] || isoDate;
 };
 
+const clampToTodayIso = (value: string): string => {
+  if (!value) return getTodayIso();
+  const today = getTodayIso();
+  return value < today ? today : value;
+};
+
+const buildRoomNumber = (roomIndex: number): string => {
+  const block = String.fromCharCode(65 + (roomIndex % 6));
+  const serial = String(100 + ((Date.now() + roomIndex) % 899));
+  return `${block}-${serial}`;
+};
+
 function createTravelers(count: number): Traveler[] {
   return Array.from({ length: count }, () => ({
     name: "",
@@ -48,7 +60,7 @@ function HotelBookingContent() {
   const hotelId = searchParams.get("hotelId") || "";
   const roomIndex = Math.max(0, Number(searchParams.get("roomIndex") || "0"));
   const initialNights = Math.max(1, Number(searchParams.get("nights") || "1"));
-  const checkIn = searchParams.get("checkIn") || getTodayIso();
+  const checkIn = clampToTodayIso(searchParams.get("checkIn") || getTodayIso());
 
   const [hotel, setHotel] = useState<Hotel | null>(hotels.find((h) => h.id === hotelId) || null);
   const [loading, setLoading] = useState(Boolean(hotelId && !hotel));
@@ -109,6 +121,22 @@ function HotelBookingContent() {
     return hotel.rooms[selectedRoomIndex] || hotel.rooms[0] || null;
   }, [hotel, selectedRoomIndex]);
 
+  useEffect(() => {
+    if (!selectedRoom) return;
+    if (selectedRoom.available <= 0) {
+      setRooms(1);
+      return;
+    }
+    if (rooms > selectedRoom.available) {
+      setRooms(selectedRoom.available);
+    }
+  }, [rooms, selectedRoom]);
+
+  const requestedCheckOut = addDays(checkIn, nights);
+  const stayNights = Math.max(1, nights);
+  const isRoomSoldOut = (selectedRoom?.available || 0) <= 0;
+  const hasEnoughRooms = selectedRoom ? rooms <= selectedRoom.available : false;
+
   // Compute fares — safe with 0 defaults before hotel/room loads
   const baseRoomFare = selectedRoom ? selectedRoom.price * rooms * nights : 0;
   const discount = selectedRoom ? (selectedRoom.originalPrice - selectedRoom.price) * rooms * nights : 0;
@@ -163,6 +191,18 @@ function HotelBookingContent() {
       showToast.error("Please fill contact details.");
       return;
     }
+    if (checkIn < getTodayIso()) {
+      showToast.error("Check-in date cannot be in the past.");
+      return;
+    }
+    if (requestedCheckOut <= checkIn) {
+      showToast.error("Check-out must be after check-in.");
+      return;
+    }
+    if (!selectedRoom || isRoomSoldOut || !hasEnoughRooms) {
+      showToast.error("Selected room type is fully booked for requested rooms.");
+      return;
+    }
     if (contactPhone.replace(/\D/g, "").length !== 10) {
       showToast.error("Please enter a valid 10-digit contact number.");
       return;
@@ -182,9 +222,9 @@ function HotelBookingContent() {
             itemId: hotel.id,
             type: "hotel",
             title: `${hotel.name} - ${selectedRoom.type}`,
-            city: hotel.address,
+            city: hotel.city,
             startDate: checkIn,
-            endDate: addDays(checkIn, nights),
+            endDate: requestedCheckOut,
             quantity: rooms,
             amount: baseRoomFare,
             couponCode: appliedCouponCode || undefined,
@@ -200,6 +240,17 @@ function HotelBookingContent() {
               gender: t.gender,
               email: t.email.trim() || undefined,
             })),
+            metadata: {
+              hotelStay: {
+                address: hotel.address,
+                roomType: selectedRoom.type,
+                roomNumber: buildRoomNumber(selectedRoomIndex),
+                checkInTime: hotel.checkInTime,
+                checkOutTime: hotel.checkOutTime,
+                nights: stayNights,
+                roomsBooked: rooms,
+              },
+            },
           },
           finalAmount,
         );
@@ -225,8 +276,9 @@ function HotelBookingContent() {
             <div className={s.summaryBody}>
               <div className={s.summaryName}>{hotel.name}</div>
               <div className={s.summaryMeta}>{hotel.city}</div>
+              <div className={s.summaryMeta}>{hotel.address}</div>
               <div className={s.summaryMeta}>Room: {selectedRoom.type}</div>
-              <div className={s.summaryMeta}>Check-in: {checkIn} | Check-out: {addDays(checkIn, nights)}</div>
+              <div className={s.summaryMeta}>Check-in: {checkIn} | Check-out: {requestedCheckOut}</div>
             </div>
           </div>
 
@@ -266,10 +318,13 @@ function HotelBookingContent() {
                     className={s.input}
                     type="number"
                     min={1}
-                    max={6}
+                    max={Math.max(1, selectedRoom.available || 1)}
                     value={rooms}
-                    onChange={(e) => setRooms(Math.max(1, Math.min(6, Number(e.target.value) || 1)))}
+                    onChange={(e) => setRooms(Math.max(1, Math.min(Math.max(1, selectedRoom.available || 1), Number(e.target.value) || 1)))}
                   />
+                  <p style={{ marginTop: 6, fontSize: "0.78rem", color: isRoomSoldOut ? "#b42318" : "#667085" }}>
+                    {isRoomSoldOut ? "Fully booked" : `${selectedRoom.available} room${selectedRoom.available > 1 ? "s" : ""} available`}
+                  </p>
                 </div>
                 <div>
                   <label className={s.label}>Guests</label>
@@ -340,8 +395,8 @@ function HotelBookingContent() {
                 </div>
               ))}
 
-              <button className={s.ctaBtn} type="submit" disabled={submitting}>
-                {submitting ? "Processing..." : "Pay And Confirm"}
+              <button className={s.ctaBtn} type="submit" disabled={submitting || isRoomSoldOut || !hasEnoughRooms}>
+                {submitting ? "Processing..." : isRoomSoldOut ? "Fully Booked" : "Pay And Confirm"}
               </button>
             </form>
           </div>
@@ -359,9 +414,9 @@ function HotelBookingContent() {
             setAppliedCouponCode(code);
             setAppliedCouponDiscount(value);
           }}
-          ctaLabel={submitting ? "Processing..." : "Pay And Confirm"}
+          ctaLabel={submitting ? "Processing..." : isRoomSoldOut ? "Fully Booked" : "Pay And Confirm"}
           onProceed={(netAmount) => {
-            if (submitting) return;
+            if (submitting || isRoomSoldOut || !hasEnoughRooms) return;
             void submitBooking(netAmount);
           }}
         />

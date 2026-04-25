@@ -1,11 +1,44 @@
 import { z } from 'zod';
 
+const toDateOnly = (value: string): Date | null => {
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(year, month - 1, day);
+
+  if (
+    Number.isNaN(date.getTime()) ||
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
+  ) {
+    return null;
+  }
+
+  date.setHours(0, 0, 0, 0);
+  return date;
+};
+
+const todayDateOnly = (): Date => {
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  return now;
+};
+
 // ── Search query ──────────────────────────────────────────────────────────────
 
 export const searchFlightsSchema = z.object({
   from:          z.string().length(3, 'fromCode must be 3 characters').toUpperCase(),
   to:            z.string().length(3, 'toCode must be 3 characters').toUpperCase(),
-  date:          z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'date must be YYYY-MM-DD'),
+  date:          z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'date must be YYYY-MM-DD')
+    .refine((value) => {
+      const date = toDateOnly(value);
+      if (!date) return false;
+      return date >= todayDateOnly();
+    }, 'date cannot be in the past'),
   passengers:    z.string().optional().default('1').transform(Number).pipe(z.number().int().min(1).max(9)),
   class:         z.enum(['economy', 'premiumEconomy', 'business']).optional().default('economy'),
   passengerType: z.enum(['adult', 'child', 'infant', 'seniorCitizen', 'military']).optional().default('adult'),
