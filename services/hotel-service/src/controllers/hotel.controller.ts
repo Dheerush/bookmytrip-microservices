@@ -2,7 +2,7 @@ import { Request, RequestHandler, Response } from 'express';
 import { asyncHandler } from '../utils/asyncHandler';
 import { apiResponse } from '../utils/apiResponse';
 import { CreateHotelDto, SearchHotelsQuery, UpdateHotelDto } from '../validators/hotel.validators';
-import { createHotel, deductHotelRooms, deleteHotel, getHotelById, listAllHotels, searchHotels, updateHotel } from '../services/hotel.service';
+import { createHotel, deductHotelRooms, deleteHotel, getHotelById, listAllHotels, listHotelSuggestions, searchHotels, updateHotel } from '../services/hotel.service';
 import { env } from '../config/env';
 
 export const searchHotelsHandler: RequestHandler = asyncHandler(async (req: Request, res: Response) => {
@@ -13,6 +13,12 @@ export const searchHotelsHandler: RequestHandler = asyncHandler(async (req: Requ
 export const getHotelByIdHandler: RequestHandler = asyncHandler(async (req: Request, res: Response) => {
   const hotel = await getHotelById(req.params.hotelId);
   res.status(200).json(apiResponse(hotel, 'Hotel details fetched'));
+});
+
+export const listHotelSuggestionsHandler: RequestHandler = asyncHandler(async (req: Request, res: Response) => {
+  const query = String(req.query.q || '').trim();
+  const suggestions = await listHotelSuggestions(query);
+  res.status(200).json(apiResponse({ suggestions }, 'Hotel suggestions fetched'));
 });
 
 export const listAllHotelsHandler: RequestHandler = asyncHandler(async (req: Request, res: Response) => {

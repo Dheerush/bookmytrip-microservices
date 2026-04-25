@@ -9,6 +9,7 @@ const envSchema = z.object({
   RABBITMQ_URL: z.string().min(1, 'RABBITMQ_URL is required'),
   JWT_ACCESS_SECRET: z.string().min(1, 'JWT_ACCESS_SECRET is required'),
   CORS_ORIGINS: z.string().default('http://localhost:3000').transform((v) => v.split(',').map((part) => part.trim()).filter(Boolean)),
+  INTERNAL_SERVICE_SECRET: z.string().default('bmt-internal-secret-2026'),
 });
 
 const parsed = envSchema.safeParse(process.env);

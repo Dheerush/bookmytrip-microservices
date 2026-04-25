@@ -214,6 +214,10 @@ export const bookingTemplate = ({
                 <td style="padding:10px 18px;font-size:0.82rem;color:#6b7f93">Check-out Date</td>
                 <td style="padding:10px 18px;font-size:0.88rem;font-weight:600;color:#0f1f2e">${formattedEndDate}${hotelCheckOutTime ? ` at ${hotelCheckOutTime}` : ''}</td>
               </tr>` : ''}
+              ${formattedEndDate && type === 'tour' ? `<tr>
+                <td style="padding:10px 18px;font-size:0.82rem;color:#6b7f93">Package End Date</td>
+                <td style="padding:10px 18px;font-size:0.88rem;font-weight:600;color:#0f1f2e">${formattedEndDate}</td>
+              </tr>` : ''}
               ${hotelCheckInTime && type === 'hotel' ? `<tr>
                 <td style="padding:10px 18px;font-size:0.82rem;color:#6b7f93">Check-in Time</td>
                 <td style="padding:10px 18px;font-size:0.88rem;font-weight:600;color:#0f1f2e">${hotelCheckInTime}</td>

@@ -20,6 +20,13 @@ export interface PaginatedHotels {
   totalPages: number;
 }
 
+export interface HotelSuggestion {
+  label: string;
+  value: string;
+  city: string;
+  kind: 'city' | 'hotel';
+}
+
 const getNightCount = (checkIn: string, checkOut: string): number => {
   const start = new Date(checkIn);
   const end = new Date(checkOut);
@@ -118,6 +125,40 @@ export const getHotelById = async (hotelId: string): Promise<IHotel> => {
     throw new AppError('Hotel not found', 404, 'HOTEL_NOT_FOUND');
   }
   return hotel as unknown as IHotel;
+};
+
+export const listHotelSuggestions = async (query: string): Promise<HotelSuggestion[]> => {
+  const trimmed = query.trim();
+  if (!trimmed) return [];
+
+  const regex = new RegExp(trimmed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+  const hotels = await Hotel.find({
+    isActive: true,
+    $or: [{ city: regex }, { name: regex }],
+  })
+    .sort({ city: 1, name: 1 })
+    .limit(10)
+    .lean();
+
+  const citySuggestions = Array.from(
+    new Map(
+      hotels.map((hotel) => [hotel.city.toLowerCase(), {
+        label: `${hotel.city} (city)`,
+        value: hotel.city,
+        city: hotel.city,
+        kind: 'city' as const,
+      }]),
+    ).values(),
+  );
+
+  const hotelSuggestions = hotels.map((hotel) => ({
+    label: `${hotel.name} - ${hotel.city}`,
+    value: hotel.name,
+    city: hotel.city,
+    kind: 'hotel' as const,
+  }));
+
+  return [...citySuggestions, ...hotelSuggestions].slice(0, 8);
 };
 
 export const listAllHotels = async (page: number, limit: number) => {

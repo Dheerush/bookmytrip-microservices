@@ -1,5 +1,19 @@
 import { z } from 'zod';
 
+const normalizeFoodIncluded = (value: unknown): unknown => {
+  if (typeof value !== 'string') return value;
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'all meals') return 'all-meals';
+  return normalized;
+};
+
+const normalizeRefundPolicy = (value: unknown): unknown => {
+  if (typeof value !== 'string') return value;
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'non refundable') return 'non-refundable';
+  return normalized;
+};
+
 const toDateOnly = (value: string): Date | null => {
   const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!match) return null;
@@ -116,14 +130,14 @@ export const createHotelSchema = z.object({
   pricePerNight: z.number().int().min(0),
   originalPrice: z.number().int().min(0),
   amenities: z.array(z.string()).min(1),
-  foodIncluded: z.enum(['breakfast', 'all-meals', 'none']),
+  foodIncluded: z.preprocess(normalizeFoodIncluded, z.enum(['breakfast', 'all-meals', 'none'])),
   wifi: z.boolean(),
   parking: z.boolean(),
   pool: z.boolean(),
   gym: z.boolean(),
   spa: z.boolean(),
   petFriendly: z.boolean(),
-  refundPolicy: z.enum(['full', 'partial', 'non-refundable']),
+  refundPolicy: z.preprocess(normalizeRefundPolicy, z.enum(['full', 'partial', 'non-refundable'])),
   refundDescription: z.string().min(2),
   checkInTime: z.string().regex(/^\d{2}:\d{2}$/),
   checkOutTime: z.string().regex(/^\d{2}:\d{2}$/),

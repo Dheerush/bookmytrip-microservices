@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 import { packages, type Package } from "@/data/packages";
 import { useAuth } from "@/services/auth/context";
@@ -33,6 +34,16 @@ type TravelOption = {
   label: string;
   amount: number;
   meta?: string;
+  inventoryType?: "flight" | "train";
+  inventoryId?: string;
+  seatClass?: string;
+  availableSeats?: number;
+};
+
+const addDays = (isoDate: string, days: number): string => {
+  const date = new Date(isoDate);
+  date.setDate(date.getDate() + days);
+  return date.toISOString().split("T")[0] || isoDate;
 };
 
 const FLIGHT_CITY_ALIASES: Record<string, string> = {
@@ -84,7 +95,8 @@ const createTravelers = (count: number): Traveler[] =>
 
 function PackageBookingContent() {
   const searchParams = useSearchParams();
-  const { user } = useAuth();
+  const router = useRouter();
+  const { user, isAuthenticated, hydrated } = useAuth();
   const { guardAction } = useBookingGuard();
   const { processBookingAndPayment } = useBookingFlow();
 
@@ -107,6 +119,13 @@ function PackageBookingContent() {
   const [travelLoading, setTravelLoading] = useState(false);
   const [selectedTravelOptionId, setSelectedTravelOptionId] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    if (isAuthenticated) return;
+    showToast.info("Sign in to continue with package booking.");
+    router.replace("/login");
+  }, [hydrated, isAuthenticated, router]);
 
   useEffect(() => {
     setTravelers((prev) => {
@@ -209,7 +228,7 @@ function PackageBookingContent() {
         });
         const res = await fetch(`/api/flights/search?${params.toString()}`);
         const json = (await res.json()) as {
-          data?: { results?: Array<{ flight?: { _id?: string; flightCode?: string; airline?: string; departureTime?: string; arrivalTime?: string }; unitPrice?: number }> };
+          data?: { results?: Array<{ flight?: { _id?: string; flightCode?: string; airline?: string; departureTime?: string; arrivalTime?: string; seatsLeft?: number }; unitPrice?: number }> };
         };
 
         const options = (json.data?.results || []).map((entry) => ({
@@ -217,6 +236,9 @@ function PackageBookingContent() {
           label: `${entry.flight?.airline || "Flight"} • ${entry.flight?.flightCode || ""}`.trim(),
           amount: Number(entry.unitPrice || 0),
           meta: `${entry.flight?.departureTime || ""} - ${entry.flight?.arrivalTime || ""}`.trim(),
+          inventoryType: "flight" as const,
+          inventoryId: entry.flight?._id,
+          availableSeats: Number(entry.flight?.seatsLeft || 0),
         }));
 
         setTravelOptions(options);
@@ -253,7 +275,7 @@ function PackageBookingContent() {
         });
         const res = await fetch(`/api/trains/search?${params.toString()}`);
         const json = (await res.json()) as {
-          data?: { results?: Array<{ train?: { _id?: string; trainNumber?: string; name?: string; departureTime?: string; arrivalTime?: string }; unitPrice?: number }> };
+          data?: { results?: Array<{ train?: { _id?: string; trainNumber?: string; name?: string; departureTime?: string; arrivalTime?: string; seatsAvailable?: Record<string, number> }; unitPrice?: number }> };
         };
 
         const options = (json.data?.results || []).map((entry) => ({
@@ -261,6 +283,10 @@ function PackageBookingContent() {
           label: `${entry.train?.name || "Train"} • ${entry.train?.trainNumber || ""}`.trim(),
           amount: Number(entry.unitPrice || 0),
           meta: `${entry.train?.departureTime || ""} - ${entry.train?.arrivalTime || ""}`.trim(),
+          inventoryType: "train" as const,
+          inventoryId: entry.train?._id,
+          seatClass: "sleeper",
+          availableSeats: Number(entry.train?.seatsAvailable?.sleeper || 0),
         }));
 
         setTravelOptions(options);
@@ -275,6 +301,10 @@ function PackageBookingContent() {
 
     void run();
   }, [currentLocation, pkg, startDate, travelMode]);
+
+  if (hydrated && !isAuthenticated) {
+    return null;
+  }
 
   if (loadingPkg) {
     return <div className={s.page} style={{ padding: "18vh 24px", textAlign: "center" }}>Loading package details...</div>;
@@ -301,6 +331,8 @@ function PackageBookingContent() {
     setTravelers((prev) => prev.map((entry, i) => (i === index ? { ...entry, [key]: value } : entry)));
   };
 
+  const selectedTravelOption = travelOptions.find((option) => option.id === selectedTravelOptionId) || null;
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
@@ -314,6 +346,16 @@ function PackageBookingContent() {
       return;
     }
 
+    if (travelMode !== "self" && !selectedTravelOption) {
+      showToast.error(`Please select a ${travelMode} option for all travelers.`);
+      return;
+    }
+
+    if (selectedTravelOption?.availableSeats != null && selectedTravelOption.availableSeats < totalTravelers) {
+      showToast.error(`Only ${selectedTravelOption.availableSeats} ${travelMode === "flight" ? "seat" : "berth"}${selectedTravelOption.availableSeats === 1 ? " is" : "s are"} available for the selected ${travelMode}.`);
+      return;
+    }
+
     const hasInvalidTraveler = travelers.some((traveler) => !traveler.name.trim());
     if (hasInvalidTraveler) {
       showToast.error("Please enter all additional traveler names.");
@@ -324,7 +366,7 @@ function PackageBookingContent() {
     try {
       const flightFromCode = resolveAliasCode(currentLocation, FLIGHT_CITY_ALIASES, 3, 3);
       const flightToCode = resolveAliasCode(pkg.subRegion, FLIGHT_CITY_ALIASES, 3, 3);
-      const selectedTravelOption = travelOptions.find((option) => option.id === selectedTravelOptionId) || null;
+      const packageEndDate = addDays(startDate, Math.max(0, pkg.durationDays - 1));
 
       await guardAction(async () => {
         await processBookingAndPayment(
@@ -336,6 +378,7 @@ function PackageBookingContent() {
             fromCode: flightFromCode || undefined,
             toCode: flightToCode || undefined,
             startDate,
+            endDate: packageEndDate,
             quantity: totalTravelers,
             amount: baseFare,
             contact: {
@@ -356,7 +399,13 @@ function PackageBookingContent() {
                 currentLocation: currentLocation.trim(),
                 destinationCity: pkg.subRegion,
                 travelMode,
-                selectedOption: selectedTravelOption,
+                durationDays: pkg.durationDays,
+                selectedOption: selectedTravelOption
+                  ? {
+                    ...selectedTravelOption,
+                    travelersCovered: totalTravelers,
+                  }
+                  : null,
               },
             },
           },

@@ -97,6 +97,24 @@ const normalizeList = <T = unknown>(entity: InventoryEntity, data: unknown): Inv
   };
 };
 
+const formatInventoryError = (parsed: { payload: { message?: string; data?: unknown } | null }, fallback: string): string => {
+  const fieldErrors = parsed.payload?.data;
+  if (fieldErrors && typeof fieldErrors === "object") {
+    const details = Object.entries(fieldErrors as Record<string, unknown>)
+      .flatMap(([field, value]) => {
+        if (!Array.isArray(value)) return [];
+        return value.filter(Boolean).map((message) => `${field}: ${String(message)}`);
+      })
+      .join("; ");
+
+    if (details) {
+      return details;
+    }
+  }
+
+  return parsed.payload?.message || fallback;
+};
+
 export const listInventory = async <T = unknown>(
   entity: InventoryEntity,
   opts?: { page?: number; limit?: number; city?: string; includeInactive?: boolean },
@@ -135,7 +153,7 @@ export const createInventory = async (entity: InventoryEntity, payload: unknown)
 
   const parsed = await parseApiResponse<unknown>(response, `Unable to create ${entity}.`);
   if (!parsed.ok) {
-    throw new Error(parsed.payload?.message || `Unable to create ${entity}.`);
+    throw new Error(formatInventoryError(parsed, `Unable to create ${entity}.`));
   }
   return parsed.payload?.data;
 };
@@ -149,7 +167,7 @@ export const updateInventory = async (entity: InventoryEntity, id: string, paylo
 
   const parsed = await parseApiResponse<unknown>(response, `Unable to update ${entity}.`);
   if (!parsed.ok) {
-    throw new Error(parsed.payload?.message || `Unable to update ${entity}.`);
+    throw new Error(formatInventoryError(parsed, `Unable to update ${entity}.`));
   }
   return parsed.payload?.data;
 };

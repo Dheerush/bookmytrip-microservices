@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import styles from "./SearchTabs.module.scss";
 import { flights } from "@/data/flights";
 import { trains } from "@/data/trains";
-import { hotels } from "@/data/hotels";
 import { cabs } from "@/data/cabs";
 
 // ─── Tab config ───────────────────────────────────────────
@@ -89,6 +88,7 @@ export default function SearchTabs() {
   const [values, setValues] = useState<Record<string, string>>({});
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [debouncedTerm, setDebouncedTerm] = useState("");
+  const [hotelSuggestions, setHotelSuggestions] = useState<string[]>([]);
 
   useEffect(() => {
     const rawTerm = focusedField ? values[focusedField] || "" : "";
@@ -97,6 +97,47 @@ export default function SearchTabs() {
     }, 250);
     return () => clearTimeout(timeout);
   }, [focusedField, values]);
+
+  useEffect(() => {
+    if (activeTab !== "hotels" || focusedField !== "city") {
+      setHotelSuggestions([]);
+      return;
+    }
+
+    if (!debouncedTerm) {
+      setHotelSuggestions([]);
+      return;
+    }
+
+    let cancelled = false;
+    const run = async () => {
+      try {
+        const params = new URLSearchParams({ q: debouncedTerm });
+        const response = await fetch(`/api/hotels/suggestions?${params.toString()}`);
+        if (!response.ok) {
+          if (!cancelled) setHotelSuggestions([]);
+          return;
+        }
+
+        const json = await response.json() as { data?: { suggestions?: Array<{ label?: string }> } };
+        if (cancelled) return;
+
+        const next = (json.data?.suggestions || [])
+          .map((entry) => String(entry.label || "").trim())
+          .filter(Boolean)
+          .slice(0, 8);
+
+        setHotelSuggestions(next);
+      } catch {
+        if (!cancelled) setHotelSuggestions([]);
+      }
+    };
+
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, debouncedTerm, focusedField]);
 
   const showTripToggle = activeTab === "flights";
 
@@ -171,13 +212,12 @@ export default function SearchTabs() {
     }
 
     if (activeTab === "hotels") {
-      const pool = hotels.flatMap((hotel) => [hotel.city, hotel.name]);
-      return Array.from(new Set(pool.filter((entry) => entry.toLowerCase().includes(debouncedTerm)))).slice(0, 6);
+      return hotelSuggestions;
     }
 
     const pool = cabs.flatMap((cab) => [cab.city, cab.carModel, cab.brand]);
     return Array.from(new Set(pool.filter((entry) => entry.toLowerCase().includes(debouncedTerm)))).slice(0, 6);
-  }, [activeTab, debouncedTerm, focusedField]);
+  }, [activeTab, debouncedTerm, focusedField, hotelSuggestions]);
 
   const applySuggestion = (value: string) => {
     if (!focusedField) return;

@@ -2,7 +2,10 @@
 
 import { use, useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { packages, type Package } from "../../../data/packages";
+import { useAuth } from "@/services/auth/context";
+import { showToast } from "@/lib/toast";
 import styles from "./page.module.scss";
 
 interface TourApiDetail {
@@ -101,6 +104,8 @@ export default function PackageDetail({
   const [activeImg, setActiveImg] = useState(0);
   const [imgError, setImgError] = useState(false);
   const [guideImgError, setGuideImgError] = useState(false);
+  const router = useRouter();
+  const { isAuthenticated, hydrated } = useAuth();
 
   useEffect(() => {
     if (staticPkg) return;
@@ -377,12 +382,21 @@ export default function PackageDetail({
               </div>
             ))}
 
-            <Link
-              href={`/packages/booking?packageId=${pkg.id}`}
+            <button
+              type="button"
               className={styles.bookBtn}
+              onClick={() => {
+                if (!hydrated) return;
+                if (!isAuthenticated) {
+                  showToast.info("Sign in to continue with package booking.");
+                  router.push("/login");
+                  return;
+                }
+                router.push(`/packages/booking?packageId=${pkg.id}`);
+              }}
             >
               Book Now →
-            </Link>
+            </button>
           </div>
 
           {/* Quick info card */}

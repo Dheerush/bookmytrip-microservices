@@ -77,6 +77,82 @@ const generateBookingRef = async (type: BookingType, bookingDate: Date): Promise
   return `${prefix}${suffix}`;
 };
 
+const getJson = async (url: string): Promise<any> => {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new AppError('Unable to validate inventory availability', 503, 'INVENTORY_SERVICE_UNAVAILABLE');
+  }
+
+  return response.json();
+};
+
+const patchInternal = async (url: string, body: Record<string, unknown>): Promise<void> => {
+  const response = await fetch(url, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', 'x-service-secret': env.INTERNAL_SERVICE_SECRET },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    throw new AppError('Unable to update inventory availability', 503, 'INVENTORY_UPDATE_FAILED');
+  }
+};
+
+const ensureAndDeductFlightSeats = async (flightId: string, count: number): Promise<void> => {
+  const payload = await getJson(`${env.FLIGHT_SERVICE_URL}/api/flights/${flightId}`);
+  const seatsLeft = Number(payload?.data?.seatsLeft ?? 0);
+  if (seatsLeft < count) {
+    throw new AppError('Selected flight no longer has enough seats', 400, 'INSUFFICIENT_SEATS');
+  }
+
+  await patchInternal(`${env.FLIGHT_SERVICE_URL}/api/flights/${flightId}/deduct-seats`, { count });
+};
+
+const ensureAndDeductTrainSeats = async (trainId: string, seatClass: string, count: number): Promise<void> => {
+  const payload = await getJson(`${env.TRAIN_SERVICE_URL}/api/trains/${trainId}`);
+  const available = Number(payload?.data?.seatsAvailable?.[seatClass] ?? 0);
+  if (available < count) {
+    throw new AppError('Selected train no longer has enough seats', 400, 'INSUFFICIENT_SEATS');
+  }
+
+  await patchInternal(`${env.TRAIN_SERVICE_URL}/api/trains/${trainId}/deduct-seats`, { seatClass, count });
+};
+
+const ensureAndDeductHotelRooms = async (hotelId: string, roomType: string, count: number): Promise<void> => {
+  const payload = await getJson(`${env.HOTEL_SERVICE_URL}/api/hotels/${hotelId}`);
+  const rooms = Array.isArray(payload?.data?.rooms) ? payload.data.rooms : [];
+  const room = rooms.find((entry: Record<string, unknown>) =>
+    String(entry?.type || '').toLowerCase() === roomType.toLowerCase(),
+  );
+  const available = Number(room?.available ?? 0);
+  if (available < count) {
+    throw new AppError('Selected hotel room is no longer available', 400, 'INSUFFICIENT_ROOMS');
+  }
+
+  await patchInternal(`${env.HOTEL_SERVICE_URL}/api/hotels/${hotelId}/deduct-rooms`, { roomType, count });
+};
+
+const ensureAndDeductPackageTravel = async (booking: IBooking): Promise<void> => {
+  if (booking.type !== 'tour') return;
+
+  const packageTravel = booking.metadata?.packageTravel as Record<string, unknown> | undefined;
+  const selectedOption = packageTravel?.selectedOption as Record<string, unknown> | null | undefined;
+  const inventoryType = selectedOption?.inventoryType;
+  const inventoryId = selectedOption?.inventoryId;
+
+  if (!inventoryType || !inventoryId) return;
+
+  if (inventoryType === 'flight') {
+    await ensureAndDeductFlightSeats(String(inventoryId), booking.quantity);
+    return;
+  }
+
+  if (inventoryType === 'train') {
+    const seatClass = String(selectedOption?.seatClass || 'sleeper');
+    await ensureAndDeductTrainSeats(String(inventoryId), seatClass, booking.quantity);
+  }
+};
+
 export const createBooking = async (userId: string, dto: CreateBookingDto): Promise<IBooking> => {
   await ensureInventoryItemExists(dto.type, dto.itemId);
 
@@ -149,34 +225,27 @@ export const confirmBooking = async (bookingId: string, userId: string): Promise
   if (booking.userId !== userId) throw new AppError('Forbidden', 403, 'FORBIDDEN');
   if (booking.status !== 'pending') throw new AppError('Booking cannot be confirmed', 400, 'INVALID_STATUS');
 
-  booking.status = 'confirmed';
-  await booking.save();
-
-  // Fire-and-forget: deduct inventory seats (non-blocking; failures don't affect the booking)
   if (booking.type === 'flight' && booking.itemId) {
-    const flightId = booking.itemId.includes('|') ? booking.itemId.split('|')[0] : booking.itemId;
-    void fetch(`${env.FLIGHT_SERVICE_URL}/api/flights/${flightId}/deduct-seats`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', 'x-service-secret': env.INTERNAL_SERVICE_SECRET },
-      body: JSON.stringify({ count: booking.quantity }),
-    }).catch(() => undefined);
+    const flightIds = booking.itemId.includes('|')
+      ? booking.itemId.split('|').map((entry) => entry.trim()).filter(Boolean)
+      : [booking.itemId];
+    for (const flightId of flightIds) {
+      await ensureAndDeductFlightSeats(flightId, booking.quantity);
+    }
   } else if (booking.type === 'train' && booking.itemId) {
-    const seatClass = (booking.metadata?.seatClass as string) || 'sleeper';
-    void fetch(`${env.TRAIN_SERVICE_URL}/api/trains/${booking.itemId}/deduct-seats`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', 'x-service-secret': env.INTERNAL_SERVICE_SECRET },
-      body: JSON.stringify({ seatClass, count: booking.quantity }),
-    }).catch(() => undefined);
+    const seatClass = String(booking.metadata?.seatClass || 'sleeper');
+    await ensureAndDeductTrainSeats(booking.itemId, seatClass, booking.quantity);
   } else if (booking.type === 'hotel' && booking.itemId) {
     const roomType = (booking.metadata?.hotelStay as Record<string, unknown> | undefined)?.roomType as string | undefined;
     if (roomType) {
-      void fetch(`${env.HOTEL_SERVICE_URL}/api/hotels/${booking.itemId}/deduct-rooms`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', 'x-service-secret': env.INTERNAL_SERVICE_SECRET },
-        body: JSON.stringify({ roomType, count: booking.quantity }),
-      }).catch(() => undefined);
+      await ensureAndDeductHotelRooms(booking.itemId, roomType, booking.quantity);
     }
+  } else if (booking.type === 'tour') {
+    await ensureAndDeductPackageTravel(booking);
   }
+
+  booking.status = 'confirmed';
+  await booking.save();
 
   publishEvent('booking.created', {
     userId,
