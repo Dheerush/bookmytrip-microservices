@@ -46,6 +46,14 @@ export const searchTrainsSchema = z.object({
   sort: z.enum(['price_asc', 'price_desc', 'duration', 'rating', 'departure']).optional().default('price_asc'),
   page: z.string().optional().default('1').transform(Number).pipe(z.number().int().min(1)),
   limit: z.string().optional().default('10').transform(Number).pipe(z.number().int().min(1).max(50)),
+}).superRefine((value, ctx) => {
+  if (value.from === value.to) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['to'],
+      message: 'Destination cannot be the same as source',
+    });
+  }
 });
 
 const fareSchema = z.object({

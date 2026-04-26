@@ -96,6 +96,13 @@ const getFlightDisplayValue = (value: string, fallback: string): string => {
   return option?.city || trimmed;
 };
 
+const isSameFlightRoute = (fromValue: string, toValue: string): boolean => {
+  const fromCode = resolveFlightCode(fromValue);
+  const toCode = resolveFlightCode(toValue);
+  if (!fromCode || !toCode) return false;
+  return fromCode === toCode;
+};
+
 const normalizeIsoDate = (value: string): string => {
   const trimmed = value.trim();
   if (!trimmed) return "";
@@ -245,6 +252,9 @@ function FlightsContent() {
     }
     if (!resolveFlightCode(to)) {
       return "Destination city not found. Choose a valid city or airport code (for example BOM).";
+    }
+    if (isSameFlightRoute(from, to)) {
+      return "Departure and destination cannot be the same.";
     }
     return null;
   };
@@ -481,6 +491,12 @@ function FlightsContent() {
       return;
     }
 
+    if (params.get("from") === params.get("to")) {
+      setApiError("Departure and destination cannot be the same.");
+      setApiResults([]);
+      return;
+    }
+
     if (mealsOnly) {
       params.set("meals", "true");
     }
@@ -561,6 +577,12 @@ function FlightsContent() {
       page: "1",
       limit: "120",
     });
+
+    if (params.get("from") === params.get("to")) {
+      setApiReturnError("Return route cannot have identical source and destination.");
+      setApiReturnResults([]);
+      return;
+    }
 
     if (mealsOnly) {
       params.set("meals", "true");

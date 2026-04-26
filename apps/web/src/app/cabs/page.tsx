@@ -324,6 +324,18 @@ function CabsContent() {
       return;
     }
 
+    const resolvedPickup = resolveCabCity(committedPickup);
+    const resolvedDrop = resolveCabCity(drop);
+    if (
+      resolvedPickup &&
+      resolvedDrop &&
+      resolvedPickup.trim().toLowerCase() === resolvedDrop.trim().toLowerCase()
+    ) {
+      setApiResults(null);
+      setApiError("Pickup and destination cannot be the same.");
+      return;
+    }
+
     const estimatedDistanceKm = estimateDistanceKm(committedPickup, drop);
 
     const sortMap: Record<SortKey, string> = {

@@ -90,6 +90,13 @@ const resolveTrainCode = (value: string): string | null => {
   return null;
 };
 
+const isSameTrainRoute = (fromValue: string, toValue: string): boolean => {
+  const fromCode = resolveTrainCode(fromValue);
+  const toCode = resolveTrainCode(toValue);
+  if (!fromCode || !toCode) return false;
+  return fromCode === toCode;
+};
+
 const getTodayIso = (): string => {
   const now = new Date();
   const year = now.getFullYear();
@@ -196,6 +203,11 @@ function TrainsContent() {
       return;
     }
 
+    if (isSameTrainRoute(from, to)) {
+      showToast.error("Departure and destination cannot be the same.");
+      return;
+    }
+
     const params = new URLSearchParams();
     if (from) params.set("from", from);
     if (to) params.set("to", to);
@@ -288,6 +300,13 @@ function TrainsContent() {
 
     if (!params.get("from") || !params.get("to")) {
       setApiError("Please select valid departure and destination stations before searching.");
+      setApiResults(null);
+      setApiTotalPages(null);
+      return;
+    }
+
+    if (params.get("from") === params.get("to")) {
+      setApiError("Departure and destination cannot be the same.");
       setApiResults(null);
       setApiTotalPages(null);
       return;

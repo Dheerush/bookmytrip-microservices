@@ -5,6 +5,7 @@ const envSchema = z.object({
   PORT: z.coerce.number().default(5014),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   MONGO_URI: z.string().min(1),
+  RABBITMQ_URL: z.string().default('amqp://localhost:5672'),
   JWT_ACCESS_SECRET: z.string().min(1),
   CORS_ORIGINS: z.string().default('http://localhost:3000'),
 });

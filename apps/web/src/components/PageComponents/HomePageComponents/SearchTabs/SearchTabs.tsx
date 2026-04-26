@@ -80,6 +80,8 @@ const CAB_FIELDS: Field[] = [
   { key: "date",   label: "📅 Date",    placeholder: "Date", type: "date" },
 ];
 
+const normalizePlace = (value: string): string => value.trim().toLowerCase();
+
 // ─── Component ────────────────────────────────────────────
 export default function SearchTabs() {
   const router = useRouter();
@@ -199,6 +201,10 @@ export default function SearchTabs() {
         showToast.error("Please enter from, to, and departure date.");
         return;
       }
+      if (normalizePlace(values.from) === normalizePlace(values.to)) {
+        showToast.error("Departure and destination cannot be the same.");
+        return;
+      }
       if (tripType === "round-trip" && !values.return) {
         showToast.error("Please select a return date for round trip.");
         return;
@@ -210,11 +216,19 @@ export default function SearchTabs() {
         showToast.error("Please enter from, to, and journey date.");
         return;
       }
+      if (normalizePlace(values.from) === normalizePlace(values.to)) {
+        showToast.error("Departure and destination cannot be the same.");
+        return;
+      }
     }
 
     if (activeTab === "cabs") {
       if (!values.pickup?.trim() || !values.drop?.trim() || !values.date) {
         showToast.error("Please enter pickup, drop, and travel date.");
+        return;
+      }
+      if (normalizePlace(values.pickup) === normalizePlace(values.drop)) {
+        showToast.error("Pickup and drop locations cannot be the same.");
         return;
       }
     }
@@ -236,8 +250,6 @@ export default function SearchTabs() {
       const pool = flights.flatMap((flight) => [
         `${flight.from} (${flight.fromCode})`,
         `${flight.to} (${flight.toCode})`,
-        flight.flightCode,
-        flight.airline,
       ]);
       return Array.from(new Set(pool.filter((entry) => entry.toLowerCase().includes(debouncedTerm)))).slice(0, 6);
     }

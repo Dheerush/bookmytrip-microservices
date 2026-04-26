@@ -53,6 +53,14 @@ export const searchFlightsSchema = z.object({
   // pagination
   page:          z.string().optional().default('1').transform(Number).pipe(z.number().int().min(1)),
   limit:         z.string().optional().default('10').transform(Number).pipe(z.number().int().min(1).max(200)),
+}).superRefine((value, ctx) => {
+  if (value.from === value.to) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['to'],
+      message: 'Destination cannot be the same as source',
+    });
+  }
 });
 
 export type SearchFlightsQuery = z.infer<typeof searchFlightsSchema>;

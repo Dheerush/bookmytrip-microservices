@@ -2,6 +2,13 @@ import { createServer } from 'http';
 import { Server as SocketIOServer, Socket } from 'socket.io';
 import jwt from 'jsonwebtoken';
 import { env } from '../config/env';
+import {
+  addAdminNotification,
+  addBroadcastNotification,
+  addUserNotification,
+  getAdminSeed,
+  getUserSeed,
+} from './notification.store';
 
 interface JwtPayload {
   userId?: string;
@@ -47,6 +54,12 @@ export const initSocketServer = (): void => {
     const { userId, role } = socket.data as { userId: string; role: string };
     socket.join(userRoom(userId));
     if (role === 'admin') socket.join('admin');
+
+    const seed = role === 'admin' ? getAdminSeed() : getUserSeed(userId);
+    if (seed.length > 0) {
+      socket.emit('notification:seed', seed);
+    }
+
     console.log(`🔔 User ${userId} (${role}) connected to notifications`);
 
     socket.on('disconnect', () => {
@@ -74,6 +87,7 @@ export interface NotificationPayload {
  * Safe to call even if the user is not currently connected.
  */
 export const pushNotificationToUser = (userId: string, payload: NotificationPayload): void => {
+  addUserNotification(userId, payload);
   if (!io) return;
   io.to(userRoom(userId)).emit('notification', payload);
 };
@@ -82,6 +96,13 @@ export const pushNotificationToUser = (userId: string, payload: NotificationPayl
  * Emit a real-time notification to all connected admins.
  */
 export const pushNotificationToAdmins = (payload: NotificationPayload): void => {
+  addAdminNotification(payload);
   if (!io) return;
   io.to('admin').emit('notification', payload);
+};
+
+export const pushNotificationToAllUsers = (payload: NotificationPayload): void => {
+  addBroadcastNotification(payload);
+  if (!io) return;
+  io.emit('notification', payload);
 };

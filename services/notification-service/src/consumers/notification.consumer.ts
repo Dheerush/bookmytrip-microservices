@@ -11,7 +11,7 @@ import { passwordResetSuccessTemplate } from '../templates/passwordResetSuccess.
 import { supportTemplate } from '../templates/support.template';
 import { newsletterTemplate } from '../templates/newsletter.template';
 import { adminComplaintTemplate } from '../templates/adminComplaint.template';
-import { pushNotificationToAdmins, pushNotificationToUser } from '../services/socket.service';
+import { pushNotificationToAdmins, pushNotificationToAllUsers, pushNotificationToUser } from '../services/socket.service';
 
 const push = (userId: string, type: string, title: string, message: string, link?: string) => {
   if (!userId) return;
@@ -281,6 +281,32 @@ export const startConsumer = async (): Promise<void> => {
             if (email) {
               await sendEmail(email, 'BookMyTrip: Subscribed to Newsletter!', newsletterTemplate(email));
             }
+            break;
+          }
+          case 'COUPON_CREATED': {
+            const { code, description, discountType, discountValue } = event.data;
+            const couponCode = String(code || '').trim();
+            if (!couponCode) break;
+
+            const discountLabel = discountType === 'percent'
+              ? `${Number(discountValue || 0)}% off`
+              : `INR ${Number(discountValue || 0).toLocaleString('en-IN')} off`;
+
+            pushNotificationToAllUsers({
+              id: randomUUID(),
+              type: 'offers',
+              title: `New coupon: ${couponCode}`,
+              message: `${discountLabel}${description ? ` • ${description}` : ''}`,
+              link: '/dashboard/notifications',
+              createdAt: new Date().toISOString(),
+            });
+
+            pushAdmin(
+              'offers',
+              `Coupon Published: ${couponCode}`,
+              `Coupon ${couponCode} is now live for users.`,
+              '/dashboard/admin/coupons',
+            );
             break;
           }
           default:

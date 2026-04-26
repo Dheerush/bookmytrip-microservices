@@ -37,6 +37,25 @@ const saveToStorage = (userId: string, items: AppNotification[]) => {
 
 let socket: Socket | null = null;
 
+const mergeIncomingNotifications = (
+  existing: AppNotification[],
+  incoming: Array<Omit<AppNotification, "read">>,
+): AppNotification[] => {
+  const byId = new Map(existing.map((item) => [item.id, item]));
+
+  incoming.forEach((item) => {
+    const previous = byId.get(item.id);
+    byId.set(item.id, {
+      ...item,
+      read: previous?.read ?? false,
+    });
+  });
+
+  return Array.from(byId.values())
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 120);
+};
+
 export function useNotifications() {
   const { user, token } = useAuth();
   const userId = user?.id ?? null;
@@ -73,13 +92,21 @@ export function useNotifications() {
 
     socket.on("connect", () => setConnected(true));
     socket.on("disconnect", () => setConnected(false));
+    socket.on("notification:seed", (seedPayload: Array<Omit<AppNotification, "read">>) => {
+      setNotificationMap((prev) => {
+        const existing = prev[user.id] ?? loadFromStorage(user.id);
+        return {
+          ...prev,
+          [user.id]: mergeIncomingNotifications(existing, seedPayload || []),
+        };
+      });
+    });
     socket.on("notification", (payload: Omit<AppNotification, "read">) => {
       setNotificationMap((prev) => {
         const existing = prev[user.id] ?? loadFromStorage(user.id);
-        if (existing.some((n) => n.id === payload.id)) return prev;
         return {
           ...prev,
-          [user.id]: [{ ...payload, read: false }, ...existing].slice(0, 50),
+          [user.id]: mergeIncomingNotifications(existing, [payload]),
         };
       });
     });
@@ -112,66 +139,6 @@ export function useNotifications() {
     });
   }, [userId]);
 
-  const pushLocalNotification = useCallback((item: Omit<AppNotification, "read">) => {
-    if (!userId) return;
-    setNotificationMap((prev) => {
-      const existing = prev[userId] ?? loadFromStorage(userId);
-      if (existing.some((entry) => entry.id === item.id)) return prev;
-      return {
-        ...prev,
-        [userId]: [{ ...item, read: false }, ...existing].slice(0, 50),
-      };
-    });
-  }, [userId]);
-
-  useEffect(() => {
-    if (!userId) return;
-
-    let mounted = true;
-    const run = async () => {
-      try {
-        const response = await fetch("/api/admin/coupons/public");
-        if (!response.ok) return;
-
-        const payload = await response.json() as {
-          data?: { items?: Array<{ code?: string; description?: string; discountType?: string; discountValue?: number; maxDiscount?: number }> };
-        };
-
-        if (!mounted) return;
-        const coupons = payload.data?.items || [];
-
-        coupons.forEach((coupon) => {
-          const code = String(coupon.code || "").trim();
-          if (!code) return;
-          const discountLabel = coupon.discountType === "percent"
-            ? `${coupon.discountValue || 0}% off`
-            : `INR ${Number(coupon.discountValue || 0).toLocaleString("en-IN")} off`;
-
-          pushLocalNotification({
-            id: `coupon:${code}`,
-            type: "offers",
-            title: `New coupon: ${code}`,
-            message: `${discountLabel}${coupon.description ? ` • ${coupon.description}` : ""}`,
-            link: "/dashboard/notifications",
-            createdAt: new Date().toISOString(),
-          });
-        });
-      } catch {
-        // Ignore transient fetch failures.
-      }
-    };
-
-    void run();
-    const intervalId = window.setInterval(() => {
-      void run();
-    }, 120_000);
-
-    return () => {
-      mounted = false;
-      window.clearInterval(intervalId);
-    };
-  }, [pushLocalNotification, userId]);
-
   const unreadCount = notifications.filter((n) => !n.read).length;
-  return { notifications, unreadCount, connected, markAllRead, markRead, pushLocalNotification };
+  return { notifications, unreadCount, connected, markAllRead, markRead };
 }

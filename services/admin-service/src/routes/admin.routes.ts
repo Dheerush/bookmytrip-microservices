@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { authenticate, authorizeRoles } from '../middleware/auth.middleware';
 import { Coupon } from '../models/Coupon';
 import { Offer } from '../models/Offer';
+import { publishEvent } from '../config/rabbitmq';
 import { AppError } from '../shared';
 
 const router: Router = Router();
@@ -147,6 +148,17 @@ router.post('/coupons', async (req: Request, res: Response, next: NextFunction) 
       startsAt: new Date(parsed.data.startsAt),
       endsAt: new Date(parsed.data.endsAt),
       createdBy: req.user?.id,
+    });
+
+    await publishEvent({
+      type: 'COUPON_CREATED',
+      data: {
+        code: item.code,
+        description: item.description,
+        discountType: item.discountType,
+        discountValue: item.discountValue,
+        maxDiscount: item.maxDiscount,
+      },
     });
 
     res.status(201).json({ success: true, message: 'Coupon created', data: item });
