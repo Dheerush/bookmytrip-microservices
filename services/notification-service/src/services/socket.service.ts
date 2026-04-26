@@ -39,7 +39,25 @@ export const initSocketServer = (): void => {
       return next(new Error('Authentication required'));
     }
     try {
-      const payload = jwt.verify(token, env.JWT_SECRET) as JwtPayload;
+      let payload: JwtPayload | null = null;
+      const candidateSecrets = [
+        process.env.JWT_ACCESS_SECRET,
+        env.JWT_SECRET,
+      ].filter((secret): secret is string => Boolean(secret));
+
+      for (const secret of candidateSecrets) {
+        try {
+          payload = jwt.verify(token, secret) as JwtPayload;
+          break;
+        } catch {
+          // Try next secret for backwards compatibility across environments.
+        }
+      }
+
+      if (!payload) {
+        return next(new Error('Invalid or expired token'));
+      }
+
       const userId = payload.userId || payload.id || payload.sub;
       if (!userId) return next(new Error('Invalid token payload'));
       socket.data.userId = userId;
@@ -50,12 +68,12 @@ export const initSocketServer = (): void => {
     }
   });
 
-  io.on('connection', (socket: Socket) => {
+  io.on('connection', async (socket: Socket) => {
     const { userId, role } = socket.data as { userId: string; role: string };
     socket.join(userRoom(userId));
     if (role === 'admin') socket.join('admin');
 
-    const seed = role === 'admin' ? getAdminSeed() : getUserSeed(userId);
+    const seed = role === 'admin' ? await getAdminSeed() : await getUserSeed(userId);
     if (seed.length > 0) {
       socket.emit('notification:seed', seed);
     }
@@ -86,8 +104,8 @@ export interface NotificationPayload {
  * Emit a real-time notification to a specific user.
  * Safe to call even if the user is not currently connected.
  */
-export const pushNotificationToUser = (userId: string, payload: NotificationPayload): void => {
-  addUserNotification(userId, payload);
+export const pushNotificationToUser = async (userId: string, payload: NotificationPayload): Promise<void> => {
+  await addUserNotification(userId, payload);
   if (!io) return;
   io.to(userRoom(userId)).emit('notification', payload);
 };
@@ -95,14 +113,14 @@ export const pushNotificationToUser = (userId: string, payload: NotificationPayl
 /**
  * Emit a real-time notification to all connected admins.
  */
-export const pushNotificationToAdmins = (payload: NotificationPayload): void => {
-  addAdminNotification(payload);
+export const pushNotificationToAdmins = async (payload: NotificationPayload): Promise<void> => {
+  await addAdminNotification(payload);
   if (!io) return;
   io.to('admin').emit('notification', payload);
 };
 
-export const pushNotificationToAllUsers = (payload: NotificationPayload): void => {
-  addBroadcastNotification(payload);
+export const pushNotificationToAllUsers = async (payload: NotificationPayload): Promise<void> => {
+  await addBroadcastNotification(payload);
   if (!io) return;
   io.emit('notification', payload);
 };

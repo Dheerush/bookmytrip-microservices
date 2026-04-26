@@ -15,7 +15,7 @@ import { pushNotificationToAdmins, pushNotificationToAllUsers, pushNotificationT
 
 const push = (userId: string, type: string, title: string, message: string, link?: string) => {
   if (!userId) return;
-  pushNotificationToUser(userId, {
+  return pushNotificationToUser(userId, {
     id: randomUUID(),
     type,
     title,
@@ -26,7 +26,7 @@ const push = (userId: string, type: string, title: string, message: string, link
 };
 
 const pushAdmin = (type: string, title: string, message: string, link?: string) => {
-  pushNotificationToAdmins({
+  return pushNotificationToAdmins({
     id: randomUUID(),
     type,
     title,
@@ -138,21 +138,21 @@ export const startConsumer = async (): Promise<void> => {
             const { email, userId } = event.data;
             if (!email) throw new Error('Invalid USER_VERIFIED payload');
             await sendEmail(email, 'Welcome to BookMyTrip!', welcomeTemplate(email));
-            push(userId, 'signup', 'Welcome to BookMyTrip!', 'Your account is ready. Start exploring!', '/dashboard');
+            await push(userId, 'signup', 'Welcome to BookMyTrip!', 'Your account is ready. Start exploring!', '/dashboard');
             break;
           }
           case 'LOGIN_SUCCESS': {
             const { email, userId, loginTime, ip, userAgent } = event.data;
             if (!email) throw new Error('Invalid LOGIN_SUCCESS payload');
             await sendEmail(email, 'BookMyTrip: Login Alert', loginTemplate(email, loginTime, ip, userAgent));
-            push(userId, 'login', 'New Login Detected', 'Your account was accessed' + (ip ? ' from ' + ip : '') + '.', '/dashboard/profile');
+            await push(userId, 'login', 'New Login Detected', 'Your account was accessed' + (ip ? ' from ' + ip : '') + '.', '/dashboard/profile');
             break;
           }
           case 'PASSWORD_CHANGED': {
             const { email, userId } = event.data;
             if (!email) throw new Error('Invalid PASSWORD_CHANGED payload');
             await sendEmail(email, 'BookMyTrip: Password Changed', passwordResetSuccessTemplate(email));
-            push(userId, 'security', 'Password Changed', 'Your account password was updated successfully.', '/dashboard/profile');
+            await push(userId, 'security', 'Password Changed', 'Your account password was updated successfully.', '/dashboard/profile');
             break;
           }
           case 'BOOKING_CONFIRMED': {
@@ -206,7 +206,7 @@ export const startConsumer = async (): Promise<void> => {
                 }),
               );
             }
-            push(userId, 'booking', 'Booking Confirmed!', title + ' - Rs.' + Number(amount).toLocaleString('en-IN') + '. Ref: ' + bookingRef, '/dashboard/bookings');
+            await push(userId, 'booking', 'Booking Confirmed!', title + ' - Rs.' + Number(amount).toLocaleString('en-IN') + '. Ref: ' + bookingRef, '/dashboard/bookings');
             break;
           }
           case 'BOOKING_CANCELLED': {
@@ -215,12 +215,12 @@ export const startConsumer = async (): Promise<void> => {
               await sendEmail(email, 'BookMyTrip: Booking Cancelled - ' + bookingRef, bookingTemplate({ bookingRef, title, status: 'cancelled', amount: 0 }));
             }
             const refundMsg = refundAmount > 0 ? 'Refund of Rs.' + Number(refundAmount).toLocaleString('en-IN') + ' will be processed in 5-7 days.' : 'No refund applicable.';
-            push(userId, 'cancellation', 'Booking Cancelled', title + ' cancelled. ' + refundMsg, '/dashboard/bookings');
+            await push(userId, 'cancellation', 'Booking Cancelled', title + ' cancelled. ' + refundMsg, '/dashboard/bookings');
             break;
           }
           case 'REFUND_PROCESSED': {
             const { userId, bookingRef, refundAmount } = event.data;
-            push(userId, 'refund', 'Refund Processed', 'Rs.' + Number(refundAmount).toLocaleString('en-IN') + ' refund for booking ' + bookingRef + ' has been initiated.', '/dashboard/bookings');
+            await push(userId, 'refund', 'Refund Processed', 'Rs.' + Number(refundAmount).toLocaleString('en-IN') + ' refund for booking ' + bookingRef + ' has been initiated.', '/dashboard/bookings');
             break;
           }
           case 'COMPLAINT_RAISED':
@@ -242,33 +242,33 @@ export const startConsumer = async (): Promise<void> => {
                 }),
               );
             }
-            push(userId, 'support', 'Support Ticket Update', 'Your complaint (#' + ticketId + ') has been updated.', '/dashboard/issues');
-            pushAdmin('support', 'New Complaint: #' + ticketId, (userName || email || 'User') + ' raised: ' + subject, '/dashboard/admin/requests');
+            await push(userId, 'support', 'Support Ticket Update', 'Your complaint (#' + ticketId + ') has been updated.', '/dashboard/issues');
+            await pushAdmin('support', 'New Complaint: #' + ticketId, (userName || email || 'User') + ' raised: ' + subject, '/dashboard/admin/requests');
             break;
           }
           case 'COMPLAINT_STATUS_UPDATED': {
             const { userId, ticketId, subject, status, adminNote } = event.data;
             const statusLabel = String(status || 'updated').replace('-', ' ');
-            push(
+            await push(
               userId,
               'support',
               `Complaint ${statusLabel}`,
               `Your complaint (#${ticketId}) is now ${statusLabel}.${adminNote ? ` Note: ${adminNote}` : ''}`,
               '/dashboard/issues',
             );
-            pushAdmin('support', `Complaint Updated: #${ticketId}`, `${subject || 'Complaint'} marked ${statusLabel}.`, '/dashboard/issues');
+            await pushAdmin('support', `Complaint Updated: #${ticketId}`, `${subject || 'Complaint'} marked ${statusLabel}.`, '/dashboard/issues');
             break;
           }
           case 'COMPLAINT_REOPENED': {
             const { userId, ticketId, subject, comment } = event.data;
-            push(
+            await push(
               userId,
               'support',
               'Complaint Reopened',
               `Your complaint (#${ticketId}) has been reopened successfully.`,
               '/dashboard/issues',
             );
-            pushAdmin(
+            await pushAdmin(
               'support',
               `Complaint Reopened: #${ticketId}`,
               `${subject || 'Complaint'} reopened by user.${comment ? ` Comment: ${comment}` : ''}`,
@@ -292,7 +292,7 @@ export const startConsumer = async (): Promise<void> => {
               ? `${Number(discountValue || 0)}% off`
               : `INR ${Number(discountValue || 0).toLocaleString('en-IN')} off`;
 
-            pushNotificationToAllUsers({
+            await pushNotificationToAllUsers({
               id: randomUUID(),
               type: 'offers',
               title: `New coupon: ${couponCode}`,
@@ -301,7 +301,7 @@ export const startConsumer = async (): Promise<void> => {
               createdAt: new Date().toISOString(),
             });
 
-            pushAdmin(
+            await pushAdmin(
               'offers',
               `Coupon Published: ${couponCode}`,
               `Coupon ${couponCode} is now live for users.`,

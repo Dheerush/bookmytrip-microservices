@@ -2,6 +2,7 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { io, Socket } from "socket.io-client";
 import { useAuth } from "@/services/auth/context";
+import { getAuthHeaders, parseApiResponse } from "@/lib/http";
 
 export interface AppNotification {
   id: string;
@@ -11,6 +12,15 @@ export interface AppNotification {
   link?: string;
   createdAt: string;
   read: boolean;
+}
+
+interface NotificationListResponse {
+  items: AppNotification[];
+  total: number;
+  totalPages: number;
+  page: number;
+  limit: number;
+  unreadCount: number;
 }
 
 const SOCKET_URL =
@@ -61,6 +71,7 @@ export function useNotifications() {
   const userId = user?.id ?? null;
   const [notificationMap, setNotificationMap] = useState<Record<string, AppNotification[]>>({});
   const [connected, setConnected] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const notifications = useMemo(() => {
     if (!userId) return [];
@@ -74,14 +85,50 @@ export function useNotifications() {
   }, [notifications, userId]);
 
   useEffect(() => {
+    if (!userId || !token) return;
+
+    let active = true;
+    const loadNotifications = async () => {
+      setLoading(true);
+      try {
+        const response = await fetch('/api/notifications?page=1&limit=50', {
+          method: 'GET',
+          headers: getAuthHeaders(),
+        });
+
+        const parsed = await parseApiResponse<NotificationListResponse>(response, 'Unable to fetch notifications.');
+        if (!active || !parsed.ok || !parsed.payload?.data?.items) return;
+
+        setNotificationMap((prev) => ({
+          ...prev,
+          [userId]: parsed.payload?.data?.items || [],
+        }));
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+
+    void loadNotifications();
+    return () => {
+      active = false;
+    };
+  }, [userId, token]);
+
+  useEffect(() => {
     if (!user || !token) {
       socket?.disconnect();
       socket = null;
       return;
     }
 
-    // Reuse existing connected socket when navigating between pages
-    if (socket?.connected) return;
+    // Reuse existing socket when navigating between pages.
+    if (socket) {
+      socket.auth = { token };
+      if (!socket.connected) {
+        socket.connect();
+      }
+      return;
+    }
 
     socket = io(SOCKET_URL, {
       auth: { token },
@@ -90,9 +137,10 @@ export function useNotifications() {
       reconnectionDelay: 1000,
     });
 
-    socket.on("connect", () => setConnected(true));
-    socket.on("disconnect", () => setConnected(false));
-    socket.on("notification:seed", (seedPayload: Array<Omit<AppNotification, "read">>) => {
+    const handleConnect = () => setConnected(true);
+    const handleDisconnect = () => setConnected(false);
+    const handleConnectError = () => setConnected(false);
+    const handleSeed = (seedPayload: Array<Omit<AppNotification, "read">>) => {
       setNotificationMap((prev) => {
         const existing = prev[user.id] ?? loadFromStorage(user.id);
         return {
@@ -100,8 +148,8 @@ export function useNotifications() {
           [user.id]: mergeIncomingNotifications(existing, seedPayload || []),
         };
       });
-    });
-    socket.on("notification", (payload: Omit<AppNotification, "read">) => {
+    };
+    const handleNotification = (payload: Omit<AppNotification, "read">) => {
       setNotificationMap((prev) => {
         const existing = prev[user.id] ?? loadFromStorage(user.id);
         return {
@@ -109,16 +157,30 @@ export function useNotifications() {
           [user.id]: mergeIncomingNotifications(existing, [payload]),
         };
       });
-    });
+    };
+
+    socket.on("connect", handleConnect);
+    socket.on("disconnect", handleDisconnect);
+    socket.on("connect_error", handleConnectError);
+    socket.on("notification:seed", handleSeed);
+    socket.on("notification", handleNotification);
 
     return () => {
-      // Only fully disconnect when user logs out (user/token becomes null)
-      // Keep socket alive during normal navigation
+      if (!socket) return;
+      socket.off("connect", handleConnect);
+      socket.off("disconnect", handleDisconnect);
+      socket.off("connect_error", handleConnectError);
+      socket.off("notification:seed", handleSeed);
+      socket.off("notification", handleNotification);
     };
   }, [user, token]);
 
   const markAllRead = useCallback(() => {
     if (!userId) return;
+    void fetch('/api/notifications/read-all', {
+      method: 'PATCH',
+      headers: getAuthHeaders(),
+    }).catch(() => undefined);
     setNotificationMap((prev) => {
       const existing = prev[userId] ?? loadFromStorage(userId);
       return {
@@ -130,6 +192,10 @@ export function useNotifications() {
 
   const markRead = useCallback((id: string) => {
     if (!userId) return;
+    void fetch(`/api/notifications/${id}/read`, {
+      method: 'PATCH',
+      headers: getAuthHeaders(),
+    }).catch(() => undefined);
     setNotificationMap((prev) => {
       const existing = prev[userId] ?? loadFromStorage(userId);
       return {
@@ -140,5 +206,5 @@ export function useNotifications() {
   }, [userId]);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
-  return { notifications, unreadCount, connected, markAllRead, markRead };
+  return { notifications, unreadCount, connected, loading, markAllRead, markRead };
 }

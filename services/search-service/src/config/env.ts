@@ -10,6 +10,10 @@ const envSchema = z.object({
   TRAIN_SERVICE_URL: z.string().url().default('http://localhost:5004'),
   HOTEL_SERVICE_URL: z.string().url().default('http://localhost:5005'),
   CAB_SERVICE_URL: z.string().url().default('http://localhost:5006'),
+  BOOKING_SERVICE_URL: z.string().url().default('http://localhost:5008'),
+  USER_SERVICE_URL: z.string().url().default('http://localhost:5002'),
+  ADMIN_SERVICE_URL: z.string().url().default('http://localhost:5011'),
+  TOUR_SERVICE_URL: z.string().url().default('http://localhost:5012'),
 });
 
 const parsed = envSchema.safeParse(process.env);

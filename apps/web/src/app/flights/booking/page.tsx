@@ -72,6 +72,12 @@ function getFlightSeatPool(cabin: CabinClass): string[] {
   return seats;
 }
 
+const getNextTravelerIndex = (assignments: Array<string | null>, currentIndex: number): number => {
+  const nextEmptyIndex = assignments.findIndex((entry) => !entry);
+  if (nextEmptyIndex >= 0) return nextEmptyIndex;
+  return Math.min(currentIndex, Math.max(0, assignments.length - 1));
+};
+
 function FlightBookingContent() {
   const searchParams = useSearchParams();
   const { user } = useAuth();
@@ -97,7 +103,8 @@ function FlightBookingContent() {
   const [travelersCount, setTravelersCount] = useState(1);
   const [travelers, setTravelers] = useState<Traveler[]>(createTravelers(1));
   const [seatModalOpen, setSeatModalOpen] = useState(false);
-  const [selectedSeats, setSelectedSeats] = useState<string[]>([]);
+  const [selectedSeats, setSelectedSeats] = useState<Array<string | null>>([null]);
+  const [activeTravelerIndex, setActiveTravelerIndex] = useState(0);
 
   const [contactName, setContactName] = useState(user?.fullName || "");
   const [contactEmail, setContactEmail] = useState(user?.email || "");
@@ -162,12 +169,23 @@ function FlightBookingContent() {
   }, [travelersCount]);
 
   useEffect(() => {
-    setSelectedSeats((prev) => prev.slice(0, travelersCount));
+    setSelectedSeats((prev) => {
+      const trimmed = prev.slice(0, travelersCount);
+      while (trimmed.length < travelersCount) {
+        trimmed.push(null);
+      }
+      return trimmed;
+    });
   }, [travelersCount]);
 
   useEffect(() => {
-    setSelectedSeats([]);
-  }, [cabinClass]);
+    setActiveTravelerIndex((prev) => Math.min(prev, Math.max(0, travelersCount - 1)));
+  }, [travelersCount]);
+
+  useEffect(() => {
+    setSelectedSeats(Array.from({ length: travelersCount }, () => null));
+    setActiveTravelerIndex(0);
+  }, [cabinClass, travelersCount]);
 
   const farePerTraveler = useMemo(() => {
     if (!outbound) return 0;
@@ -230,17 +248,24 @@ function FlightBookingContent() {
   const maxTravelers = Math.min(9, seatsLeft);
 
   const toggleSeat = (seat: string) => {
-    if (selectedSeats.includes(seat)) {
-      setSelectedSeats((prev) => prev.filter((entry) => entry !== seat));
-      return;
-    }
+    setSelectedSeats((prev) => {
+      const next = [...prev];
+      const seatOwnerIndex = next.findIndex((entry) => entry === seat);
 
-    if (selectedSeats.length >= travelersCount) {
-      showToast.error(`You can select up to ${travelersCount} seat${travelersCount !== 1 ? "s" : ""}.`);
-      return;
-    }
+      if (seatOwnerIndex === activeTravelerIndex) {
+        next[activeTravelerIndex] = null;
+        setActiveTravelerIndex(getNextTravelerIndex(next, activeTravelerIndex));
+        return next;
+      }
 
-    setSelectedSeats((prev) => [...prev, seat]);
+      if (seatOwnerIndex >= 0) {
+        next[seatOwnerIndex] = null;
+      }
+
+      next[activeTravelerIndex] = seat;
+      setActiveTravelerIndex(getNextTravelerIndex(next, Math.min(activeTravelerIndex + 1, travelersCount - 1)));
+      return next;
+    });
   };
 
   const submitBooking = async (finalAmount: number) => {
@@ -302,7 +327,8 @@ function FlightBookingContent() {
         autoSeats.push(candidate);
       }
     }
-    const assignedSeats = selectedSeats.length === travelersCount ? selectedSeats : autoSeats;
+    const hasManualSeatAssignments = selectedSeats.every((entry): entry is string => Boolean(entry));
+    const assignedSeats = hasManualSeatAssignments ? selectedSeats : autoSeats;
 
     if (new Set(assignedSeats).size !== assignedSeats.length) {
       showToast.error("Seat assignment conflict detected. Please reselect seats.");
@@ -493,12 +519,15 @@ function FlightBookingContent() {
                   onClick={() => setSeatModalOpen(true)}
                   style={{ textAlign: "left", cursor: "pointer", fontWeight: 600 }}
                 >
-                  {selectedSeats.length === travelersCount && selectedSeats.length > 0
-                    ? `Selected: ${selectedSeats.join(", ")}`
+                  {selectedSeats.some(Boolean)
+                    ? `Assigned: ${selectedSeats
+                      .map((seat, idx) => (seat ? `${travelers[idx]?.name?.trim() || `Traveler ${idx + 1}`}: ${seat}` : null))
+                      .filter(Boolean)
+                      .join(" | ")}`
                     : "Choose Seat"}
                 </button>
                 <p style={{ marginTop: 6, fontSize: "0.75rem", color: "#6b7f93" }}>
-                  Select {travelersCount} seat{travelersCount !== 1 ? "s" : ""}. If skipped, seats are auto-assigned.
+                  Select {travelersCount} seat{travelersCount !== 1 ? "s" : ""}. If skipped, seats are auto-assigned. Selecting another seat auto-replaces the latest selection.
                 </p>
               </div>
 
@@ -539,11 +568,37 @@ function FlightBookingContent() {
                 <button type="button" onClick={() => setSeatModalOpen(false)} style={{ border: 0, background: "transparent", fontWeight: 700, cursor: "pointer" }}>Close</button>
               </div>
               <p style={{ margin: "0 0 12px", color: "#5b6f86", fontSize: "0.85rem" }}>
-                Select {travelersCount} seat{travelersCount !== 1 ? "s" : ""}. Selected: {selectedSeats.length}/{travelersCount}
+                Assign seats per traveler. Assigned: {selectedSeats.filter(Boolean).length}/{travelersCount}
               </p>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 8, marginBottom: 14 }}>
+                {travelers.map((traveler, idx) => {
+                  const assignedSeat = selectedSeats[idx];
+                  const active = idx === activeTravelerIndex;
+                  return (
+                    <button
+                      key={`traveler-seat-${idx}`}
+                      type="button"
+                      onClick={() => setActiveTravelerIndex(idx)}
+                      style={{
+                        borderRadius: 10,
+                        border: active ? "1px solid #134b87" : "1px solid #d7e2f0",
+                        background: active ? "#eef6ff" : "#fff",
+                        padding: "10px 12px",
+                        textAlign: "left",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <div style={{ fontWeight: 700, color: "#0f2b46" }}>{traveler.name.trim() || `Traveler ${idx + 1}`}</div>
+                      <div style={{ marginTop: 4, fontSize: "0.8rem", color: "#5b6f86" }}>{assignedSeat || "Seat not assigned"}</div>
+                    </button>
+                  );
+                })}
+              </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(6, minmax(56px, 1fr))", gap: 8 }}>
                 {seatPool.map((seat) => {
-                  const active = selectedSeats.includes(seat);
+                  const seatOwnerIndex = selectedSeats.findIndex((entry) => entry === seat);
+                  const active = seatOwnerIndex >= 0;
+                  const ownedByActiveTraveler = seatOwnerIndex === activeTravelerIndex;
                   return (
                     <button
                       key={seat}
@@ -552,14 +607,19 @@ function FlightBookingContent() {
                       style={{
                         borderRadius: 8,
                         border: active ? "1px solid #134b87" : "1px solid #c9d9ee",
-                        background: active ? "#e8f2ff" : "#fff",
+                        background: ownedByActiveTraveler ? "#d7ebff" : active ? "#eef3f8" : "#fff",
                         color: "#0f2b46",
                         fontWeight: 600,
                         padding: "9px 6px",
                         cursor: "pointer",
                       }}
                     >
-                      {seat}
+                      <div>{seat}</div>
+                      {seatOwnerIndex >= 0 && (
+                        <div style={{ marginTop: 4, fontSize: "0.68rem", color: "#5b6f86" }}>
+                          T{seatOwnerIndex + 1}
+                        </div>
+                      )}
                     </button>
                   );
                 })}

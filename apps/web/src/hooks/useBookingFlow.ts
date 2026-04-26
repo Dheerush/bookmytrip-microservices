@@ -46,6 +46,7 @@ interface BookingFlowParams {
     age?: number;
     gender?: string;
     email?: string;
+    phone?: string;
     seatNumber?: string;
   }>;
   metadata?: Record<string, unknown>;

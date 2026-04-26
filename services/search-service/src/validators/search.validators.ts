@@ -20,4 +20,10 @@ export const aggregateSearchSchema = z.object({
   cabPassengers: z.string().optional().default('1').transform(Number).pipe(z.number().int().min(1).max(8)),
 });
 
+export const adminGlobalSearchSchema = z.object({
+  q: z.string().min(1).max(120),
+  limit: z.string().optional().default('8').transform(Number).pipe(z.number().int().min(1).max(20)),
+});
+
 export type AggregateSearchQuery = z.infer<typeof aggregateSearchSchema>;
+export type AdminGlobalSearchQuery = z.infer<typeof adminGlobalSearchSchema>;

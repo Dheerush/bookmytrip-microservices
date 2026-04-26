@@ -16,6 +16,7 @@ const envSchema = z.object({
   HOTEL_SERVICE_URL: z.string().url(),
   CAB_SERVICE_URL: z.string().url(),
   SEARCH_SERVICE_URL: z.string().url(),
+  NOTIFICATION_SERVICE_URL: z.string().url().default('http://localhost:5013'),
   BOOKING_SERVICE_URL: z.string().url(),
   PAYMENT_SERVICE_URL: z.string().url(),
   MEDIA_SERVICE_URL: z.string().url(),

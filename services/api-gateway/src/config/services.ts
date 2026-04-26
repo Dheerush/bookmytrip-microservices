@@ -1,6 +1,6 @@
 import { env } from "./env";
 
-export type ServiceName = "auth" | "user" | "flight" | "train" | "hotel" | "cab" | "booking" | "payment" | "search" | "media" | "review" | "tour" | "ai" | "admin";
+export type ServiceName = "auth" | "user" | "flight" | "train" | "hotel" | "cab" | "booking" | "payment" | "search" | "notification" | "media" | "review" | "tour" | "ai" | "admin";
 
 interface ServiceDefinition {
   name: ServiceName;
@@ -49,6 +49,10 @@ const definitions: Record<ServiceName, ServiceDefinition> = {
   search: {
     name: "search",
     targets: parseTargets(env.SEARCH_SERVICE_URL),
+  },
+  notification: {
+    name: "notification",
+    targets: parseTargets(env.NOTIFICATION_SERVICE_URL),
   },
   media: {
     name: "media",

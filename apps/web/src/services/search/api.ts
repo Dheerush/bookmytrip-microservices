@@ -29,6 +29,14 @@ export interface AggregateSearchQuery {
   rooms?: number;
 }
 
+export interface AdminGlobalSearchItem {
+  id: string;
+  kind: string;
+  label: string;
+  meta: string;
+  href: string;
+}
+
 export const aggregateSearch = async (query: AggregateSearchQuery): Promise<AggregateSearchResult> => {
   const params = new URLSearchParams();
   Object.entries(query).forEach(([key, value]) => {
@@ -47,4 +55,24 @@ export const aggregateSearch = async (query: AggregateSearchQuery): Promise<Aggr
   }
 
   return parsed.payload.data;
+};
+
+export const adminGlobalSearch = async (query: { q: string; limit?: number }): Promise<AdminGlobalSearchItem[]> => {
+  const params = new URLSearchParams();
+  params.set('q', query.q);
+  if (query.limit) {
+    params.set('limit', String(query.limit));
+  }
+
+  const response = await fetch(`/api/search/admin-global?${params.toString()}`, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json', ...((typeof window !== 'undefined') ? {} : {}) },
+  });
+
+  const parsed = await parseApiResponse<{ items: AdminGlobalSearchItem[] }>(response, 'Unable to search admin data right now.');
+  if (!parsed.ok || !parsed.payload?.data?.items) {
+    throw new Error(parsed.payload?.message || 'Unable to search admin data right now.');
+  }
+
+  return parsed.payload.data.items;
 };

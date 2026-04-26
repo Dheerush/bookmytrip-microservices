@@ -42,6 +42,11 @@ const passengerSchema = z.object({
   age: z.number().int().min(0).optional(),
   gender: z.string().min(1).optional(),
   email: z.string().email().optional(),
+  phone: z
+    .string()
+    .transform((value) => value.replace(/\D/g, ''))
+    .pipe(z.string().regex(/^\d{10}$/))
+    .optional(),
   seatNumber: z.string().min(1).max(20).optional(),
 });
 

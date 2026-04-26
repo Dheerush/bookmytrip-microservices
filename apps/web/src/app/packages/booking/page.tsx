@@ -16,6 +16,7 @@ type Traveler = {
   age: string;
   gender: "male" | "female" | "other";
   email: string;
+  phone: string;
   currentLocation: string;
 };
 
@@ -94,6 +95,7 @@ const createTravelers = (count: number): Traveler[] =>
     age: "",
     gender: "male",
     email: "",
+    phone: "",
     currentLocation: "",
   }));
 
@@ -129,6 +131,8 @@ function PackageBookingContent() {
   const [contactName, setContactName] = useState(user?.fullName || "");
   const [contactEmail, setContactEmail] = useState(user?.email || "");
   const [contactPhone, setContactPhone] = useState("");
+  const [leadAge, setLeadAge] = useState("");
+  const [leadGender, setLeadGender] = useState<Traveler["gender"]>("male");
   const [currentLocation, setCurrentLocation] = useState("");
   const [travelMode, setTravelMode] = useState<TravelMode>("flight");
   const [travelOptions, setTravelOptions] = useState<TravelOption[]>([]);
@@ -376,6 +380,11 @@ function PackageBookingContent() {
       return;
     }
 
+    if (!leadAge || Number(leadAge) <= 0) {
+      showToast.error("Please provide lead traveler age.");
+      return;
+    }
+
     if (!currentLocation.trim()) {
       showToast.error("Please provide your current location.");
       return;
@@ -394,6 +403,15 @@ function PackageBookingContent() {
     const hasInvalidTraveler = travelers.some((traveler) => !traveler.name.trim());
     if (hasInvalidTraveler) {
       showToast.error("Please enter all additional traveler names.");
+      return;
+    }
+
+    const invalidAdditionalPhone = travelers.some((traveler) => {
+      const digits = traveler.phone.replace(/\D/g, "");
+      return digits.length > 0 && digits.length !== 10;
+    });
+    if (invalidAdditionalPhone) {
+      showToast.error("Additional traveler phone must be exactly 10 digits when provided.");
       return;
     }
 
@@ -424,13 +442,17 @@ function PackageBookingContent() {
             passengers: [
               {
                 name: contactName.trim(),
+                age: Number(leadAge) || undefined,
+                gender: leadGender,
                 email: contactEmail.trim() || undefined,
+                phone: contactPhone.replace(/\D/g, "") || undefined,
               },
               ...travelers.map((traveler) => ({
                 name: traveler.name.trim(),
                 age: Number(traveler.age) || undefined,
                 gender: traveler.gender,
                 email: traveler.email.trim() || undefined,
+                phone: traveler.phone.replace(/\D/g, "") || undefined,
               })),
             ],
             metadata: {
@@ -445,6 +467,7 @@ function PackageBookingContent() {
                   {
                     travelerName: contactName.trim(),
                     travelerEmail: contactEmail.trim() || undefined,
+                    travelerPhone: contactPhone.replace(/\D/g, "") || undefined,
                     currentLocation: currentLocation.trim(),
                     travelMode,
                     selectedOption: selectedTravelOption
@@ -457,6 +480,7 @@ function PackageBookingContent() {
                   ...travelers.map((traveler) => ({
                     travelerName: traveler.name.trim(),
                     travelerEmail: traveler.email.trim() || undefined,
+                    travelerPhone: traveler.phone.replace(/\D/g, "") || undefined,
                     currentLocation: traveler.currentLocation.trim() || currentLocation.trim(),
                     travelMode,
                     selectedOption: selectedTravelOption
@@ -524,6 +548,27 @@ function PackageBookingContent() {
               <div className={s.fieldFull}>
                 <label className={s.label}>Lead Traveler Name</label>
                 <input className={s.input} value={contactName} onChange={(e) => setContactName(e.target.value)} />
+              </div>
+              <div className={s.fieldRow}>
+                <div>
+                  <label className={s.label}>Lead Traveler Age</label>
+                  <input
+                    className={s.input}
+                    placeholder="Age"
+                    type="number"
+                    min={1}
+                    value={leadAge}
+                    onChange={(e) => setLeadAge(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className={s.label}>Lead Traveler Gender</label>
+                  <select className={s.input} value={leadGender} onChange={(e) => setLeadGender(e.target.value as Traveler["gender"])}>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
               </div>
               <div className={s.fieldRow}>
                 <div>
@@ -625,6 +670,15 @@ function PackageBookingContent() {
                       value={traveler.email}
                       onChange={(e) => updateTraveler(index, "email", e.target.value)}
                     />
+                    <input
+                      className={s.input}
+                      placeholder="Phone (optional, 10 digits)"
+                      type="tel"
+                      value={traveler.phone}
+                      onChange={(e) => updateTraveler(index, "phone", e.target.value.replace(/\D/g, "").slice(0, 10))}
+                    />
+                  </div>
+                  <div className={s.fieldRow}>
                     <input
                       className={s.input}
                       placeholder="Current location (optional)"

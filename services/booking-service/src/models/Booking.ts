@@ -14,6 +14,7 @@ export interface IBookingPassenger {
   age?: number;
   gender?: string;
   email?: string;
+  phone?: string;
   seatNumber?: string;
 }
 
@@ -57,6 +58,7 @@ const passengerSchema = new Schema<IBookingPassenger>(
     age: { type: Number },
     gender: { type: String },
     email: { type: String },
+    phone: { type: String },
     seatNumber: { type: String },
   },
   { _id: false },

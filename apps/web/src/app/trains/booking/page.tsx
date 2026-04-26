@@ -59,6 +59,23 @@ function generateTrainBerth(index: number, cls: SeatClass, coachNum: number, pre
   return `${COACH_CODES[cls]}${coachNum}/${berth}`;
 }
 
+function getTrainBerthPool(cls: SeatClass, startCoach: number): string[] {
+  const seats: string[] = [];
+  for (let coachOffset = 0; coachOffset < 2; coachOffset += 1) {
+    const coach = startCoach + coachOffset;
+    for (let berth = 1; berth <= 8; berth += 1) {
+      seats.push(`${COACH_CODES[cls]}${coach}/${berth}`);
+    }
+  }
+  return seats;
+}
+
+const getNextTravelerIndex = (assignments: Array<string | null>, currentIndex: number): number => {
+  const nextEmptyIndex = assignments.findIndex((entry) => !entry);
+  if (nextEmptyIndex >= 0) return nextEmptyIndex;
+  return Math.min(currentIndex, Math.max(0, assignments.length - 1));
+};
+
 function parseBerthType(seatNumber: string): "Lower" | "Middle" | "Upper" | "Unknown" {
   const match = seatNumber.match(/\/(\d+)$/);
   const berth = Number(match?.[1] || 0);
@@ -91,6 +108,9 @@ function TrainBookingContent() {
   const [berthPreference, setBerthPreference] = useState<BerthPreference>("noPreference");
   const [travelersCount, setTravelersCount] = useState(1);
   const [travelers, setTravelers] = useState<Traveler[]>(createTravelers(1));
+  const [berthModalOpen, setBerthModalOpen] = useState(false);
+  const [selectedBerths, setSelectedBerths] = useState<Array<string | null>>([null]);
+  const [activeTravelerIndex, setActiveTravelerIndex] = useState(0);
 
   const [contactName, setContactName] = useState(user?.fullName || "");
   const [contactEmail, setContactEmail] = useState(user?.email || "");
@@ -130,6 +150,25 @@ function TrainBookingContent() {
       return [...prev, ...createTravelers(travelersCount - prev.length)];
     });
   }, [travelersCount]);
+
+  useEffect(() => {
+    setSelectedBerths((prev) => {
+      const trimmed = prev.slice(0, travelersCount);
+      while (trimmed.length < travelersCount) {
+        trimmed.push(null);
+      }
+      return trimmed;
+    });
+  }, [travelersCount]);
+
+  useEffect(() => {
+    setActiveTravelerIndex((prev) => Math.min(prev, Math.max(0, travelersCount - 1)));
+  }, [travelersCount]);
+
+  useEffect(() => {
+    setSelectedBerths(Array.from({ length: travelersCount }, () => null));
+    setActiveTravelerIndex(0);
+  }, [seatClass, berthPreference, travelersCount]);
 
   const farePerTraveler = useMemo(() => {
     if (!train) return 0;
@@ -187,6 +226,32 @@ function TrainBookingContent() {
   const seatsAvailable = train.seatsAvailable?.[seatClass] ?? 999;
   const maxTravelers = Math.min(9, seatsAvailable);
 
+  const berthSeed = train.trainNumber || train.id;
+  const seedOffset = berthSeed.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0);
+  const groupCoach = Math.max(1, Math.floor(seedOffset / 9) + 1);
+  const berthPool = getTrainBerthPool(seatClass, groupCoach);
+
+  const toggleBerth = (berth: string) => {
+    setSelectedBerths((prev) => {
+      const next = [...prev];
+      const ownerIndex = next.findIndex((entry) => entry === berth);
+
+      if (ownerIndex === activeTravelerIndex) {
+        next[activeTravelerIndex] = null;
+        setActiveTravelerIndex(getNextTravelerIndex(next, activeTravelerIndex));
+        return next;
+      }
+
+      if (ownerIndex >= 0) {
+        next[ownerIndex] = null;
+      }
+
+      next[activeTravelerIndex] = berth;
+      setActiveTravelerIndex(getNextTravelerIndex(next, Math.min(activeTravelerIndex + 1, travelersCount - 1)));
+      return next;
+    });
+  };
+
   const submitBooking = async (finalAmount: number) => {
     if (date < getTodayIso()) {
       showToast.error("Journey date cannot be in the past.");
@@ -221,16 +286,26 @@ function TrainBookingContent() {
       return;
     }
 
-    // Generate berth assignments
-    const berthSeed = train.trainNumber || train.id;
-    const seedOffset = berthSeed.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0);
-    const groupCoach = Math.max(1, Math.floor(seedOffset / 9) + 1);
+    // Generate berth assignments.
+    const autoBerths: string[] = [];
+    for (let idx = 0; idx < travelersCount; idx += 1) {
+      let candidate = generateTrainBerth(idx, seatClass, groupCoach, berthPreference);
+      let tries = 0;
+      while (autoBerths.includes(candidate) && tries < 200) {
+        tries += 1;
+        candidate = generateTrainBerth(idx + tries, seatClass, groupCoach, berthPreference);
+      }
+      autoBerths.push(candidate);
+    }
+    const hasManualBerthAssignments = selectedBerths.every((entry): entry is string => Boolean(entry));
+    const assignedBerths = hasManualBerthAssignments ? selectedBerths : autoBerths;
+
     const passengersWithBerths = travelers.map((t, idx) => ({
       name: t.name.trim(),
       age: Number(t.age) || undefined,
       gender: t.gender,
       email: t.email.trim() || undefined,
-      seatNumber: generateTrainBerth(idx, seatClass, groupCoach, berthPreference),
+      seatNumber: assignedBerths[idx],
     }));
     const passengerBerths = passengersWithBerths.map((passenger) => {
       const seat = passenger.seatNumber || "";
@@ -413,12 +488,122 @@ function TrainBookingContent() {
                 </div>
               ))}
 
+              <div className={s.fieldFull} style={{ marginTop: 14 }}>
+                <label className={s.label}>Berth Selection</label>
+                <button
+                  type="button"
+                  className={s.input}
+                  onClick={() => setBerthModalOpen(true)}
+                  style={{ textAlign: "left", cursor: "pointer", fontWeight: 600 }}
+                >
+                  {selectedBerths.some(Boolean)
+                    ? `Assigned: ${selectedBerths
+                      .map((berth, idx) => (berth ? `${travelers[idx]?.name?.trim() || `Traveler ${idx + 1}`}: ${berth}` : null))
+                      .filter(Boolean)
+                      .join(" | ")}`
+                    : "Choose Berths"}
+                </button>
+                <p style={{ marginTop: 6, fontSize: "0.75rem", color: "#6b7f93" }}>
+                  Select {travelersCount} berth{travelersCount !== 1 ? "s" : ""}. If skipped, berths are auto-assigned. Selecting another berth auto-replaces the latest choice.
+                </p>
+              </div>
+
               <button className={s.ctaBtn} type="submit" disabled={submitting || seatsAvailable <= 0}>
                 {submitting ? "Processing..." : seatsAvailable <= 0 ? "No Seats Available" : "Pay And Confirm"}
               </button>
             </form>
           </div>
         </div>
+
+        {berthModalOpen && (
+          <div
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0, 18, 40, 0.55)",
+              zIndex: 60,
+              display: "grid",
+              placeItems: "center",
+              padding: 16,
+            }}
+            onClick={() => setBerthModalOpen(false)}
+          >
+            <div
+              style={{
+                width: "min(680px, 100%)",
+                maxHeight: "80vh",
+                overflow: "auto",
+                background: "#ffffff",
+                borderRadius: 14,
+                border: "1px solid #d7e2f0",
+                padding: 18,
+              }}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                <h3 style={{ margin: 0, color: "#0f2b46" }}>Choose Berths ({seatClass})</h3>
+                <button type="button" onClick={() => setBerthModalOpen(false)} style={{ border: 0, background: "transparent", fontWeight: 700, cursor: "pointer" }}>Close</button>
+              </div>
+              <p style={{ margin: "0 0 12px", color: "#5b6f86", fontSize: "0.85rem" }}>
+                Assign berths per traveler. Assigned: {selectedBerths.filter(Boolean).length}/{travelersCount}
+              </p>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 8, marginBottom: 14 }}>
+                {travelers.map((traveler, idx) => {
+                  const assignedBerth = selectedBerths[idx];
+                  const active = idx === activeTravelerIndex;
+                  return (
+                    <button
+                      key={`traveler-berth-${idx}`}
+                      type="button"
+                      onClick={() => setActiveTravelerIndex(idx)}
+                      style={{
+                        borderRadius: 10,
+                        border: active ? "1px solid #134b87" : "1px solid #d7e2f0",
+                        background: active ? "#eef6ff" : "#fff",
+                        padding: "10px 12px",
+                        textAlign: "left",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <div style={{ fontWeight: 700, color: "#0f2b46" }}>{traveler.name.trim() || `Traveler ${idx + 1}`}</div>
+                      <div style={{ marginTop: 4, fontSize: "0.8rem", color: "#5b6f86" }}>{assignedBerth || "Berth not assigned"}</div>
+                    </button>
+                  );
+                })}
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(80px, 1fr))", gap: 8 }}>
+                {berthPool.map((berth) => {
+                  const berthOwnerIndex = selectedBerths.findIndex((entry) => entry === berth);
+                  const active = berthOwnerIndex >= 0;
+                  const ownedByActiveTraveler = berthOwnerIndex === activeTravelerIndex;
+                  return (
+                    <button
+                      key={berth}
+                      type="button"
+                      onClick={() => toggleBerth(berth)}
+                      style={{
+                        borderRadius: 8,
+                        border: active ? "1px solid #134b87" : "1px solid #c9d9ee",
+                        background: ownedByActiveTraveler ? "#d7ebff" : active ? "#eef3f8" : "#fff",
+                        color: "#0f2b46",
+                        fontWeight: 600,
+                        padding: "10px 8px",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <div>{berth}</div>
+                      {berthOwnerIndex >= 0 && (
+                        <div style={{ marginTop: 4, fontSize: "0.68rem", color: "#5b6f86" }}>
+                          T{berthOwnerIndex + 1}
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
 
         <BookingSidebar
           baseFare={baseFare}
