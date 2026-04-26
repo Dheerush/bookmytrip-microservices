@@ -101,6 +101,77 @@ export function useNotifications() {
     });
   }, [userId]);
 
+  const markRead = useCallback((id: string) => {
+    if (!userId) return;
+    setNotificationMap((prev) => {
+      const existing = prev[userId] ?? loadFromStorage(userId);
+      return {
+        ...prev,
+        [userId]: existing.map((item) => (item.id === id ? { ...item, read: true } : item)),
+      };
+    });
+  }, [userId]);
+
+  const pushLocalNotification = useCallback((item: Omit<AppNotification, "read">) => {
+    if (!userId) return;
+    setNotificationMap((prev) => {
+      const existing = prev[userId] ?? loadFromStorage(userId);
+      if (existing.some((entry) => entry.id === item.id)) return prev;
+      return {
+        ...prev,
+        [userId]: [{ ...item, read: false }, ...existing].slice(0, 50),
+      };
+    });
+  }, [userId]);
+
+  useEffect(() => {
+    if (!userId) return;
+
+    let mounted = true;
+    const run = async () => {
+      try {
+        const response = await fetch("/api/admin/coupons/public");
+        if (!response.ok) return;
+
+        const payload = await response.json() as {
+          data?: { items?: Array<{ code?: string; description?: string; discountType?: string; discountValue?: number; maxDiscount?: number }> };
+        };
+
+        if (!mounted) return;
+        const coupons = payload.data?.items || [];
+
+        coupons.forEach((coupon) => {
+          const code = String(coupon.code || "").trim();
+          if (!code) return;
+          const discountLabel = coupon.discountType === "percent"
+            ? `${coupon.discountValue || 0}% off`
+            : `INR ${Number(coupon.discountValue || 0).toLocaleString("en-IN")} off`;
+
+          pushLocalNotification({
+            id: `coupon:${code}`,
+            type: "offers",
+            title: `New coupon: ${code}`,
+            message: `${discountLabel}${coupon.description ? ` • ${coupon.description}` : ""}`,
+            link: "/dashboard/notifications",
+            createdAt: new Date().toISOString(),
+          });
+        });
+      } catch {
+        // Ignore transient fetch failures.
+      }
+    };
+
+    void run();
+    const intervalId = window.setInterval(() => {
+      void run();
+    }, 120_000);
+
+    return () => {
+      mounted = false;
+      window.clearInterval(intervalId);
+    };
+  }, [pushLocalNotification, userId]);
+
   const unreadCount = notifications.filter((n) => !n.read).length;
-  return { notifications, unreadCount, connected, markAllRead };
+  return { notifications, unreadCount, connected, markAllRead, markRead, pushLocalNotification };
 }

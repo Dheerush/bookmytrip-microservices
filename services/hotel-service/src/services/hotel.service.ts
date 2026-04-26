@@ -27,6 +27,23 @@ export interface HotelSuggestion {
   kind: 'city' | 'hotel';
 }
 
+const CITY_ALIASES: Record<string, string> = {
+  delhi: 'new delhi',
+  'new delhi': 'new delhi',
+  bombay: 'mumbai',
+  bengaluru: 'bangalore',
+};
+
+const escapeRegex = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const resolveCityCandidates = (value: string): string[] => {
+  const trimmed = value.trim().toLowerCase();
+  if (!trimmed) return [];
+
+  const alias = CITY_ALIASES[trimmed];
+  return Array.from(new Set([trimmed, alias].filter(Boolean) as string[]));
+};
+
 const getNightCount = (checkIn: string, checkOut: string): number => {
   const start = new Date(checkIn);
   const end = new Date(checkOut);
@@ -65,8 +82,13 @@ export const searchHotels = async (query: SearchHotelsQuery): Promise<PaginatedH
     limit,
   } = query;
 
+  const cityCandidates = resolveCityCandidates(city);
+  const cityRegex = cityCandidates.length > 0
+    ? new RegExp(cityCandidates.map((candidate) => escapeRegex(candidate)).join('|'), 'i')
+    : new RegExp(escapeRegex(city.trim()), 'i');
+
   const filter: FilterQuery<IHotel> = {
-    city: { $regex: new RegExp(`^${city}$`, 'i') },
+    city: { $regex: cityRegex },
     isActive: true,
   };
 
@@ -131,7 +153,11 @@ export const listHotelSuggestions = async (query: string): Promise<HotelSuggesti
   const trimmed = query.trim();
   if (!trimmed) return [];
 
-  const regex = new RegExp(trimmed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+  const candidates = resolveCityCandidates(trimmed);
+  const regex = new RegExp(
+    (candidates.length > 0 ? candidates : [trimmed]).map((candidate) => escapeRegex(candidate)).join('|'),
+    'i',
+  );
   const hotels = await Hotel.find({
     isActive: true,
     $or: [{ city: regex }, { name: regex }],

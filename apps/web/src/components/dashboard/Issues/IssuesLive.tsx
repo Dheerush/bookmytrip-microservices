@@ -96,13 +96,24 @@ export default function IssuesLivePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAdmin]);
 
-  // Auto-refresh every 30 seconds for the admin list view so new complaints appear in real-time
+  // Auto-refresh for both user and admin views so status changes reflect without manual refresh.
   useEffect(() => {
-    if (!isAdmin) return;
-    const id = setInterval(() => { void fetchIssues(); }, 30_000);
+    const id = setInterval(() => { void fetchIssues(); }, 12_000);
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAdmin]);
+
+  useEffect(() => {
+    if (!selectedIssue) return;
+    const latest = issues.find((entry) => entry._id === selectedIssue._id);
+    if (!latest) return;
+
+    setSelectedIssue(latest);
+    if (isAdmin) {
+      setAdminStatus(latest.status);
+      setAdminNote(latest.adminNote || "");
+    }
+  }, [isAdmin, issues, selectedIssue]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();

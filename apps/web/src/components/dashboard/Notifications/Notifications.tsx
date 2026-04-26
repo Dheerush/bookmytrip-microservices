@@ -34,9 +34,8 @@ const CATEGORY_FILTERS: { label: string; value: NotifCategory; icon: React.React
 ];
 
 export default function NotificationsPage() {
-  const { notifications: socketNotifications, unreadCount, markAllRead, connected } = useNotifications();
+  const { notifications: socketNotifications, unreadCount, markAllRead, markRead: markReadNotification, connected } = useNotifications();
   const [category, setCategory] = useState<NotifCategory>("all");
-  const [locallyRead, setLocallyRead] = useState<Record<string, boolean>>({});
 
   const notifications = useMemo<Notification[]>(() => {
     return socketNotifications.map((n) => {
@@ -71,22 +70,19 @@ export default function NotificationsPage() {
         title: n.title,
         message: n.message,
         time,
-        read: Boolean(n.read || locallyRead[n.id]),
+        read: Boolean(n.read),
       };
     });
-  }, [socketNotifications, locallyRead]);
+  }, [socketNotifications]);
 
   const filtered = category === "all" ? notifications : notifications.filter((n) => n.category === category);
 
   const markAllLocallyRead = () => {
-    const next: Record<string, boolean> = {};
-    notifications.forEach((n) => { next[n.id] = true; });
-    setLocallyRead(next);
     markAllRead();
   };
 
-  const markRead = (id: string) => {
-    setLocallyRead((prev) => ({ ...prev, [id]: true }));
+  const handleMarkRead = (id: string) => {
+    markReadNotification(id);
   };
 
   return (
@@ -151,7 +147,7 @@ export default function NotificationsPage() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}
                 transition={{ delay: i * 0.03, duration: 0.3 }}
-                onClick={() => markRead(notif.id)}
+                onClick={() => handleMarkRead(notif.id)}
               >
                 <div className={`${styles.notifIcon} ${styles[notif.category]}`}>
                   {notif.icon}

@@ -33,10 +33,11 @@ interface SidebarItem {
 }
 
 const buildNavItems = (unreadCount: number) => ({
+  notificationsLabel: unreadCount > 0 ? `Notifications (${unreadCount})` : "Notifications",
   user: [
     { label: "Dashboard", href: "/dashboard", icon: <LayoutDashboard size={18} strokeWidth={1.6} /> },
     { label: "Booking History", href: "/dashboard/bookings", icon: <ClipboardList size={18} strokeWidth={1.6} /> },
-    { label: "Notifications", href: "/dashboard/notifications", icon: <Bell size={18} strokeWidth={1.6} />, badge: unreadCount > 0 ? unreadCount : undefined },
+    { label: unreadCount > 0 ? `Notifications (${unreadCount})` : "Notifications", href: "/dashboard/notifications", icon: <Bell size={18} strokeWidth={1.6} />, badge: unreadCount > 0 ? unreadCount : undefined },
     { label: "Issues", href: "/dashboard/issues", icon: <AlertTriangle size={18} strokeWidth={1.6} /> },
     { label: "Settings", href: "/dashboard/settings", icon: <Settings size={18} strokeWidth={1.6} /> },
   ] as SidebarItem[],
@@ -52,7 +53,7 @@ const buildNavItems = (unreadCount: number) => ({
     { label: "Inventory", href: "/dashboard/admin/inventory", icon: <Database size={18} strokeWidth={1.6} /> },
     { label: "Requests", href: "/dashboard/admin/requests", icon: <FileClock size={18} strokeWidth={1.6} /> },
     { label: "Coupons & Deals", href: "/dashboard/admin/coupons", icon: <Tag size={18} strokeWidth={1.6} /> },
-    { label: "Notifications", href: "/dashboard/notifications", icon: <Bell size={18} strokeWidth={1.6} />, badge: unreadCount > 0 ? unreadCount : undefined },
+    { label: unreadCount > 0 ? `Notifications (${unreadCount})` : "Notifications", href: "/dashboard/notifications", icon: <Bell size={18} strokeWidth={1.6} />, badge: unreadCount > 0 ? unreadCount : undefined },
     { label: "Complaints", href: "/dashboard/issues", icon: <AlertTriangle size={18} strokeWidth={1.6} /> },
     { label: "Service Health", href: "/dashboard/admin/data", icon: <Database size={18} strokeWidth={1.6} /> },
     { label: "Settings", href: "/dashboard/settings", icon: <Settings size={18} strokeWidth={1.6} /> },

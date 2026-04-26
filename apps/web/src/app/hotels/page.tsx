@@ -6,7 +6,7 @@ import Link from "next/link";
 import { parseApiResponse } from "@/lib/http";
 import { showToast } from "@/lib/toast";
 import s from "@/styles/search.module.scss";
-import { hotels, type Hotel } from "@/data/hotels";
+import { type Hotel } from "@/data/hotels";
 import Pagination from "@/components/ui/Pagination/Pagination";
 
 const PER_PAGE = 10;
@@ -16,25 +16,29 @@ type HotelSuggestion = {
   label: string;
   value: string;
   city: string;
+  kind?: "city" | "hotel";
 };
 
-const cityOptions = Array.from(new Set(hotels.map((hotel) => hotel.city)));
-const hotelSuggestionsSource: HotelSuggestion[] = [
-  ...cityOptions.map((city) => ({ label: `${city} (city)`, value: city, city })),
-  ...hotels.map((hotel) => ({ label: `${hotel.name} - ${hotel.city}`, value: hotel.name, city: hotel.city })),
-];
+const CITY_ALIASES: Record<string, string> = {
+  delhi: "new delhi",
+  "new delhi": "new delhi",
+  bombay: "mumbai",
+  bengaluru: "bangalore",
+};
 
-const resolveHotelCity = (value: string): string | null => {
+const resolveHotelCity = (value: string, suggestions: HotelSuggestion[]): string | null => {
   const trimmed = value.trim();
   if (!trimmed) return null;
 
-  const byCity = cityOptions.find((city) => city.toLowerCase() === trimmed.toLowerCase());
-  if (byCity) return byCity;
+  const normalizedInput = CITY_ALIASES[trimmed.toLowerCase()] || trimmed.toLowerCase();
 
-  const byHotel = hotels.find((hotel) => hotel.name.toLowerCase() === trimmed.toLowerCase());
+  const byCity = suggestions.find((option) => option.city.toLowerCase() === normalizedInput);
+  if (byCity) return byCity.city;
+
+  const byHotel = suggestions.find((option) => option.value.toLowerCase() === normalizedInput || option.label.toLowerCase().includes(normalizedInput));
   if (byHotel) return byHotel.city;
 
-  return null;
+  return CITY_ALIASES[trimmed.toLowerCase()] || trimmed;
 };
 
 const getTodayIso = (): string => {
@@ -59,8 +63,11 @@ function HotelsContent() {
   const router = useRouter();
   const pathname = usePathname();
   const page = Number(searchParams.get("page") || "1");
+  const committedCity = searchParams.get("city") || "";
+  const committedCheckin = clampToTodayIso(searchParams.get("checkin") || "");
+  const committedCheckout = clampToTodayIso(searchParams.get("checkout") || "");
 
-  const [city, setCity] = useState(searchParams.get("city") || "Delhi");
+  const [city, setCity] = useState(searchParams.get("city") || "");
   const [checkin, setCheckin] = useState(clampToTodayIso(searchParams.get("checkin") || getTodayIso()));
   const [checkout, setCheckout] = useState(clampToTodayIso(searchParams.get("checkout") || getTomorrowIso()));
 
@@ -76,6 +83,9 @@ function HotelsContent() {
   const [apiTotalPages, setApiTotalPages] = useState<number | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
   const [apiLoading, setApiLoading] = useState(false);
+  const [debouncedCityTerm, setDebouncedCityTerm] = useState("");
+  const [liveCitySuggestions, setLiveCitySuggestions] = useState<HotelSuggestion[]>([]);
+  const [knownSuggestions, setKnownSuggestions] = useState<HotelSuggestion[]>([]);
 
   const updateQuery = (next: Record<string, string | null>, resetPage = true) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -92,7 +102,7 @@ function HotelsContent() {
   };
 
   useEffect(() => {
-    setCity(searchParams.get("city") || "Delhi");
+    setCity(searchParams.get("city") || "");
     setCheckin(clampToTodayIso(searchParams.get("checkin") || getTodayIso()));
     setCheckout(clampToTodayIso(searchParams.get("checkout") || getTomorrowIso()));
     setSort((searchParams.get("sort") as SortKey) || "price-asc");
@@ -103,6 +113,52 @@ function HotelsContent() {
     setFoodOnly(searchParams.get("food") === "true");
     setPoolOnly(searchParams.get("pool") === "true");
   }, [searchParams]);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setDebouncedCityTerm(city.trim());
+    }, 250);
+
+    return () => clearTimeout(timeout);
+  }, [city]);
+
+  useEffect(() => {
+    if (!debouncedCityTerm) {
+      setLiveCitySuggestions([]);
+      return;
+    }
+
+    let mounted = true;
+    const run = async () => {
+      try {
+        const params = new URLSearchParams({ q: debouncedCityTerm });
+        const res = await fetch(`/api/hotels/suggestions?${params.toString()}`);
+        const parsed = await parseApiResponse<{ suggestions?: HotelSuggestion[] }>(res, "Unable to fetch hotel suggestions.");
+
+        if (!mounted || !parsed.ok) {
+          if (mounted) setLiveCitySuggestions([]);
+          return;
+        }
+
+        const next = (parsed.payload?.data?.suggestions || []).slice(0, 8);
+        setLiveCitySuggestions(next);
+        setKnownSuggestions((prev) => {
+          const map = new Map(prev.map((item) => [`${item.kind || "mixed"}:${item.value}:${item.city}`.toLowerCase(), item]));
+          next.forEach((item) => {
+            map.set(`${item.kind || "mixed"}:${item.value}:${item.city}`.toLowerCase(), item);
+          });
+          return Array.from(map.values());
+        });
+      } catch {
+        if (mounted) setLiveCitySuggestions([]);
+      }
+    };
+
+    void run();
+    return () => {
+      mounted = false;
+    };
+  }, [debouncedCityTerm]);
 
   const toggleSet = <T,>(set: Set<T>, val: T) => {
     const next = new Set(set);
@@ -120,7 +176,7 @@ function HotelsContent() {
   };
 
   const handleSearch = () => {
-    const resolvedCity = resolveHotelCity(city);
+    const resolvedCity = resolveHotelCity(city, knownSuggestions);
     if (!resolvedCity) {
       showToast.error("Choose a valid city or hotel from suggestions.");
       return;
@@ -149,13 +205,8 @@ function HotelsContent() {
   };
 
   const citySuggestions = useMemo(() => {
-    const term = city.trim().toLowerCase();
-    if (!term) return [] as HotelSuggestion[];
-
-    return hotelSuggestionsSource
-      .filter((option) => option.label.toLowerCase().includes(term) || option.city.toLowerCase().includes(term))
-      .slice(0, 8);
-  }, [city]);
+    return liveCitySuggestions;
+  }, [liveCitySuggestions]);
 
   const filtered = useMemo(() => {
     let list = [...(apiResults || [])];
@@ -178,8 +229,8 @@ function HotelsContent() {
   }, [apiResults]);
 
   useEffect(() => {
-    const resolvedCity = resolveHotelCity(city);
-    const canUseApi = Boolean(resolvedCity && checkin && checkout && checkout > checkin);
+    const resolvedCity = resolveHotelCity(committedCity, knownSuggestions);
+    const canUseApi = Boolean(resolvedCity && committedCheckin && committedCheckout && committedCheckout > committedCheckin);
     if (!canUseApi) {
       setApiResults(null);
       setApiTotalPages(null);
@@ -196,8 +247,8 @@ function HotelsContent() {
 
     const params = new URLSearchParams({
       city: resolvedCity || "",
-      checkIn: checkin,
-      checkOut: checkout,
+      checkIn: committedCheckin,
+      checkOut: committedCheckout,
       sort: sortMap[sort],
       page: String(page),
       limit: String(PER_PAGE),
@@ -257,7 +308,7 @@ function HotelsContent() {
     return () => {
       mounted = false;
     };
-  }, [city, checkin, checkout, sort, wifiOnly, foodOnly, poolOnly, page]);
+  }, [committedCity, committedCheckin, committedCheckout, sort, wifiOnly, foodOnly, poolOnly, page, knownSuggestions]);
 
   useEffect(() => {
     if (apiError && !/choose a city\/hotel from suggestions/i.test(apiError)) {
@@ -272,7 +323,7 @@ function HotelsContent() {
     <div className={s.page}>
       <div className={s.header}>
         <h1 className={s.title}>Hotel Search Results</h1>
-        <p className={s.subtitle}>{city && checkin && checkout ? `${filtered.length} hotels on this page` : "Search to load live hotels"}</p>
+        <p className={s.subtitle}>{committedCity && committedCheckin && committedCheckout ? `${filtered.length} hotels on this page` : "Search to load live hotels"}</p>
       </div>
 
       {/* ── Inline search bar ── */}
@@ -442,7 +493,7 @@ function HotelsContent() {
             ))}
           </div>
 
-          {paged.length === 0 && <div className={s.noResults}>{city && checkin && checkout ? "No hotels match your filters." : "Enter City, Check-in and Check-out to load live hotels."}</div>}
+          {paged.length === 0 && <div className={s.noResults}>{committedCity && committedCheckin && committedCheckout ? "No hotels match your filters." : "Enter City, Check-in and Check-out to load live hotels."}</div>}
           {apiError && <div className={s.noResults}>{apiError}</div>}
           {apiLoading && <div className={s.noResults}>Fetching latest hotels…</div>}
 

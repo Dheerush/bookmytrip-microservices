@@ -177,12 +177,14 @@ router.patch('/me/issues/:issueId/reopen', mutationLimiter, asyncHandler(async (
   await issue.save();
 
   await publishEvent({
-    type: 'SUPPORT_RAISED',
+    type: 'COMPLAINT_REOPENED',
     data: {
       email: req.user?.email,
       userId,
       ticketId: issue.issueRef,
       subject: issue.subject,
+      status: issue.status,
+      comment,
     },
   });
 
@@ -213,12 +215,14 @@ router.patch('/issues/admin/:issueId/status', authorizeRoles('admin'), mutationL
   await issue.save();
 
   await publishEvent({
-    type: 'SUPPORT_RAISED',
+    type: 'COMPLAINT_STATUS_UPDATED',
     data: {
       email: issue.userEmail,
       userId: issue.userId,
       ticketId: issue.issueRef,
       subject: issue.subject,
+      status: issue.status,
+      adminNote,
     },
   });
 

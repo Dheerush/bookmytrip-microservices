@@ -6,6 +6,7 @@ import styles from "./SearchTabs.module.scss";
 import { flights } from "@/data/flights";
 import { trains } from "@/data/trains";
 import { cabs } from "@/data/cabs";
+import { showToast } from "@/lib/toast";
 
 // ─── Tab config ───────────────────────────────────────────
 type TabId = "flights" | "hotels" | "trains" | "cabs";
@@ -71,7 +72,6 @@ const HOTEL_FIELDS: Field[] = [
   { key: "city",     label: "📍 City / Hotel", placeholder: "Search city or hotel…" },
   { key: "checkin",  label: "📅 Check-in",     placeholder: "Date", type: "date" },
   { key: "checkout", label: "📅 Check-out",    placeholder: "Date", type: "date" },
-  { key: "guests",   label: "👥 Guests",       placeholder: "2 Adults, 1 Room" },
 ];
 
 const CAB_FIELDS: Field[] = [
@@ -179,6 +179,46 @@ export default function SearchTabs() {
   };
 
   const handleSearch = useCallback(() => {
+    if (activeTab === "hotels") {
+      if (!values.city?.trim()) {
+        showToast.error("Please choose a city or hotel first.");
+        return;
+      }
+      if (!values.checkin || !values.checkout) {
+        showToast.error("Please select check-in and check-out dates.");
+        return;
+      }
+      if (values.checkout <= values.checkin) {
+        showToast.error("Check-out must be after check-in.");
+        return;
+      }
+    }
+
+    if (activeTab === "flights") {
+      if (!values.from?.trim() || !values.to?.trim() || !values.date) {
+        showToast.error("Please enter from, to, and departure date.");
+        return;
+      }
+      if (tripType === "round-trip" && !values.return) {
+        showToast.error("Please select a return date for round trip.");
+        return;
+      }
+    }
+
+    if (activeTab === "trains") {
+      if (!values.from?.trim() || !values.to?.trim() || !values.date) {
+        showToast.error("Please enter from, to, and journey date.");
+        return;
+      }
+    }
+
+    if (activeTab === "cabs") {
+      if (!values.pickup?.trim() || !values.drop?.trim() || !values.date) {
+        showToast.error("Please enter pickup, drop, and travel date.");
+        return;
+      }
+    }
+
     const params = new URLSearchParams();
     for (const [k, v] of Object.entries(values)) {
       if (v) params.set(k, v);

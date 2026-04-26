@@ -246,6 +246,36 @@ export const startConsumer = async (): Promise<void> => {
             pushAdmin('support', 'New Complaint: #' + ticketId, (userName || email || 'User') + ' raised: ' + subject, '/dashboard/admin/requests');
             break;
           }
+          case 'COMPLAINT_STATUS_UPDATED': {
+            const { userId, ticketId, subject, status, adminNote } = event.data;
+            const statusLabel = String(status || 'updated').replace('-', ' ');
+            push(
+              userId,
+              'support',
+              `Complaint ${statusLabel}`,
+              `Your complaint (#${ticketId}) is now ${statusLabel}.${adminNote ? ` Note: ${adminNote}` : ''}`,
+              '/dashboard/issues',
+            );
+            pushAdmin('support', `Complaint Updated: #${ticketId}`, `${subject || 'Complaint'} marked ${statusLabel}.`, '/dashboard/issues');
+            break;
+          }
+          case 'COMPLAINT_REOPENED': {
+            const { userId, ticketId, subject, comment } = event.data;
+            push(
+              userId,
+              'support',
+              'Complaint Reopened',
+              `Your complaint (#${ticketId}) has been reopened successfully.`,
+              '/dashboard/issues',
+            );
+            pushAdmin(
+              'support',
+              `Complaint Reopened: #${ticketId}`,
+              `${subject || 'Complaint'} reopened by user.${comment ? ` Comment: ${comment}` : ''}`,
+              '/dashboard/issues',
+            );
+            break;
+          }
           case 'NEWSLETTER_SUBSCRIPTION': {
             const { email } = event.data;
             if (email) {

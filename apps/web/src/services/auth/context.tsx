@@ -34,6 +34,7 @@ interface AuthContextType {
 const ACTIVE_WINDOW_MS = 15 * 60 * 1000; // refresh only when user was active recently
 const KEEP_ALIVE_INTERVAL_MS = 5 * 60 * 1000;
 const AUTH_USER_KEY = 'user';
+const FORCE_LOGOUT_GUARD_KEY = 'bmt_force_logout_dispatched';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -156,6 +157,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setToken(data.accessToken);
     setAccessToken(data.accessToken);
     localStorage.setItem(AUTH_USER_KEY, JSON.stringify(authUser));
+    sessionStorage.removeItem(FORCE_LOGOUT_GUARD_KEY);
     touchSessionActivity();
   }, []);
 
@@ -164,6 +166,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setToken(null);
     clearAccessToken();
     localStorage.removeItem(AUTH_USER_KEY);
+    sessionStorage.removeItem(FORCE_LOGOUT_GUARD_KEY);
     clearSessionActivity();
   }, []);
 
@@ -174,6 +177,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setToken(null);
       clearAccessToken();
       localStorage.removeItem(AUTH_USER_KEY);
+      sessionStorage.removeItem(FORCE_LOGOUT_GUARD_KEY);
       clearSessionActivity();
       showToast.error('Your session has expired. Please sign in again.');
       // Hard redirect so all stale state is cleared

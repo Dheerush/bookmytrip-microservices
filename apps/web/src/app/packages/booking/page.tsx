@@ -15,6 +15,8 @@ type Traveler = {
   name: string;
   age: string;
   gender: "male" | "female" | "other";
+  email: string;
+  currentLocation: string;
 };
 
 type TourApiDetail = {
@@ -91,7 +93,21 @@ const createTravelers = (count: number): Traveler[] =>
     name: "",
     age: "",
     gender: "male",
+    email: "",
+    currentLocation: "",
   }));
+
+const hasModeIncluded = (pkg: Package | null, mode: Exclude<TravelMode, "self">): boolean => {
+  if (!pkg) return false;
+  const text = [
+    ...(pkg.transport || []),
+    ...(pkg.inclusions || []),
+  ].join(" ").toLowerCase();
+  const keywords = mode === "flight"
+    ? ["flight", "flights", "air"]
+    : ["train", "rail", "railway"];
+  return keywords.some((keyword) => text.includes(keyword));
+};
 
 function PackageBookingContent() {
   const searchParams = useSearchParams();
@@ -119,6 +135,9 @@ function PackageBookingContent() {
   const [travelLoading, setTravelLoading] = useState(false);
   const [selectedTravelOptionId, setSelectedTravelOptionId] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  const allowsFlight = useMemo(() => hasModeIncluded(pkg, "flight"), [pkg]);
+  const allowsTrain = useMemo(() => hasModeIncluded(pkg, "train"), [pkg]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -206,11 +225,25 @@ function PackageBookingContent() {
   }, [packageId, staticPackage]);
 
   useEffect(() => {
+    if (allowsFlight) {
+      setTravelMode("flight");
+      return;
+    }
+    if (allowsTrain) {
+      setTravelMode("train");
+      return;
+    }
+    setTravelMode("self");
+    setTravelOptions([]);
+    setSelectedTravelOptionId("");
+  }, [allowsFlight, allowsTrain]);
+
+  useEffect(() => {
     const run = async () => {
       const fromCode = resolveAliasCode(currentLocation, FLIGHT_CITY_ALIASES, 3, 3);
       const toCode = resolveAliasCode(pkg?.subRegion || "", FLIGHT_CITY_ALIASES, 3, 3);
 
-      if (!pkg || !fromCode || !toCode || !startDate || travelMode !== "flight") {
+      if (!pkg || !fromCode || !toCode || !startDate || travelMode !== "flight" || !allowsFlight) {
         setTravelOptions([]);
         setSelectedTravelOptionId("");
         return;
@@ -252,14 +285,16 @@ function PackageBookingContent() {
     };
 
     void run();
-  }, [currentLocation, pkg, startDate, travelMode]);
+  }, [allowsFlight, currentLocation, pkg, startDate, travelMode]);
 
   useEffect(() => {
     const run = async () => {
       const fromCode = resolveAliasCode(currentLocation, TRAIN_CITY_ALIASES, 3, 4);
       const toCode = resolveAliasCode(pkg?.subRegion || "", TRAIN_CITY_ALIASES, 3, 4);
 
-      if (!pkg || !fromCode || !toCode || !startDate || travelMode !== "train") {
+      if (!pkg || !fromCode || !toCode || !startDate || travelMode !== "train" || !allowsTrain) {
+        setTravelOptions([]);
+        setSelectedTravelOptionId("");
         return;
       }
 
@@ -300,7 +335,7 @@ function PackageBookingContent() {
     };
 
     void run();
-  }, [currentLocation, pkg, startDate, travelMode]);
+  }, [allowsTrain, currentLocation, pkg, startDate, travelMode]);
 
   if (hydrated && !isAuthenticated) {
     return null;
@@ -387,11 +422,15 @@ function PackageBookingContent() {
               phone: contactPhone.trim(),
             },
             passengers: [
-              { name: contactName.trim() },
+              {
+                name: contactName.trim(),
+                email: contactEmail.trim() || undefined,
+              },
               ...travelers.map((traveler) => ({
                 name: traveler.name.trim(),
                 age: Number(traveler.age) || undefined,
                 gender: traveler.gender,
+                email: traveler.email.trim() || undefined,
               })),
             ],
             metadata: {
@@ -400,6 +439,34 @@ function PackageBookingContent() {
                 destinationCity: pkg.subRegion,
                 travelMode,
                 durationDays: pkg.durationDays,
+                includesFlight: allowsFlight,
+                includesTrain: allowsTrain,
+                travelerPlans: [
+                  {
+                    travelerName: contactName.trim(),
+                    travelerEmail: contactEmail.trim() || undefined,
+                    currentLocation: currentLocation.trim(),
+                    travelMode,
+                    selectedOption: selectedTravelOption
+                      ? {
+                        ...selectedTravelOption,
+                        travelersCovered: totalTravelers,
+                      }
+                      : null,
+                  },
+                  ...travelers.map((traveler) => ({
+                    travelerName: traveler.name.trim(),
+                    travelerEmail: traveler.email.trim() || undefined,
+                    currentLocation: traveler.currentLocation.trim() || currentLocation.trim(),
+                    travelMode,
+                    selectedOption: selectedTravelOption
+                      ? {
+                        ...selectedTravelOption,
+                        travelersCovered: totalTravelers,
+                      }
+                      : null,
+                  })),
+                ],
                 selectedOption: selectedTravelOption
                   ? {
                     ...selectedTravelOption,
@@ -487,16 +554,24 @@ function PackageBookingContent() {
               <div className={s.fieldFull}>
                 <label className={s.label}>Travel To Package Destination</label>
                 <div className={s.fieldRow}>
-                  <button className={s.input} type="button" onClick={() => setTravelMode("flight")} style={{ cursor: "pointer", fontWeight: travelMode === "flight" ? 700 : 500 }}>
-                    Flight
-                  </button>
-                  <button className={s.input} type="button" onClick={() => setTravelMode("train")} style={{ cursor: "pointer", fontWeight: travelMode === "train" ? 700 : 500 }}>
-                    Train
-                  </button>
+                  {allowsFlight && (
+                    <button className={s.input} type="button" onClick={() => setTravelMode("flight")} style={{ cursor: "pointer", fontWeight: travelMode === "flight" ? 700 : 500 }}>
+                      Flight
+                    </button>
+                  )}
+                  {allowsTrain && (
+                    <button className={s.input} type="button" onClick={() => setTravelMode("train")} style={{ cursor: "pointer", fontWeight: travelMode === "train" ? 700 : 500 }}>
+                      Train
+                    </button>
+                  )}
                   <button className={s.input} type="button" onClick={() => { setTravelMode("self"); setTravelOptions([]); setSelectedTravelOptionId(""); }} style={{ cursor: "pointer", fontWeight: travelMode === "self" ? 700 : 500 }}>
                     Self-arranged
                   </button>
                 </div>
+
+                {!allowsFlight && !allowsTrain && (
+                  <p className={s.summaryMeta}>This package does not include flight or train tickets. Please travel self-arranged.</p>
+                )}
 
                 {travelMode !== "self" && (
                   <div style={{ marginTop: 10 }}>
@@ -540,6 +615,21 @@ function PackageBookingContent() {
                       min={0}
                       value={traveler.age}
                       onChange={(e) => updateTraveler(index, "age", e.target.value)}
+                    />
+                  </div>
+                  <div className={s.fieldRow}>
+                    <input
+                      className={s.input}
+                      placeholder="Email (optional)"
+                      type="email"
+                      value={traveler.email}
+                      onChange={(e) => updateTraveler(index, "email", e.target.value)}
+                    />
+                    <input
+                      className={s.input}
+                      placeholder="Current location (optional)"
+                      value={traveler.currentLocation}
+                      onChange={(e) => updateTraveler(index, "currentLocation", e.target.value)}
                     />
                   </div>
                   <div className={s.fieldRow}>

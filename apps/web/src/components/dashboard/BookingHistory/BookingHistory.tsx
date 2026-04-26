@@ -31,11 +31,20 @@ interface PackageTravelOption {
   meta?: string;
 }
 
+interface PackageTravelerPlan {
+  travelerName?: string;
+  travelerEmail?: string;
+  currentLocation?: string;
+  travelMode?: string;
+  selectedOption?: PackageTravelOption | null;
+}
+
 interface PackageTravelMetadata {
   currentLocation?: string;
   destinationCity?: string;
   travelMode?: string;
   selectedOption?: PackageTravelOption | null;
+  travelerPlans?: PackageTravelerPlan[];
 }
 
 interface CabTravelMetadata {
@@ -365,6 +374,15 @@ export default function BookingHistoryPage() {
       : "";
     const travelerRows = (booking.passengers || []).length > 0
       ? (booking.passengers || []).map((p, idx) => {
+        const travelerPlan = booking.metadata?.packageTravel?.travelerPlans?.[idx];
+        const travelerCommute = travelerPlan
+          ? [
+              travelerPlan.currentLocation ? `From ${travelerPlan.currentLocation}` : "",
+              travelerPlan.travelMode ? `By ${travelerPlan.travelMode}` : "",
+              travelerPlan.selectedOption?.label || "",
+              travelerPlan.selectedOption?.meta || "",
+            ].filter(Boolean).join(" • ")
+          : "";
         const parsed = parseTrainBerth(p.seatNumber);
         const seatValue = booking.type === "train"
           ? [
@@ -373,9 +391,9 @@ export default function BookingHistoryPage() {
               parsed.berthType || "",
             ].filter(Boolean).join(" · ")
           : p.seatNumber || "—";
-        return `<tr><td>${idx + 1}</td><td>${p.name || "—"}</td><td>${seatValue}</td><td>${p.age ?? "—"}</td><td style="text-transform:capitalize">${p.gender || "—"}</td><td>${p.email || "—"}</td></tr>`;
+        return `<tr><td>${idx + 1}</td><td>${p.name || "—"}</td><td>${seatValue}</td><td>${p.age ?? "—"}</td><td style="text-transform:capitalize">${p.gender || "—"}</td><td>${p.email || "—"}</td>${booking.type === "tour" ? `<td>${travelerCommute || "—"}</td>` : ""}</tr>`;
       }).join("")
-      : `<tr><td>1</td><td>${booking.contact?.name || "Primary traveler"}</td><td>—</td><td>—</td><td>—</td><td>${booking.contact?.email || "—"}</td></tr>`;
+      : `<tr><td>1</td><td>${booking.contact?.name || "Primary traveler"}</td><td>—</td><td>—</td><td>—</td><td>${booking.contact?.email || "—"}</td>${booking.type === "tour" ? "<td>—</td>" : ""}</tr>`;
 
     win.document.write(`<!DOCTYPE html>
 <html lang="en">
@@ -424,6 +442,7 @@ export default function BookingHistoryPage() {
     <div class="meta-row">
       <div class="meta-block"><label>Booking Reference</label><p>${booking.bookingRef}</p></div>
       <div class="meta-block"><label>Type</label><p style="text-transform:capitalize">${booking.type}</p></div>
+      ${booking.type === "tour" ? `<div class="meta-block"><label>Package</label><p>${booking.title}</p></div>` : ""}
       <div class="meta-block"><label>Travel Date</label><p>${dateStr}</p></div>
       <div class="meta-block"><label>Route / City</label><p>${cabRouteInfo || routeInfo}</p></div>
       <div class="meta-block"><label>Status</label><span class="status">${booking.status}</span></div>
@@ -452,7 +471,7 @@ export default function BookingHistoryPage() {
       <div class="meta-block"><label>Traveler Details</label></div>
     </div>
     <table class="traveler-table">
-      <thead><tr><th>#</th><th>Name</th><th>${seatColumnTitle}</th><th>Age</th><th>Gender</th><th>Email</th></tr></thead>
+      <thead><tr><th>#</th><th>Name</th><th>${seatColumnTitle}</th><th>Age</th><th>Gender</th><th>Email</th>${booking.type === "tour" ? "<th>Commute</th>" : ""}</tr></thead>
       <tbody>${travelerRows}</tbody>
     </table>
     <p style="font-size:0.78rem;color:#6b7f93">This is a computer-generated invoice and does not require a signature.</p>
@@ -791,6 +810,17 @@ export default function BookingHistoryPage() {
                     <p className={styles.modalSectionLabel}><Users size={12} /> Traveller{detailBooking.passengers.length > 1 ? "s" : ""}</p>
                     <div className={styles.passengerList}>
                       {detailBooking.passengers.map((p, idx) => (
+                        (() => {
+                          const travelerPlan = detailBooking.metadata?.packageTravel?.travelerPlans?.[idx];
+                          const travelerCommute = travelerPlan
+                            ? [
+                                travelerPlan.currentLocation ? `From ${travelerPlan.currentLocation}` : "",
+                                travelerPlan.travelMode ? `By ${travelerPlan.travelMode}` : "",
+                                travelerPlan.selectedOption?.label || "",
+                                travelerPlan.selectedOption?.meta || "",
+                              ].filter(Boolean).join(" • ")
+                            : "";
+                          return (
                         <div key={idx} className={styles.passengerRow}>
                           <span className={styles.passengerNum}>{idx + 1}</span>
                           <span className={styles.passengerName}>{p.name}</span>
@@ -807,7 +837,10 @@ export default function BookingHistoryPage() {
                           {p.age != null && <span className={styles.passengerMeta}>Age {p.age}</span>}
                           {p.gender && <span className={styles.passengerMeta}>{p.gender}</span>}
                           {p.email && <span className={styles.passengerEmail}>{p.email}</span>}
+                          {detailBooking.type === "tour" && travelerCommute && <span className={styles.passengerMeta}>{travelerCommute}</span>}
                         </div>
+                          );
+                        })()
                       ))}
                     </div>
                   </div>

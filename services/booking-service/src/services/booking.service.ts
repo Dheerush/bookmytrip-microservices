@@ -136,6 +136,43 @@ const ensureAndDeductPackageTravel = async (booking: IBooking): Promise<void> =>
   if (booking.type !== 'tour') return;
 
   const packageTravel = booking.metadata?.packageTravel as Record<string, unknown> | undefined;
+  const travelerPlans = Array.isArray(packageTravel?.travelerPlans)
+    ? packageTravel?.travelerPlans as Array<Record<string, unknown>>
+    : [];
+
+  if (travelerPlans.length > 0) {
+    const grouped = new Map<string, { inventoryType: string; inventoryId: string; seatClass?: string; count: number }>();
+
+    travelerPlans.forEach((plan) => {
+      const selectedOption = plan.selectedOption as Record<string, unknown> | null | undefined;
+      const inventoryType = String(selectedOption?.inventoryType || '').trim();
+      const inventoryId = String(selectedOption?.inventoryId || '').trim();
+      if (!inventoryType || !inventoryId) return;
+
+      const seatClass = String(selectedOption?.seatClass || 'sleeper');
+      const key = `${inventoryType}:${inventoryId}:${seatClass}`;
+      const existing = grouped.get(key);
+      if (existing) {
+        existing.count += 1;
+        return;
+      }
+      grouped.set(key, { inventoryType, inventoryId, seatClass, count: 1 });
+    });
+
+    for (const item of grouped.values()) {
+      if (item.inventoryType === 'flight') {
+        await ensureAndDeductFlightSeats(item.inventoryId, item.count);
+        continue;
+      }
+
+      if (item.inventoryType === 'train') {
+        await ensureAndDeductTrainSeats(item.inventoryId, item.seatClass || 'sleeper', item.count);
+      }
+    }
+
+    return;
+  }
+
   const selectedOption = packageTravel?.selectedOption as Record<string, unknown> | null | undefined;
   const inventoryType = selectedOption?.inventoryType;
   const inventoryId = selectedOption?.inventoryId;
@@ -276,6 +313,7 @@ export const confirmBooking = async (bookingId: string, userId: string): Promise
     packageTravelMode: (booking.metadata?.packageTravel as Record<string, unknown> | undefined)?.travelMode,
     packageTravelOptionLabel: ((booking.metadata?.packageTravel as Record<string, unknown> | undefined)?.selectedOption as Record<string, unknown> | undefined)?.label,
     packageTravelOptionMeta: ((booking.metadata?.packageTravel as Record<string, unknown> | undefined)?.selectedOption as Record<string, unknown> | undefined)?.meta,
+    packageTravelerPlans: (booking.metadata?.packageTravel as Record<string, unknown> | undefined)?.travelerPlans,
     cabPickup: (booking.metadata?.cabTravel as Record<string, unknown> | undefined)?.pickup,
     cabDrop: (booking.metadata?.cabTravel as Record<string, unknown> | undefined)?.drop,
     cabPickupCity: (booking.metadata?.cabTravel as Record<string, unknown> | undefined)?.pickupCity,

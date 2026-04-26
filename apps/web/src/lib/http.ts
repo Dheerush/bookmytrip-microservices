@@ -1,5 +1,18 @@
 import { getAccessToken } from "@/lib/auth-session";
 
+const FORCE_LOGOUT_GUARD_KEY = "bmt_force_logout_dispatched";
+
+const maybeDispatchForceLogout = (): void => {
+  if (typeof window === "undefined") return;
+  const token = getAccessToken();
+  if (!token) return;
+
+  if (sessionStorage.getItem(FORCE_LOGOUT_GUARD_KEY) === "1") return;
+  sessionStorage.setItem(FORCE_LOGOUT_GUARD_KEY, "1");
+
+  window.dispatchEvent(new CustomEvent("auth:force-logout", { detail: { reason: "session_expired" } }));
+};
+
 export interface ApiEnvelope<T> {
   success?: boolean;
   message?: string;
@@ -53,6 +66,8 @@ export async function parseApiResponse<T>(
       message: payload?.message || fallbackMessage,
       code: payload?.code,
     });
+
+    maybeDispatchForceLogout();
   }
 
   return {

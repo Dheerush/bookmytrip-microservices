@@ -27,7 +27,7 @@ const timeAgo = (iso: string) => {
 };
 
 export default function NotificationBell() {
-  const { notifications, unreadCount, markAllRead } = useNotifications();
+  const { notifications, unreadCount, markAllRead, markRead } = useNotifications();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -49,6 +49,7 @@ export default function NotificationBell() {
   };
 
   const handleItemClick = (n: AppNotification) => {
+    markRead(n.id);
     setOpen(false);
     if (n.link) router.push(n.link);
   };
