@@ -33,6 +33,11 @@ interface Field {
   type?: string;
 }
 
+interface SuggestionOption {
+  label: string;
+  value: string;
+}
+
 const getTodayIso = (): string => {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
@@ -90,7 +95,7 @@ export default function SearchTabs() {
   const [values, setValues] = useState<Record<string, string>>({});
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [debouncedTerm, setDebouncedTerm] = useState("");
-  const [hotelSuggestions, setHotelSuggestions] = useState<string[]>([]);
+  const [hotelSuggestions, setHotelSuggestions] = useState<SuggestionOption[]>([]);
 
   useEffect(() => {
     const rawTerm = focusedField ? values[focusedField] || "" : "";
@@ -121,12 +126,23 @@ export default function SearchTabs() {
           return;
         }
 
-        const json = await response.json() as { data?: { suggestions?: Array<{ label?: string }> } };
+        const json = await response.json() as {
+          data?: {
+            suggestions?: Array<{
+              label?: string;
+              value?: string;
+            }>;
+          };
+        };
         if (cancelled) return;
 
         const next = (json.data?.suggestions || [])
-          .map((entry) => String(entry.label || "").trim())
-          .filter(Boolean)
+          .map((entry) => {
+            const label = String(entry.label || "").trim();
+            const value = String(entry.value || "").trim() || label.split(" - ")[0]?.trim() || label;
+            return { label, value };
+          })
+          .filter((entry) => Boolean(entry.label && entry.value))
           .slice(0, 8);
 
         setHotelSuggestions(next);
@@ -244,14 +260,18 @@ export default function SearchTabs() {
   }, [activeTab, values, tripType, showTripToggle, router]);
 
   const suggestions = useMemo(() => {
-    if (!debouncedTerm || !focusedField) return [] as string[];
+    if (!debouncedTerm || !focusedField) return [] as SuggestionOption[];
+
+    const toSuggestionOptions = (pool: string[]): SuggestionOption[] =>
+      Array.from(new Set(pool.filter((entry) => entry.toLowerCase().includes(debouncedTerm)))).slice(0, 6)
+        .map((entry) => ({ label: entry, value: entry.split("(")[0]?.trim() || entry }));
 
     if (activeTab === "flights") {
       const pool = flights.flatMap((flight) => [
         `${flight.from} (${flight.fromCode})`,
         `${flight.to} (${flight.toCode})`,
       ]);
-      return Array.from(new Set(pool.filter((entry) => entry.toLowerCase().includes(debouncedTerm)))).slice(0, 6);
+      return toSuggestionOptions(pool);
     }
 
     if (activeTab === "trains") {
@@ -260,7 +280,7 @@ export default function SearchTabs() {
         `${train.from} (${train.fromCode})`,
         `${train.to} (${train.toCode})`,
       ]);
-      return Array.from(new Set(pool.filter((entry) => entry.toLowerCase().includes(debouncedTerm)))).slice(0, 6);
+      return toSuggestionOptions(pool);
     }
 
     if (activeTab === "hotels") {
@@ -268,12 +288,12 @@ export default function SearchTabs() {
     }
 
     const pool = cabs.flatMap((cab) => [cab.city, cab.carModel, cab.brand]);
-    return Array.from(new Set(pool.filter((entry) => entry.toLowerCase().includes(debouncedTerm)))).slice(0, 6);
+    return toSuggestionOptions(pool);
   }, [activeTab, debouncedTerm, focusedField, hotelSuggestions]);
 
-  const applySuggestion = (value: string) => {
+  const applySuggestion = (suggestion: SuggestionOption) => {
     if (!focusedField) return;
-    handleChange(focusedField, value.split("(")[0].trim());
+    handleChange(focusedField, suggestion.value);
     setFocusedField(null);
   };
 
@@ -332,12 +352,12 @@ export default function SearchTabs() {
               <div className={styles.suggestions}>
                 {suggestions.map((suggestion) => (
                   <button
-                    key={suggestion}
+                    key={`${suggestion.label}-${suggestion.value}`}
                     type="button"
                     className={styles.suggestionItem}
                     onClick={() => applySuggestion(suggestion)}
                   >
-                    {suggestion}
+                    {suggestion.label}
                   </button>
                 ))}
               </div>

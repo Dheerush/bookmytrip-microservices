@@ -109,7 +109,7 @@ router.use("/api/payments", apiRateLimiter, authenticate, guardCircuit("payment"
 router.use("/api/search/admin-global", apiRateLimiter, authenticate, guardCircuit("search"), buildProxy("search"));
 router.use("/api/search", apiRateLimiter, guardCircuit("search"), buildProxy("search"));
 router.use("/api/notifications", apiRateLimiter, authenticate, guardCircuit("notification"), buildProxy("notification"));
-router.use("/api/media", apiRateLimiter, guardCircuit("media"), buildProxy("media"));
+router.use("/api/media", apiRateLimiter, authenticate, guardCircuit("media"), buildProxy("media"));
 router.use("/api/reviews", apiRateLimiter, guardCircuit("review"), buildProxy("review"));
 router.use("/api/tours", apiRateLimiter, guardCircuit("tour"), buildProxy("tour"));
 router.use("/api/ai", apiRateLimiter, guardCircuit("ai"), buildProxy("ai"));

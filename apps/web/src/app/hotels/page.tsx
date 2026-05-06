@@ -26,6 +26,8 @@ const CITY_ALIASES: Record<string, string> = {
   bengaluru: "bangalore",
 };
 
+const DEFAULT_HOTEL_CITY = "New Delhi";
+
 const resolveHotelCity = (value: string, suggestions: HotelSuggestion[]): string | null => {
   const trimmed = value.trim();
   if (!trimmed) return null;
@@ -37,6 +39,11 @@ const resolveHotelCity = (value: string, suggestions: HotelSuggestion[]): string
 
   const byHotel = suggestions.find((option) => option.value.toLowerCase() === normalizedInput || option.label.toLowerCase().includes(normalizedInput));
   if (byHotel) return byHotel.city;
+
+  const labelCityMatch = trimmed.match(/\s-\s(.+)$/);
+  if (labelCityMatch?.[1]) {
+    return labelCityMatch[1].trim();
+  }
 
   return CITY_ALIASES[trimmed.toLowerCase()] || trimmed;
 };
@@ -67,7 +74,7 @@ function HotelsContent() {
   const committedCheckin = clampToTodayIso(searchParams.get("checkin") || "");
   const committedCheckout = clampToTodayIso(searchParams.get("checkout") || "");
 
-  const [city, setCity] = useState(searchParams.get("city") || "");
+  const [city, setCity] = useState(searchParams.get("city") || DEFAULT_HOTEL_CITY);
   const [checkin, setCheckin] = useState(clampToTodayIso(searchParams.get("checkin") || getTodayIso()));
   const [checkout, setCheckout] = useState(clampToTodayIso(searchParams.get("checkout") || getTomorrowIso()));
 
@@ -102,7 +109,7 @@ function HotelsContent() {
   };
 
   useEffect(() => {
-    setCity(searchParams.get("city") || "");
+    setCity(searchParams.get("city") || DEFAULT_HOTEL_CITY);
     setCheckin(clampToTodayIso(searchParams.get("checkin") || getTodayIso()));
     setCheckout(clampToTodayIso(searchParams.get("checkout") || getTomorrowIso()));
     setSort((searchParams.get("sort") as SortKey) || "price-asc");
@@ -112,6 +119,32 @@ function HotelsContent() {
     setWifiOnly(searchParams.get("wifi") === "true");
     setFoodOnly(searchParams.get("food") === "true");
     setPoolOnly(searchParams.get("pool") === "true");
+  }, [searchParams]);
+
+  useEffect(() => {
+    const urlCity = searchParams.get("city");
+    const urlCheckin = searchParams.get("checkin");
+    const urlCheckout = searchParams.get("checkout");
+
+    if (urlCity && urlCheckin && urlCheckout) return;
+
+    const nextCheckin = clampToTodayIso(urlCheckin || getTodayIso());
+    let nextCheckout = clampToTodayIso(urlCheckout || getTomorrowIso());
+
+    if (nextCheckout <= nextCheckin) {
+      const d = new Date(nextCheckin);
+      d.setDate(d.getDate() + 1);
+      nextCheckout = d.toISOString().split("T")[0] || getTomorrowIso();
+    }
+
+    updateQuery(
+      {
+        city: urlCity || DEFAULT_HOTEL_CITY,
+        checkin: nextCheckin,
+        checkout: nextCheckout,
+      },
+      true,
+    );
   }, [searchParams]);
 
   useEffect(() => {
@@ -193,7 +226,7 @@ function HotelsContent() {
     }
 
     const params = new URLSearchParams();
-    if (city) params.set("city", city);
+    if (city) params.set("city", city.trim());
     if (checkin) params.set("checkin", checkin);
     if (checkout) params.set("checkout", checkout);
     if (sort !== "price-asc") params.set("sort", sort);
@@ -493,56 +526,70 @@ function HotelsContent() {
             ))}
           </div>
 
-          {paged.length === 0 && <div className={s.noResults}>{committedCity && committedCheckin && committedCheckout ? "No hotels match your filters." : "Enter City, Check-in and Check-out to load live hotels."}</div>}
-          {apiError && <div className={s.noResults}>{apiError}</div>}
-          {apiLoading && <div className={s.noResults}>Fetching latest hotels…</div>}
-
-          {paged.map((hotel) => (
-            <div key={hotel.id} className={s.card}>
-              <div className={s.hotelCard}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  className={s.hotelImg}
-                  src={hotel.image}
-                  alt={hotel.name}
-                  loading="lazy"
-                />
-                <div className={s.hotelInfo}>
-                  <div className={s.hotelName}>{hotel.name}</div>
-                  <div className={s.hotelCity}>{hotel.city}</div>
-                  <div className={s.stars}>
-                    {"★".repeat(hotel.stars)}{"☆".repeat(5 - hotel.stars)}
-                  </div>
-                  <div className={s.amenities}>
-                    {hotel.amenities.slice(0, 5).map((a) => (
-                      <span key={a} className={s.amenity}>{a}</span>
-                    ))}
-                    {hotel.amenities.length > 5 && (
-                      <span className={s.amenity}>+{hotel.amenities.length - 5} more</span>
-                    )}
-                  </div>
-                  <span className={`${s.foodBadge} ${hotel.foodIncluded !== "none" ? s.foodIncluded : s.foodNone}`}>
-                    {hotel.foodIncluded === "all-meals"
-                      ? "🍽 All Meals Included"
-                      : hotel.foodIncluded === "breakfast"
-                        ? "🥐 Breakfast Included"
-                        : "No Meals"}
-                  </span>
-                </div>
-                <div className={s.hotelPricing}>
-                  <div className={s.originalPrice}>₹{hotel.originalPrice.toLocaleString("en-IN")}</div>
-                  <div className={s.price}>₹{hotel.pricePerNight.toLocaleString("en-IN")}</div>
-                  <div className={s.perPerson}>per night</div>
-                  <div className={s.rating}>★ {hotel.rating}</div>
-                  <Link href={`/hotels/${hotel.id}`} className={s.detailsLink}>
-                    More Details →
-                  </Link>
-                </div>
-              </div>
+          {apiLoading ? (
+            <div className={s.loadingState}>
+              <span className={s.spinner} aria-hidden="true" />
+              <span>Fetching latest hotels...</span>
             </div>
-          ))}
+          ) : (
+            <>
+              {apiError && <div className={s.noResults}>{apiError}</div>}
+              {!apiError && paged.length === 0 && (
+                <div className={s.noResults}>
+                  {committedCity && committedCheckin && committedCheckout
+                    ? "No hotels match your filters."
+                    : "Enter City, Check-in and Check-out to load live hotels."}
+                </div>
+              )}
 
-          <Pagination currentPage={page} totalPages={totalPages} />
+              {paged.map((hotel) => (
+                <div key={hotel.id} className={s.card}>
+                  <div className={s.hotelCard}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      className={s.hotelImg}
+                      src={hotel.image}
+                      alt={hotel.name}
+                      loading="lazy"
+                    />
+                    <div className={s.hotelInfo}>
+                      <div className={s.hotelName}>{hotel.name}</div>
+                      <div className={s.hotelCity}>{hotel.city}</div>
+                      <div className={s.stars}>
+                        {"★".repeat(hotel.stars)}{"☆".repeat(5 - hotel.stars)}
+                      </div>
+                      <div className={s.amenities}>
+                        {hotel.amenities.slice(0, 5).map((a) => (
+                          <span key={a} className={s.amenity}>{a}</span>
+                        ))}
+                        {hotel.amenities.length > 5 && (
+                          <span className={s.amenity}>+{hotel.amenities.length - 5} more</span>
+                        )}
+                      </div>
+                      <span className={`${s.foodBadge} ${hotel.foodIncluded !== "none" ? s.foodIncluded : s.foodNone}`}>
+                        {hotel.foodIncluded === "all-meals"
+                          ? "🍽 All Meals Included"
+                          : hotel.foodIncluded === "breakfast"
+                            ? "🥐 Breakfast Included"
+                            : "No Meals"}
+                      </span>
+                    </div>
+                    <div className={s.hotelPricing}>
+                      <div className={s.originalPrice}>₹{hotel.originalPrice.toLocaleString("en-IN")}</div>
+                      <div className={s.price}>₹{hotel.pricePerNight.toLocaleString("en-IN")}</div>
+                      <div className={s.perPerson}>per night</div>
+                      <div className={s.rating}>★ {hotel.rating}</div>
+                      <Link href={`/hotels/${hotel.id}`} className={s.detailsLink}>
+                        More Details →
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              <Pagination currentPage={page} totalPages={totalPages} />
+            </>
+          )}
         </div>
       </div>
     </div>

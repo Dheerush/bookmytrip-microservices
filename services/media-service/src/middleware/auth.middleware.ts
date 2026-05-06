@@ -10,6 +10,16 @@ interface JwtPayload {
 }
 
 export const authenticate = (req: Request, _res: Response, next: NextFunction): void => {
+  const gatewayUserId = req.headers['x-user-id'] as string | undefined;
+  if (gatewayUserId) {
+    req.user = {
+      id: gatewayUserId,
+      email: req.headers['x-user-email'] as string | undefined,
+      role: req.headers['x-user-role'] as string | undefined,
+    };
+    return next();
+  }
+
   const header = req.headers.authorization;
   if (!header?.startsWith('Bearer ')) {
     return next(new AppError('Authentication required', 401, 'UNAUTHORIZED'));

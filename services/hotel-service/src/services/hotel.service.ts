@@ -88,8 +88,11 @@ export const searchHotels = async (query: SearchHotelsQuery): Promise<PaginatedH
     : new RegExp(escapeRegex(city.trim()), 'i');
 
   const filter: FilterQuery<IHotel> = {
-    city: { $regex: cityRegex },
     isActive: true,
+    $or: [
+      { city: { $regex: cityRegex } },
+      { name: { $regex: cityRegex } },
+    ],
   };
 
   if (stars !== undefined) filter.stars = stars;

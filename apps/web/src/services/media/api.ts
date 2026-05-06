@@ -1,4 +1,5 @@
 import { parseApiResponse } from "@/lib/http";
+import { getAccessToken } from "@/lib/auth-session";
 
 export interface UploadedMedia {
   provider: string;
@@ -14,7 +15,7 @@ export const uploadMediaFile = async (file: File, folder: string): Promise<Uploa
   form.append("file", file);
   form.append("folder", folder);
 
-  const token = typeof window !== "undefined" ? sessionStorage.getItem("accessToken") : null;
+  const token = getAccessToken();
   const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
 
   const response = await fetch("/api/media/upload", {

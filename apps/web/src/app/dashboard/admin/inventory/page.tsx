@@ -207,8 +207,8 @@ const ENTITY_CONFIGS: EntityConfig[] = [
       { key: "name", label: "Hotel Name", type: "text", required: true, placeholder: "Blue Coast Residency" },
       { key: "city", label: "City", type: "text", required: true, placeholder: "Goa" },
       { key: "address", label: "Address", type: "text", required: true, placeholder: "Calangute Beach Road" },
-      { key: "image", label: "Primary Image URL", type: "text", required: true, placeholder: "https://..." },
-      { key: "images", label: "Image URLs", type: "text", required: true, placeholder: "Paste url and press Enter" },
+      { key: "image", label: "Primary Image URL (from Media Upload)", type: "text", placeholder: "Paste uploaded Cloudinary URL" },
+      { key: "images", label: "Gallery Image URLs (from Media Upload)", type: "text", placeholder: "Paste uploaded URLs and press Enter" },
       { key: "rating", label: "Rating", type: "number", required: true, placeholder: "4.5" },
       { key: "reviewCount", label: "Review Count", type: "number", required: true, placeholder: "132" },
       { key: "stars", label: "Stars", type: "number", required: true, placeholder: "4" },
@@ -241,8 +241,8 @@ const ENTITY_CONFIGS: EntityConfig[] = [
       name: "Blue Coast Residency",
       city: "Goa",
       address: "Calangute Beach Road",
-      image: "https://images.unsplash.com/photo-1566073771259-6a8506099945",
-      images: "https://images.unsplash.com/photo-1566073771259-6a8506099945,https://images.unsplash.com/photo-1571896349842-33c89424de2d",
+      image: "",
+      images: "",
       rating: "4.5",
       reviewCount: "132",
       stars: "4",
@@ -641,6 +641,10 @@ const buildCreatePayload = (entity: InventoryEntity, values: EntityState) => {
   }
 
   if (entity === "hotels") {
+    const galleryImages = parseList(values.images);
+    const primaryImage = values.image.trim() || galleryImages[0] || "https://images.unsplash.com/photo-1566073771259-6a8506099945";
+    const normalizedImages = galleryImages.length > 0 ? galleryImages : [primaryImage];
+
     const roomPrice = parseBoundedNumber("pricePerNight", values.pricePerNight);
     const roomOriginal = parseBoundedNumber("originalPrice", values.originalPrice);
     const deluxeRooms = parseBoundedNumber("deluxeRooms", values.deluxeRooms, 12);
@@ -650,8 +654,8 @@ const buildCreatePayload = (entity: InventoryEntity, values: EntityState) => {
       name: values.name,
       city: values.city,
       address: values.address,
-      image: values.image,
-      images: parseList(values.images),
+      image: primaryImage,
+      images: normalizedImages,
       rating: parseBoundedNumber("rating", values.rating, 4),
       reviewCount: parseBoundedNumber("reviewCount", values.reviewCount),
       stars: parseBoundedNumber("stars", values.stars, 4),
