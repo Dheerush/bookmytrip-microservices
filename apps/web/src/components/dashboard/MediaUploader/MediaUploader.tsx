@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { uploadMediaFile } from "@/services/media/api";
+import { showToast } from "@/lib/toast";
 import styles from "./MediaUploader.module.scss";
 
 interface MediaUploaderProps {
@@ -16,12 +17,15 @@ export default function MediaUploader({ defaultFolder = "general", onUploaded }:
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<{ url: string; publicId: string } | null>(null);
+  const [showUploadDetails, setShowUploadDetails] = useState(true);
 
   useEffect(() => {
     if (!file) {
       setLocalPreview(null);
       return;
     }
+
+    setShowUploadDetails(true);
 
     const objectUrl = URL.createObjectURL(file);
     setLocalPreview(objectUrl);
@@ -30,6 +34,17 @@ export default function MediaUploader({ defaultFolder = "general", onUploaded }:
       URL.revokeObjectURL(objectUrl);
     };
   }, [file]);
+
+  useEffect(() => {
+    if (!result) return;
+
+    setShowUploadDetails(true);
+    const timeout = setTimeout(() => {
+      setShowUploadDetails(false);
+    }, 9000);
+
+    return () => clearTimeout(timeout);
+  }, [result]);
 
   const upload = async () => {
     if (!file) {
@@ -43,6 +58,7 @@ export default function MediaUploader({ defaultFolder = "general", onUploaded }:
       const uploaded = await uploadMediaFile(file, folder || "general");
       const mediaResult = { url: uploaded.url, publicId: uploaded.publicId };
       setResult(mediaResult);
+      showToast.success("Image uploaded successfully.");
       onUploaded?.(mediaResult.url, mediaResult.publicId);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed.");
@@ -69,27 +85,33 @@ export default function MediaUploader({ defaultFolder = "general", onUploaded }:
         {loading ? "Uploading..." : "Upload"}
       </button>
 
-      {(localPreview || result) && (
-        <div className={styles.previewGrid}>
-          {localPreview && (
-            <article className={styles.previewCard}>
-              <h4>Selected Preview</h4>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={localPreview} alt="Local preview" />
-            </article>
-          )}
-          {result?.url && (
-            <article className={styles.previewCard}>
-              <h4>Uploaded Preview</h4>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={result.url} alt="Uploaded preview" />
-            </article>
-          )}
+      {(localPreview || result) && showUploadDetails && (
+        <div className={styles.previewWrap}>
+          <div className={styles.previewHeader}>
+            <span>Preview</span>
+            <button type="button" onClick={() => setShowUploadDetails(false)} className={styles.previewCloseBtn}>Close</button>
+          </div>
+          <div className={styles.previewGrid}>
+            {localPreview && (
+              <article className={styles.previewCard}>
+                <h4>Selected Preview</h4>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={localPreview} alt="Local preview" />
+              </article>
+            )}
+            {result?.url && (
+              <article className={styles.previewCard}>
+                <h4>Uploaded Preview</h4>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={result.url} alt="Uploaded preview" />
+              </article>
+            )}
+          </div>
         </div>
       )}
 
       {error && <div className={styles.error}>{error}</div>}
-      {result && (
+      {result && showUploadDetails && (
         <div className={styles.meta}>
           <div><strong>publicId:</strong> {result.publicId}</div>
           <div><strong>url:</strong> {result.url}</div>

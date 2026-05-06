@@ -8,6 +8,9 @@ import cookieParser from 'cookie-parser';
 export const createApp = (): Express => {
   const app = express();
 
+  // auth-service runs behind api-gateway in local/prod setups.
+  app.set('trust proxy', 1);
+
   // Middleware
   app.use(express.json());
 

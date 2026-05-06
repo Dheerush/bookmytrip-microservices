@@ -308,7 +308,14 @@ export const refresh = asyncHandler(async (req: Request, res: Response) => {
     throw new AppError('Refresh token required', 400);
   }
 
-  const newRefreshToken = await rotateRefreshToken(refreshToken);
+  let newRefreshToken: string;
+  try {
+    newRefreshToken = await rotateRefreshToken(refreshToken);
+  } catch {
+    res.clearCookie('refreshToken').clearCookie('csrfToken');
+    throw new AppError('Session expired. Please log in again.', 401, 'SESSION_EXPIRED');
+  }
+
   const tokenDoc        = await RefreshToken.findOne({ token: newRefreshToken });
 
   if (!tokenDoc) {

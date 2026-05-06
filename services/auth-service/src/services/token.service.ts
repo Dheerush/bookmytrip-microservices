@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import { env } from '../config/env';
 import { RefreshToken } from '../models/RefreshToken';
 import { UserRole } from '../types/auth.types';
+import { AppError } from '../utils/AppError';
 
 export const generateAccessToken = (id: string, role: UserRole, email?: string, fullName?: string) => {
   return jwt.sign({ id, role, email, fullName }, env.JWT_ACCESS_SECRET, {
@@ -29,7 +30,12 @@ export const rotateRefreshToken = async (oldToken: string) => {
   const existing = await RefreshToken.findOne({ token: oldToken });
 
   if (!existing) {
-    throw new Error('Invalid refresh token');
+    throw new AppError('Invalid refresh token', 401, 'INVALID_REFRESH_TOKEN');
+  }
+
+  if (existing.expiresAt.getTime() <= Date.now()) {
+    await RefreshToken.deleteOne({ token: oldToken });
+    throw new AppError('Refresh token expired', 401, 'REFRESH_TOKEN_EXPIRED');
   }
 
   await RefreshToken.deleteOne({ token: oldToken });

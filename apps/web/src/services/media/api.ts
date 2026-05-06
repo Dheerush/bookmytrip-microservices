@@ -10,6 +10,13 @@ export interface UploadedMedia {
   uploadedBy?: string;
 }
 
+export interface FolderMediaAsset {
+  publicId: string;
+  url: string;
+  bytes: number;
+  mimeType: string;
+}
+
 export const uploadMediaFile = async (file: File, folder: string): Promise<UploadedMedia> => {
   const form = new FormData();
   form.append("file", file);
@@ -30,4 +37,21 @@ export const uploadMediaFile = async (file: File, folder: string): Promise<Uploa
   }
 
   return parsed.payload.data;
+};
+
+export const listMediaAssetsByFolder = async (folder: string): Promise<FolderMediaAsset[]> => {
+  const trimmedFolder = folder.trim();
+  if (!trimmedFolder) return [];
+
+  const response = await fetch(`/api/media/assets?folder=${encodeURIComponent(trimmedFolder)}`, {
+    method: "GET",
+    headers: getAuthHeaders(),
+  });
+
+  const parsed = await parseApiResponse<{ assets?: FolderMediaAsset[] }>(response, "Unable to list media assets.");
+  if (!parsed.ok) {
+    throw new Error(parsed.payload?.message || "Unable to list media assets.");
+  }
+
+  return parsed.payload?.data?.assets || [];
 };

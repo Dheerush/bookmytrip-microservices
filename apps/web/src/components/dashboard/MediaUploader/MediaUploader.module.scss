@@ -69,6 +69,36 @@
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
 
+.previewWrap {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.previewHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  span {
+    font-size: 0.78rem;
+    color: #3e4d70;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+}
+
+.previewCloseBtn {
+  border: 1px solid rgba(31, 47, 85, 0.18);
+  background: #ffffff;
+  color: #344971;
+  border-radius: 999px;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.74rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
 .previewCard {
   border: 1px solid rgba(31, 47, 85, 0.16);
   border-radius: 12px;

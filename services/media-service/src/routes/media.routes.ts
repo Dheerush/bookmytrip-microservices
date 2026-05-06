@@ -26,6 +26,84 @@ if (provider === 'cloudinary') {
 }
 
 const folderSchema = z.object({ folder: z.string().optional() });
+const assetsQuerySchema = z.object({
+  folder: z.string().min(1),
+  limit: z.coerce.number().int().min(1).max(100).optional().default(40),
+});
+
+router.get('/assets', authenticate, authorizeRoles('admin', 'vendor'), async (req, res, next) => {
+  try {
+    const parsed = assetsQuerySchema.safeParse(req.query);
+    if (!parsed.success) {
+      throw new AppError('folder query is required', 400, 'VALIDATION_ERROR');
+    }
+
+    const folderInput = parsed.data.folder.replace(/[^a-zA-Z0-9_/-]/g, '').replace(/^\/+|\/+$/g, '');
+    const limit = parsed.data.limit;
+    if (!folderInput) {
+      throw new AppError('folder query is required', 400, 'VALIDATION_ERROR');
+    }
+
+    if (provider === 'cloudinary') {
+      const normalizedFolder = folderInput.startsWith('bookmytrip/') ? folderInput : `bookmytrip/${folderInput}`;
+      const prefix = normalizedFolder.endsWith('/') ? normalizedFolder : `${normalizedFolder}/`;
+      const result = await cloudinary.api.resources({
+        type: 'upload',
+        resource_type: 'image',
+        prefix,
+        max_results: limit,
+      });
+
+      const assets = (result.resources || []).map((asset) => ({
+        publicId: String(asset.public_id || ''),
+        url: String(asset.secure_url || asset.url || ''),
+        bytes: Number(asset.bytes || 0),
+        mimeType: asset.format ? `image/${String(asset.format).toLowerCase()}` : 'image/*',
+      })).filter((asset) => Boolean(asset.publicId && asset.url));
+
+      res.status(200).json({
+        success: true,
+        message: 'Assets fetched',
+        data: {
+          provider,
+          folder: folderInput,
+          assets,
+        },
+      });
+      return;
+    }
+
+    const diskFolder = path.join(process.cwd(), env.MEDIA_STORAGE_DIR, folderInput);
+    const entries = fs.existsSync(diskFolder)
+      ? await fs.promises.readdir(diskFolder, { withFileTypes: true })
+      : [];
+
+    const assets = entries
+      .filter((entry) => entry.isFile())
+      .slice(0, limit)
+      .map((entry) => {
+        const extension = path.extname(entry.name).slice(1).toLowerCase();
+        return {
+          publicId: `${folderInput}/${entry.name}`,
+          url: `/uploads/${folderInput}/${entry.name}`,
+          bytes: 0,
+          mimeType: extension ? `image/${extension}` : 'image/*',
+        };
+      });
+
+    res.status(200).json({
+      success: true,
+      message: 'Assets fetched',
+      data: {
+        provider,
+        folder: folderInput,
+        assets,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
 
 router.post('/upload', authenticate, authorizeRoles('admin', 'vendor'), upload.single('file'), async (req, res, next) => {
   try {

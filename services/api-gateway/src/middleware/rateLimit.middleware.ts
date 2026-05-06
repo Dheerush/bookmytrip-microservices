@@ -1,11 +1,11 @@
 import { Request, Response } from "express";
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import { env } from "../config/env";
 import { fail } from "../utils/response";
 
 const keyGenerator = (req: Request): string => {
   const userId = req.user?.sub || req.user?.id;
-  return userId ? `user:${userId}` : `ip:${req.ip}`;
+  return userId ? `user:${userId}` : `ip:${ipKeyGenerator(req.ip || req.socket.remoteAddress || "")}`;
 };
 
 const baseOptions = {

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import MediaUploader from "@/components/dashboard/MediaUploader/MediaUploader";
 import { showToast } from "@/lib/toast";
+import { listMediaAssetsByFolder } from "@/services/media/api";
 import { useAuth } from "@/services/auth/context";
 import styles from "./page.module.scss";
 import {
@@ -207,6 +208,14 @@ const ENTITY_CONFIGS: EntityConfig[] = [
       { key: "name", label: "Hotel Name", type: "text", required: true, placeholder: "Blue Coast Residency" },
       { key: "city", label: "City", type: "text", required: true, placeholder: "Goa" },
       { key: "address", label: "Address", type: "text", required: true, placeholder: "Calangute Beach Road" },
+      { key: "hotelImageBaseFolder", label: "Hotel Image Base Folder", type: "text", placeholder: "inventory/hotels/goa/blue-coast-residency" },
+      { key: "primaryImageFolder", label: "Primary Image Folder", type: "text", placeholder: "inventory/hotels/goa/blue-coast-residency/primary-folder" },
+      { key: "galleryImageFolder", label: "Gallery/All Images Folder", type: "text", placeholder: "inventory/hotels/goa/blue-coast-residency/all-pictures" },
+      { key: "poolImageFolder", label: "Pool Images Folder", type: "text", placeholder: "inventory/hotels/goa/blue-coast-residency/swimming-folder" },
+      { key: "spaImageFolder", label: "Spa Images Folder", type: "text", placeholder: "inventory/hotels/goa/blue-coast-residency/spa-folder" },
+      { key: "gymImageFolder", label: "Gym Images Folder", type: "text", placeholder: "inventory/hotels/goa/blue-coast-residency/gym-folder" },
+      { key: "deluxeImageFolder", label: "Deluxe Room Images Folder", type: "text", placeholder: "inventory/hotels/goa/blue-coast-residency/deluxe-folder" },
+      { key: "suiteImageFolder", label: "Suite Room Images Folder", type: "text", placeholder: "inventory/hotels/goa/blue-coast-residency/suite-folder" },
       { key: "image", label: "Primary Image URL (from Media Upload)", type: "text", placeholder: "Paste uploaded Cloudinary URL" },
       { key: "images", label: "Gallery Image URLs (from Media Upload)", type: "text", placeholder: "Paste uploaded URLs and press Enter" },
       { key: "rating", label: "Rating", type: "number", required: true, placeholder: "4.5" },
@@ -241,6 +250,14 @@ const ENTITY_CONFIGS: EntityConfig[] = [
       name: "Blue Coast Residency",
       city: "Goa",
       address: "Calangute Beach Road",
+      hotelImageBaseFolder: "",
+      primaryImageFolder: "",
+      galleryImageFolder: "",
+      poolImageFolder: "",
+      spaImageFolder: "",
+      gymImageFolder: "",
+      deluxeImageFolder: "",
+      suiteImageFolder: "",
       image: "",
       images: "",
       rating: "4.5",
@@ -551,6 +568,122 @@ const LIST_FIELD_KEYS = new Set([
   "guideLanguages",
   "offerCodes",
 ]);
+
+const dedupeUrls = (values: string[]): string[] => {
+  const seen = new Set<string>();
+  const ordered: string[] = [];
+
+  values.forEach((value) => {
+    const url = value.trim();
+    if (!url) return;
+    if (seen.has(url)) return;
+    seen.add(url);
+    ordered.push(url);
+  });
+
+  return ordered;
+};
+
+const resolveHotelFolderPath = (values: EntityState, key: string): string => {
+  const direct = (values[key] || "").trim();
+  if (direct) return direct;
+
+  const base = (values.hotelImageBaseFolder || "").trim().replace(/\/+$/g, "");
+  if (!base) return "";
+
+  const fallbackSuffix: Record<string, string> = {
+    primaryImageFolder: "primary-folder",
+    galleryImageFolder: "all-pictures",
+    poolImageFolder: "swimming-folder",
+    spaImageFolder: "spa-folder",
+    gymImageFolder: "gym-folder",
+    deluxeImageFolder: "deluxe-folder",
+    suiteImageFolder: "suite-folder",
+  };
+
+  const suffix = fallbackSuffix[key];
+  return suffix ? `${base}/${suffix}` : "";
+};
+
+const hydrateHotelImagesFromFolders = async (values: EntityState): Promise<{ nextValues: EntityState; fetchedCount: number }> => {
+  const targets = [
+    "primaryImageFolder",
+    "galleryImageFolder",
+    "poolImageFolder",
+    "spaImageFolder",
+    "gymImageFolder",
+    "deluxeImageFolder",
+    "suiteImageFolder",
+  ] as const;
+
+  const folderEntries = targets
+    .map((key) => ({ key, folder: resolveHotelFolderPath(values, key) }))
+    .filter((entry) => Boolean(entry.folder));
+
+  if (folderEntries.length === 0) {
+    return { nextValues: values, fetchedCount: 0 };
+  }
+
+  const results = await Promise.all(
+    folderEntries.map(async (entry) => {
+      try {
+        const assets = await listMediaAssetsByFolder(entry.folder);
+        return { key: entry.key, urls: assets.map((asset) => asset.url).filter(Boolean) };
+      } catch {
+        return { key: entry.key, urls: [] as string[] };
+      }
+    }),
+  );
+
+  const fetchedCount = results.reduce((sum, result) => sum + result.urls.length, 0);
+  const urlsByKey = new Map(results.map((result) => [result.key, result.urls]));
+
+  const amenityEnabled = {
+    pool: values.pool === "true",
+    spa: values.spa === "true",
+    gym: values.gym === "true",
+  };
+
+  const existingPrimary = (values.image || "").trim();
+  const existingGallery = parseList(values.images || "");
+
+  const primaryCandidates = [
+    existingPrimary,
+    ...(urlsByKey.get("primaryImageFolder") || []),
+    ...(urlsByKey.get("galleryImageFolder") || []),
+    ...(urlsByKey.get("deluxeImageFolder") || []),
+    ...(urlsByKey.get("suiteImageFolder") || []),
+  ];
+
+  if (amenityEnabled.pool) primaryCandidates.push(...(urlsByKey.get("poolImageFolder") || []));
+  if (amenityEnabled.spa) primaryCandidates.push(...(urlsByKey.get("spaImageFolder") || []));
+  if (amenityEnabled.gym) primaryCandidates.push(...(urlsByKey.get("gymImageFolder") || []));
+
+  const nextPrimary = dedupeUrls(primaryCandidates)[0] || existingPrimary;
+
+  const galleryCandidates = [
+    ...existingGallery,
+    ...(urlsByKey.get("galleryImageFolder") || []),
+    ...(urlsByKey.get("deluxeImageFolder") || []),
+    ...(urlsByKey.get("suiteImageFolder") || []),
+  ];
+
+  if (amenityEnabled.pool) galleryCandidates.push(...(urlsByKey.get("poolImageFolder") || []));
+  if (amenityEnabled.spa) galleryCandidates.push(...(urlsByKey.get("spaImageFolder") || []));
+  if (amenityEnabled.gym) galleryCandidates.push(...(urlsByKey.get("gymImageFolder") || []));
+  if (nextPrimary) galleryCandidates.unshift(nextPrimary);
+
+  const nextGallery = dedupeUrls(galleryCandidates);
+
+  return {
+    nextValues: {
+      ...values,
+      image: nextPrimary,
+      images: nextGallery.join(","),
+    },
+    fetchedCount,
+  };
+};
 
 const BULK_ALLOWED_FIELDS: Record<InventoryEntity, string[]> = {
   flights: ["airline", "refundable", "rating", "meals", "aircraft"],
@@ -997,6 +1130,7 @@ export default function AdminInventoryPage() {
   const [createTagDrafts, setCreateTagDrafts] = useState<EntityState>({});
   const [updateTagDrafts, setUpdateTagDrafts] = useState<EntityState>({});
   const [createValidationErrors, setCreateValidationErrors] = useState<EntityState>({});
+  const [loadingFolderAssets, setLoadingFolderAssets] = useState(false);
 
   const selectedEntity = useMemo(() => ENTITY_CONFIGS.find((entry) => entry.id === entity)!, [entity]);
   const [createValues, setCreateValues] = useState<EntityState>(selectedEntity.createDefaults);
@@ -1321,7 +1455,17 @@ export default function AdminInventoryPage() {
 
     try {
       setProcessingAction("create");
-      const payload = buildCreatePayload(entity, createValues);
+      let sourceValues = createValues;
+      if (entity === "hotels") {
+        const hydrated = await hydrateHotelImagesFromFolders(createValues);
+        sourceValues = hydrated.nextValues;
+        setCreateValues(hydrated.nextValues);
+        if (hydrated.fetchedCount > 0) {
+          showToast.success(`Auto-linked ${hydrated.fetchedCount} media image(s) from folders.`);
+        }
+      }
+
+      const payload = buildCreatePayload(entity, sourceValues);
       await runWithDelay(createInventory(entity, payload));
       showToast.success(`${selectedEntity.label.slice(0, -1)} created successfully.`);
       setActiveModal(null);
@@ -1436,6 +1580,26 @@ export default function AdminInventoryPage() {
       showToast.error(err instanceof Error ? err.message : `Unable to fetch ${entity.slice(0, -1)} details.`);
     } finally {
       setLoadingList(false);
+    }
+  };
+
+  const loadHotelImagesFromFolders = async () => {
+    if (entity !== "hotels") return;
+
+    try {
+      setLoadingFolderAssets(true);
+      const hydrated = await hydrateHotelImagesFromFolders(createValues);
+      setCreateValues(hydrated.nextValues);
+
+      if (hydrated.fetchedCount > 0) {
+        showToast.success(`Loaded ${hydrated.fetchedCount} image(s) from media folders.`);
+      } else {
+        showToast.error("No images found in the provided folders.");
+      }
+    } catch (err) {
+      showToast.error(err instanceof Error ? err.message : "Unable to load images from folders.");
+    } finally {
+      setLoadingFolderAssets(false);
     }
   };
 
@@ -1608,6 +1772,21 @@ export default function AdminInventoryPage() {
             <h3>Create {selectedEntity.label.slice(0, -1)}</h3>
             <button type="button" onClick={() => setActiveModal(null)}>Close</button>
           </div>
+          {entity === "hotels" && (
+            <div className={styles.folderTools}>
+              <p className={styles.bulkHint}>
+                Tip: Set hotel media folder paths and click Load Images to auto-fill primary and gallery URLs.
+              </p>
+              <button
+                type="button"
+                className={styles.secondaryBtn}
+                onClick={loadHotelImagesFromFolders}
+                disabled={loadingFolderAssets || processingAction === "create"}
+              >
+                {loadingFolderAssets ? "Loading Images..." : "Load Images from Folders"}
+              </button>
+            </div>
+          )}
           <div className={styles.formGrid}>
             {selectedEntity.createFields.map((field) => {
               const value = createValues[field.key] ?? "";
