@@ -73,7 +73,7 @@ export const initSocketServer = (): void => {
     socket.join(userRoom(userId));
     if (role === 'admin') socket.join('admin');
 
-    const seed = role === 'admin' ? await getAdminSeed() : await getUserSeed(userId);
+    const seed = role === 'admin' ? await getAdminSeed(userId) : await getUserSeed(userId);
     if (seed.length > 0) {
       socket.emit('notification:seed', seed);
     }

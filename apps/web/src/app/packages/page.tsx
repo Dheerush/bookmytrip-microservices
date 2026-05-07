@@ -176,11 +176,16 @@ function PackagesContent() {
             <option value="duration">Duration</option>
           </select>
         </div>
-        {loading && <div className={styles.empty}>Fetching live packages...</div>}
+        {loading && (
+          <div className={styles.loadingState}>
+            <span className={styles.spinner} aria-hidden="true" />
+            <span>Fetching live packages...</span>
+          </div>
+        )}
 
         {/* Grid */}
         <div className={styles.grid}>
-          {visible.length === 0 && (
+          {!loading && visible.length === 0 && (
             <div className={styles.empty}>No packages found.</div>
           )}
           {visible.map((pkg) => {

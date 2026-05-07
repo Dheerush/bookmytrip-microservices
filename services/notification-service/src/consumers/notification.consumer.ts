@@ -12,10 +12,11 @@ import { supportTemplate } from '../templates/support.template';
 import { newsletterTemplate } from '../templates/newsletter.template';
 import { adminComplaintTemplate } from '../templates/adminComplaint.template';
 import { pushNotificationToAdmins, pushNotificationToAllUsers, pushNotificationToUser } from '../services/socket.service';
+import { formatIp, formatLoginTime, parseUserAgent } from '../utils/login-info';
 
-const push = (userId: string, type: string, title: string, message: string, link?: string) => {
+const push = async (userId: string, type: string, title: string, message: string, link?: string) => {
   if (!userId) return;
-  return pushNotificationToUser(userId, {
+  await pushNotificationToUser(userId, {
     id: randomUUID(),
     type,
     title,
@@ -25,8 +26,19 @@ const push = (userId: string, type: string, title: string, message: string, link
   });
 };
 
-const pushAdmin = (type: string, title: string, message: string, link?: string) => {
-  return pushNotificationToAdmins({
+const pushAdmin = async (type: string, title: string, message: string, link?: string) => {
+  await pushNotificationToAdmins({
+    id: randomUUID(),
+    type,
+    title,
+    message,
+    link,
+    createdAt: new Date().toISOString(),
+  });
+};
+
+const pushBroadcast = async (type: string, title: string, message: string, link?: string) => {
+  await pushNotificationToAllUsers({
     id: randomUUID(),
     type,
     title,
@@ -144,8 +156,11 @@ export const startConsumer = async (): Promise<void> => {
           case 'LOGIN_SUCCESS': {
             const { email, userId, loginTime, ip, userAgent } = event.data;
             if (!email) throw new Error('Invalid LOGIN_SUCCESS payload');
-            await sendEmail(email, 'BookMyTrip: Login Alert', loginTemplate(email, loginTime, ip, userAgent));
-            await push(userId, 'login', 'New Login Detected', 'Your account was accessed' + (ip ? ' from ' + ip : '') + '.', '/dashboard/profile');
+            const device = parseUserAgent(userAgent);
+            const location = formatIp(ip);
+            const time = formatLoginTime(loginTime);
+            await sendEmail(email, 'BookMyTrip: Login Alert', loginTemplate(email, time, location, device));
+            await push(userId, 'login', 'New Login Detected', `Signed in via ${device} from ${location}.`, '/dashboard/notifications');
             break;
           }
           case 'PASSWORD_CHANGED': {
@@ -292,14 +307,12 @@ export const startConsumer = async (): Promise<void> => {
               ? `${Number(discountValue || 0)}% off`
               : `INR ${Number(discountValue || 0).toLocaleString('en-IN')} off`;
 
-            await pushNotificationToAllUsers({
-              id: randomUUID(),
-              type: 'offers',
-              title: `New coupon: ${couponCode}`,
-              message: `${discountLabel}${description ? ` • ${description}` : ''}`,
-              link: '/dashboard/notifications',
-              createdAt: new Date().toISOString(),
-            });
+            await pushBroadcast(
+              'offers',
+              `New coupon: ${couponCode}`,
+              `${discountLabel}${description ? ` • ${description}` : ''}`,
+              '/dashboard/notifications',
+            );
 
             await pushAdmin(
               'offers',

@@ -27,6 +27,7 @@ const SOCKET_URL =
   process.env.NEXT_PUBLIC_NOTIFICATION_SOCKET_URL || "http://localhost:5099";
 
 const STORAGE_KEY = "bmt_notifications";
+const NOTIFICATION_SYNC_EVENT = "bmt:notifications-sync";
 
 const loadFromStorage = (userId: string): AppNotification[] => {
   if (typeof window === "undefined") return [];
@@ -43,6 +44,11 @@ const saveToStorage = (userId: string, items: AppNotification[]) => {
   try {
     localStorage.setItem(`${STORAGE_KEY}_${userId}`, JSON.stringify(items.slice(0, 50)));
   } catch { /* ignore quota errors */ }
+};
+
+const syncAcrossHooks = (userId: string) => {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent(NOTIFICATION_SYNC_EVENT, { detail: { userId } }));
 };
 
 let socket: Socket | null = null;
@@ -66,6 +72,28 @@ const mergeIncomingNotifications = (
     .slice(0, 120);
 };
 
+const areNotificationsEqual = (left: AppNotification[], right: AppNotification[]): boolean => {
+  if (left.length !== right.length) return false;
+
+  for (let i = 0; i < left.length; i += 1) {
+    const a = left[i];
+    const b = right[i];
+    if (
+      a.id !== b.id ||
+      a.type !== b.type ||
+      a.title !== b.title ||
+      a.message !== b.message ||
+      a.link !== b.link ||
+      a.createdAt !== b.createdAt ||
+      a.read !== b.read
+    ) {
+      return false;
+    }
+  }
+
+  return true;
+};
+
 export function useNotifications() {
   const { user, token } = useAuth();
   const userId = user?.id ?? null;
@@ -82,7 +110,33 @@ export function useNotifications() {
   useEffect(() => {
     if (!userId) return;
     saveToStorage(userId, notifications);
+    syncAcrossHooks(userId);
   }, [notifications, userId]);
+
+  useEffect(() => {
+    if (!userId) return;
+
+    const syncHandler = (event: Event) => {
+      const customEvent = event as CustomEvent<{ userId?: string }>;
+      if (customEvent.detail?.userId && customEvent.detail.userId !== userId) return;
+
+      setNotificationMap((prev) => {
+        const synced = loadFromStorage(userId);
+        const existing = prev[userId] ?? [];
+        if (areNotificationsEqual(existing, synced)) return prev;
+
+        return {
+          ...prev,
+          [userId]: synced,
+        };
+      });
+    };
+
+    window.addEventListener(NOTIFICATION_SYNC_EVENT, syncHandler as EventListener);
+    return () => {
+      window.removeEventListener(NOTIFICATION_SYNC_EVENT, syncHandler as EventListener);
+    };
+  }, [userId]);
 
   useEffect(() => {
     if (!userId || !token) return;

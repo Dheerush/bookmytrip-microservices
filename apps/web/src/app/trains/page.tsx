@@ -548,7 +548,12 @@ function TrainsContent() {
             ))}
           </div>
 
-          {apiLoading && <div className={s.noResults}>Fetching latest trains…</div>}
+          {apiLoading && (
+            <div className={s.loadingState}>
+              <span className={s.spinner} aria-hidden="true" />
+              <span>Fetching latest trains...</span>
+            </div>
+          )}
           {!apiLoading && hasSearched && paged.length === 0 && <div className={s.noResults}>No trains match your filters.</div>}
           {!apiLoading && hasSearched && apiError && <div className={s.noResults}>{apiError}</div>}
 

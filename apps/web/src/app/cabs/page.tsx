@@ -22,6 +22,13 @@ const getTodayIso = (): string => {
   return `${year}-${month}-${day}`;
 };
 
+const getNowTimeHHmm = (): string => {
+  const now = new Date();
+  const hours = String(now.getHours()).padStart(2, "0");
+  const minutes = String(now.getMinutes()).padStart(2, "0");
+  return `${hours}:${minutes}`;
+};
+
 const clampToTodayIso = (value: string): string => {
   if (!value) return getTodayIso();
   const today = getTodayIso();
@@ -423,6 +430,13 @@ function CabsContent() {
 
   const estimatedDistanceKm = estimateDistanceKm(pickup, drop);
   const todayIso = getTodayIso();
+  const minPickupTime = date === todayIso ? getNowTimeHHmm() : "00:00";
+
+  useEffect(() => {
+    if (date !== todayIso) return;
+    if (!pickupTime || pickupTime >= minPickupTime) return;
+    setPickupTime(minPickupTime);
+  }, [date, pickupTime, minPickupTime, todayIso]);
 
   return (
     <div className={s.page}>
@@ -498,7 +512,13 @@ function CabsContent() {
           </div>
           <div className={s.searchFieldGroup}>
             <label className={s.searchFieldLabel}>🕒 Pickup Time</label>
-            <input className={s.searchFieldInput} type="time" value={pickupTime} onChange={(e) => setPickupTime(e.target.value)} />
+            <input
+              className={s.searchFieldInput}
+              type="time"
+              min={minPickupTime}
+              value={pickupTime}
+              onChange={(e) => setPickupTime(e.target.value)}
+            />
           </div>
           <div className={s.searchFieldGroup}>
             <label className={s.searchFieldLabel}>📏 Estimated Distance</label>
@@ -608,7 +628,10 @@ function CabsContent() {
           </div>
 
           {apiLoading ? (
-            <div className={s.noResults}>Fetching latest cabs…</div>
+            <div className={s.loadingState}>
+              <span className={s.spinner} aria-hidden="true" />
+              <span>Fetching latest cabs...</span>
+            </div>
           ) : apiError ? (
             <div className={s.noResults}>{apiError}</div>
           ) : paged.length === 0 ? (

@@ -919,7 +919,12 @@ function FlightsContent() {
             <div className={s.roundTripColumns}>
               <div className={s.resultsPanel}>
                 <h3 className={s.sectionTitle}>Onward Flights</h3>
-                {apiLoading && <div className={s.noResults}>Fetching latest flights…</div>}
+                {apiLoading && (
+                  <div className={s.loadingState}>
+                    <span className={s.spinner} aria-hidden="true" />
+                    <span>Fetching latest flights...</span>
+                  </div>
+                )}
                 {!apiLoading && hasSearched && paged.length === 0 && <div className={s.noResults}>No onward flights match your filters.</div>}
                 {!apiLoading && hasSearched && apiError && <div className={s.noResults}>{apiError}</div>}
 
@@ -976,7 +981,12 @@ function FlightsContent() {
 
               <div className={s.resultsPanel}>
                 <h3 className={s.sectionTitle}>Return Flights</h3>
-                {apiReturnLoading && <div className={s.noResults}>Fetching return flights…</div>}
+                {apiReturnLoading && (
+                  <div className={s.loadingState}>
+                    <span className={s.spinner} aria-hidden="true" />
+                    <span>Fetching return flights...</span>
+                  </div>
+                )}
                 {!apiReturnLoading && hasSearched && returnFiltered.length === 0 && (
                   <div className={s.noResults}>
                     No return flights match your filters.

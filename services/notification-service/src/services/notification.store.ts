@@ -71,7 +71,7 @@ const persistNotification = async (
 
 const buildFilter = (userId: string, role: string, type?: string) => {
   const orFilter = role === 'admin'
-    ? [{ audience: 'admin' }, { audience: 'broadcast' }]
+    ? [{ audience: 'admin' }, { audience: 'broadcast' }, { audience: 'user', recipientId: userId }]
     : [{ audience: 'user', recipientId: userId }, { audience: 'broadcast' }];
 
   return {
@@ -109,8 +109,8 @@ export const getUserSeed = async (userId: string): Promise<NotificationPayload[]
   })));
 };
 
-export const getAdminSeed = async (): Promise<NotificationPayload[]> => {
-  const items = await NotificationModel.find(buildFilter('', 'admin'))
+export const getAdminSeed = async (userId: string): Promise<NotificationPayload[]> => {
+  const items = await NotificationModel.find(buildFilter(userId, 'admin'))
     .sort({ createdAt: -1 })
     .limit(MAX_ITEMS_PER_FEED)
     .lean();
