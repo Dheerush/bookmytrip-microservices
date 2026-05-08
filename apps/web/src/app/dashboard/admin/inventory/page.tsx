@@ -210,14 +210,14 @@ const ENTITY_CONFIGS: EntityConfig[] = [
       { key: "address", label: "Address", type: "text", required: true, placeholder: "Calangute Beach Road" },
       { key: "hotelImageBaseFolder", label: "Hotel Image Base Folder", type: "text", placeholder: "inventory/hotels/goa/blue-coast-residency" },
       { key: "primaryImageFolder", label: "Primary Image Folder", type: "text", placeholder: "inventory/hotels/goa/blue-coast-residency/primary-folder" },
-      { key: "galleryImageFolder", label: "Gallery/All Images Folder", type: "text", placeholder: "inventory/hotels/goa/blue-coast-residency/all-pictures" },
-      { key: "poolImageFolder", label: "Pool Images Folder", type: "text", placeholder: "inventory/hotels/goa/blue-coast-residency/swimming-folder" },
+      { key: "galleryImageFolder", label: "Gallery/All Images Folder", type: "text", placeholder: "inventory/hotels/goa/blue-coast-residency/gallery-folder" },
+      { key: "poolImageFolder", label: "Pool Images Folder", type: "text", placeholder: "inventory/hotels/goa/blue-coast-residency/pool-folder" },
       { key: "spaImageFolder", label: "Spa Images Folder", type: "text", placeholder: "inventory/hotels/goa/blue-coast-residency/spa-folder" },
       { key: "gymImageFolder", label: "Gym Images Folder", type: "text", placeholder: "inventory/hotels/goa/blue-coast-residency/gym-folder" },
       { key: "deluxeImageFolder", label: "Deluxe Room Images Folder", type: "text", placeholder: "inventory/hotels/goa/blue-coast-residency/deluxe-folder" },
       { key: "suiteImageFolder", label: "Suite Room Images Folder", type: "text", placeholder: "inventory/hotels/goa/blue-coast-residency/suite-folder" },
-      { key: "image", label: "Primary Image URL (from Media Upload)", type: "text", placeholder: "Paste uploaded Cloudinary URL" },
-      { key: "images", label: "Gallery Image URLs (from Media Upload)", type: "text", placeholder: "Paste uploaded URLs and press Enter" },
+      { key: "image", label: "Primary Image URL (Optional Manual Override)", type: "text", placeholder: "Optional: auto-filled from folders if left blank" },
+      { key: "images", label: "Gallery Image URLs (Optional Manual Override)", type: "text", placeholder: "Optional: auto-filled from folders if left blank" },
       { key: "rating", label: "Rating", type: "number", required: true, placeholder: "4.5" },
       { key: "reviewCount", label: "Review Count", type: "number", required: true, placeholder: "132" },
       { key: "stars", label: "Stars", type: "number", required: true, placeholder: "4" },
@@ -588,13 +588,16 @@ const resolveHotelFolderPath = (values: EntityState, key: string): string => {
   const direct = (values[key] || "").trim();
   if (direct) return direct;
 
-  const base = (values.hotelImageBaseFolder || "").trim().replace(/\/+$/g, "");
+  const base = (values.hotelImageBaseFolder || "")
+    .trim()
+    .replace(/\/+$/g, "")
+    .replace(/\/base-folder$/i, "");
   if (!base) return "";
 
   const fallbackSuffix: Record<string, string> = {
     primaryImageFolder: "primary-folder",
-    galleryImageFolder: "all-pictures",
-    poolImageFolder: "swimming-folder",
+    galleryImageFolder: "gallery-folder",
+    poolImageFolder: "pool-folder",
     spaImageFolder: "spa-folder",
     gymImageFolder: "gym-folder",
     deluxeImageFolder: "deluxe-folder",
@@ -628,14 +631,20 @@ const hydrateHotelImagesFromFolders = async (values: EntityState): Promise<{ nex
     folderEntries.map(async (entry) => {
       try {
         const assets = await listMediaAssetsByFolder(entry.folder);
-        return { key: entry.key, urls: assets.map((asset) => asset.url).filter(Boolean) };
-      } catch {
-        return { key: entry.key, urls: [] as string[] };
+        return { key: entry.key, urls: assets.map((asset) => asset.url).filter(Boolean), error: null as string | null };
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Unable to read folder assets.";
+        return { key: entry.key, urls: [] as string[], error: message };
       }
     }),
   );
 
   const fetchedCount = results.reduce((sum, result) => sum + result.urls.length, 0);
+  const errorCount = results.filter((result) => Boolean(result.error)).length;
+  if (fetchedCount === 0 && errorCount === folderEntries.length) {
+    throw new Error("Unable to read media folders right now. Please verify session/service connectivity and try again.");
+  }
+
   const urlsByKey = new Map(results.map((result) => [result.key, result.urls]));
 
   const amenityEnabled = {
@@ -1457,11 +1466,15 @@ export default function AdminInventoryPage() {
       setProcessingAction("create");
       let sourceValues = createValues;
       if (entity === "hotels") {
-        const hydrated = await hydrateHotelImagesFromFolders(createValues);
-        sourceValues = hydrated.nextValues;
-        setCreateValues(hydrated.nextValues);
-        if (hydrated.fetchedCount > 0) {
-          showToast.success(`Auto-linked ${hydrated.fetchedCount} media image(s) from folders.`);
+        try {
+          const hydrated = await hydrateHotelImagesFromFolders(createValues);
+          sourceValues = hydrated.nextValues;
+          setCreateValues(hydrated.nextValues);
+          if (hydrated.fetchedCount > 0) {
+            showToast.success(`Auto-linked ${hydrated.fetchedCount} media image(s) from folders.`);
+          }
+        } catch (error) {
+          showToast.error(error instanceof Error ? error.message : "Unable to read folder images. Continuing with existing image values.");
         }
       }
 
@@ -1594,7 +1607,7 @@ export default function AdminInventoryPage() {
       if (hydrated.fetchedCount > 0) {
         showToast.success(`Loaded ${hydrated.fetchedCount} image(s) from media folders.`);
       } else {
-        showToast.error("No images found in the provided folders.");
+        showToast.error("No images found. Ensure these folders contain uploaded images (not only child folders). Use exact folder paths like .../primary-folder.");
       }
     } catch (err) {
       showToast.error(err instanceof Error ? err.message : "Unable to load images from folders.");
