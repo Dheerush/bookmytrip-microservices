@@ -3,6 +3,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { MapPin, Star, ArrowLeft } from "lucide-react";
 import { destinations } from "@/data/destinations";
+import { destinationGuides } from "@/data/destinationGuides";
+import DestinationGallery from "@/components/ui/DestinationGallery/DestinationGallery";
 import styles from "./page.module.scss";
 
 interface PageProps {
@@ -16,8 +18,9 @@ function formatPrice(price: number) {
 export default async function DestinationPage({ params }: PageProps) {
   const { slug } = await params;
   const dest = destinations.find((d) => d.slug === slug);
+  const guide = destinationGuides[slug];
 
-  if (!dest) notFound();
+  if (!dest || !guide) notFound();
 
   const discount = Math.round(
     ((dest.originalPrice - dest.discountedPrice) / dest.originalPrice) * 100,
@@ -65,28 +68,85 @@ export default async function DestinationPage({ params }: PageProps) {
           ))}
         </div>
 
-        <div className={styles.priceCard}>
-          <div className={styles.priceLabel}>Starting from</div>
-          <div className={styles.priceRow}>
-            <span className={styles.original}>
-              ₹{formatPrice(dest.originalPrice)}
-            </span>
-            <span className={styles.discounted}>
-              ₹{formatPrice(dest.discountedPrice)}
-            </span>
-            <span className={styles.badge}>{discount}% OFF</span>
-          </div>
-          <div className={styles.perPerson}>per person</div>
-          <button className={styles.bookBtn} type="button">
-            Book Now
-          </button>
-        </div>
+        <div className={styles.layout}>
+          <div className={styles.contentColumn}>
+            <div className={styles.priceCard}>
+              <div className={styles.priceLabel}>Starting from</div>
+              <div className={styles.priceRow}>
+                <span className={styles.original}>
+                  ₹{formatPrice(dest.originalPrice)}
+                </span>
+                <span className={styles.discounted}>
+                  ₹{formatPrice(dest.discountedPrice)}
+                </span>
+                <span className={styles.badge}>{discount}% OFF</span>
+              </div>
+              <div className={styles.perPerson}>per person</div>
+              <Link href={`/packages?destination=${encodeURIComponent(dest.name)}`} className={styles.bookBtn}>
+                Book Now
+              </Link>
+            </div>
 
-        <div className={styles.placeholder}>
-          <p>
-            Detailed itinerary, gallery, reviews, and booking form will be
-            populated here once the backend API is integrated.
-          </p>
+            <section className={styles.copySection}>
+              <h2 className={styles.sectionTitle}>About {dest.name}</h2>
+              <p>{guide.about}</p>
+            </section>
+
+            <section className={styles.copySection}>
+              <h2 className={styles.sectionTitle}>History & Cultural Backdrop</h2>
+              <p>{guide.history}</p>
+            </section>
+
+            <section className={styles.copySection}>
+              <h2 className={styles.sectionTitle}>Why Travellers Keep Choosing It</h2>
+              <p>{guide.attraction}</p>
+            </section>
+
+            <div className={styles.infoGrid}>
+              <section className={styles.infoCard}>
+                <span className={styles.infoLabel}>Cuisine</span>
+                <p>{guide.cuisine}</p>
+              </section>
+              <section className={styles.infoCard}>
+                <span className={styles.infoLabel}>Demography & Local Character</span>
+                <p>{guide.demographics}</p>
+              </section>
+              <section className={styles.infoCard}>
+                <span className={styles.infoLabel}>Safety Snapshot</span>
+                <p>{guide.safety}</p>
+              </section>
+            </div>
+
+            <section className={styles.quickFacts}>
+              <h2 className={styles.sectionTitle}>Quick Facts</h2>
+              <div className={styles.factGrid}>
+                {guide.quickFacts.map((fact) => (
+                  <div key={fact.label} className={styles.factCard}>
+                    <span className={styles.factLabel}>{fact.label}</span>
+                    <strong>{fact.value}</strong>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </div>
+
+          <aside className={styles.galleryColumn}>
+            <div className={styles.galleryCard}>
+              <span className={styles.infoLabel}>Destination Gallery</span>
+              <DestinationGallery images={guide.gallery} title={dest.name} />
+            </div>
+            <div className={styles.statsCard}>
+              <span className={styles.infoLabel}>Tourism Signals</span>
+              <div className={styles.statList}>
+                {guide.tourismStats.map((stat) => (
+                  <div key={stat.label} className={styles.statRow}>
+                    <span>{stat.label}</span>
+                    <strong>{stat.value}</strong>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </aside>
         </div>
       </div>
     </main>

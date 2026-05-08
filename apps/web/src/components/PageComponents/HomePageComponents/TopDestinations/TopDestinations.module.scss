@@ -153,6 +153,49 @@
   gap: 0.55rem;
 }
 
+.description {
+  margin: 0.15rem 0 0;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+.ctaRow {
+  margin-top: 0.6rem;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.bookBtn,
+.detailBtn {
+  flex: 1;
+  text-align: center;
+  text-decoration: none;
+  padding: 0.52rem 0.7rem;
+  border-radius: 9px;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.bookBtn {
+  background: var(--deep-navy);
+  color: var(--gold-light);
+}
+
+.detailBtn {
+  border: 1px solid var(--border-soft);
+  color: var(--text-dark);
+  background: #fff;
+}
+
+.bookBtn:hover,
+.detailBtn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgba(11, 25, 41, 0.14);
+}
+
 .location {
   display: flex;
   align-items: center;

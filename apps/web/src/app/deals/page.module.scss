@@ -37,8 +37,10 @@
 
 .sectionHead {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
   margin-bottom: 12px;
 
   h2 {
@@ -47,6 +49,60 @@
     align-items: center;
     gap: 8px;
     font-size: 1.1rem;
+    color: #11293f;
+  }
+}
+
+.controlRow {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.filterRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.filterBtn {
+  border: 1px solid #d7e6f0;
+  background: #fff;
+  color: #516579;
+  padding: 0.52rem 0.82rem;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.filterBtnActive {
+  background: #102b44;
+  color: #fff;
+  border-color: #102b44;
+}
+
+.sortWrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: #516579;
+
+  span {
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 700;
+  }
+
+  select {
+    border: 1px solid #d7e6f0;
+    border-radius: 10px;
+    background: #fff;
+    padding: 0.55rem 0.75rem;
     color: #11293f;
   }
 }
@@ -161,4 +217,5 @@
 
 @media (max-width: 640px) {
   .page { padding: 20px 14px 56px; }
+  .controlRow { justify-content: flex-start; }
 }

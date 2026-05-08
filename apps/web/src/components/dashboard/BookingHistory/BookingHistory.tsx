@@ -331,6 +331,7 @@ export default function BookingHistoryPage() {
     const packageTravel = booking.metadata?.packageTravel;
     const cabTravel = booking.metadata?.cabTravel;
     const flightTravel = booking.metadata?.flightTravel;
+    const hotelStay = booking.metadata?.hotelStay;
     const trainStationFrom = booking.metadata?.trainFromStationName
       ? `${booking.metadata.trainFromStationName}${booking.metadata.trainFromStationCode ? ` (${booking.metadata.trainFromStationCode})` : ""}`
       : "";
@@ -365,6 +366,23 @@ export default function BookingHistoryPage() {
         ].filter(Boolean)
       : [];
     const seatColumnTitle = booking.type === "train" ? "Berth" : "Seat";
+    const showSeatColumn = booking.type !== "hotel";
+    const hotelPerks = [
+      ...(Array.isArray(hotelStay?.amenities) ? hotelStay.amenities : []),
+      ...(Array.isArray(hotelStay?.perks) ? hotelStay.perks : []),
+      ...(Array.isArray(booking.metadata?.hotelPerks) ? booking.metadata.hotelPerks : []),
+    ].map((item) => String(item).trim()).filter(Boolean);
+    const hotelDetails = booking.type === "hotel"
+      ? [
+          hotelStay?.roomType && `Room Type: ${hotelStay.roomType}`,
+          hotelStay?.roomNumber && `Room Number: ${hotelStay.roomNumber}`,
+          hotelStay?.address && `Hotel Address: ${hotelStay.address}`,
+          booking.startDate && `Check-in: ${new Date(booking.startDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}${hotelStay?.checkInTime ? `, ${hotelStay.checkInTime}` : ""}`,
+          booking.endDate && `Check-out: ${new Date(booking.endDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}${hotelStay?.checkOutTime ? `, ${hotelStay.checkOutTime}` : ""}`,
+          (hotelStay?.nights || booking.quantity) && `Nights: ${hotelStay?.nights || booking.quantity}`,
+          hotelStay?.roomsBooked && `Rooms: ${hotelStay.roomsBooked}`,
+        ].filter(Boolean)
+      : [];
     const flightDetails = booking.type === "flight"
       ? [
           flightTravel?.boardingAirport && `Boarding: ${flightTravel.boardingAirport}`,
@@ -391,9 +409,9 @@ export default function BookingHistoryPage() {
               parsed.berthType || "",
             ].filter(Boolean).join(" · ")
           : p.seatNumber || "—";
-        return `<tr><td>${idx + 1}</td><td>${p.name || "—"}</td><td>${seatValue}</td><td>${p.age ?? "—"}</td><td style="text-transform:capitalize">${p.gender || "—"}</td><td>${p.email || "—"}</td>${booking.type === "tour" ? `<td>${travelerCommute || "—"}</td>` : ""}</tr>`;
+        return `<tr><td>${idx + 1}</td><td>${p.name || "—"}</td>${showSeatColumn ? `<td>${seatValue}</td>` : ""}<td>${p.age ?? "—"}</td><td style="text-transform:capitalize">${p.gender || "—"}</td><td>${p.email || "—"}</td>${booking.type === "tour" ? `<td>${travelerCommute || "—"}</td>` : ""}</tr>`;
       }).join("")
-      : `<tr><td>1</td><td>${booking.contact?.name || "Primary traveler"}</td><td>—</td><td>—</td><td>—</td><td>${booking.contact?.email || "—"}</td>${booking.type === "tour" ? "<td>—</td>" : ""}</tr>`;
+      : `<tr><td>1</td><td>${booking.contact?.name || "Primary traveler"}</td>${showSeatColumn ? "<td>—</td>" : ""}<td>—</td><td>—</td><td>${booking.contact?.email || "—"}</td>${booking.type === "tour" ? "<td>—</td>" : ""}</tr>`;
 
     win.document.write(`<!DOCTYPE html>
 <html lang="en">
@@ -455,6 +473,8 @@ export default function BookingHistoryPage() {
       booking.metadata?.berthPreference && `Preference: ${titleCase(String(booking.metadata.berthPreference))}`,
     ].filter(Boolean).join(" • ") || "—"}</p></div></div>` : ""}
     ${flightDetails ? `<div class="meta-row"><div class="meta-block"><label>Flight Details</label><p style="font-weight:500;font-size:0.88rem">${flightDetails}</p></div></div>` : ""}
+    ${hotelDetails.length > 0 ? `<div class="meta-row"><div class="meta-block"><label>Hotel Stay Details</label><ul style="margin:0;padding-left:18px;font-size:0.88rem;line-height:1.55;color:#0f1f2e;font-weight:500">${hotelDetails.map((item) => `<li>${item}</li>`).join("")}</ul></div></div>` : ""}
+    ${hotelPerks.length > 0 ? `<div class="meta-row"><div class="meta-block"><label>Perks & Amenities</label><p style="font-weight:500;font-size:0.88rem">${hotelPerks.join(" • ")}</p></div></div>` : ""}
     ${packageTravelInfo ? `<div class="meta-row"><div class="meta-block"><label>Package Commute</label><p style="font-weight:500;font-size:0.88rem">${packageTravelInfo}</p></div></div>` : ""}
     ${cabTravelBullets.length > 0 ? `<div class="meta-row"><div class="meta-block"><label>Cab Details</label><ul style="margin:0;padding-left:18px;font-size:0.88rem;line-height:1.55;color:#0f1f2e;font-weight:500">${cabTravelBullets.map((item) => `<li>${item}</li>`).join("")}</ul></div></div>` : ""}
     <table>
@@ -471,7 +491,7 @@ export default function BookingHistoryPage() {
       <div class="meta-block"><label>Traveler Details</label></div>
     </div>
     <table class="traveler-table">
-      <thead><tr><th>#</th><th>Name</th><th>${seatColumnTitle}</th><th>Age</th><th>Gender</th><th>Email</th>${booking.type === "tour" ? "<th>Commute</th>" : ""}</tr></thead>
+      <thead><tr><th>#</th><th>Name</th>${showSeatColumn ? `<th>${seatColumnTitle}</th>` : ""}<th>Age</th><th>Gender</th><th>Email</th>${booking.type === "tour" ? "<th>Commute</th>" : ""}</tr></thead>
       <tbody>${travelerRows}</tbody>
     </table>
     <p style="font-size:0.78rem;color:#6b7f93">This is a computer-generated invoice and does not require a signature.</p>

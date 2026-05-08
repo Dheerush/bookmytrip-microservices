@@ -10,6 +10,21 @@ interface Props {
   params: Promise<{ id: string }>;
 }
 
+const getImageLabel = (url: string, index: number) => {
+  const value = url.toLowerCase();
+  if (value.includes("deluxe")) return "Deluxe";
+  if (value.includes("suite")) return "Suite";
+  if (value.includes("gym") || value.includes("fitness")) return "Gym";
+  if (value.includes("spa")) return "Spa";
+  if (value.includes("pool")) return "Pool";
+  if (value.includes("lobby")) return "Lobby";
+  if (value.includes("restaurant") || value.includes("dining")) return "Dining";
+  if (value.includes("room")) return "Room";
+  if (value.includes("gallery")) return "Gallery";
+  if (index === 0) return "Primary";
+  return "Hotel View";
+};
+
 export default function HotelDetailPage({ params }: Props) {
   const { id } = use(params);
   const staticHotel = hotels.find((h) => h.id === id);
@@ -58,6 +73,8 @@ export default function HotelDetailPage({ params }: Props) {
   const hotel = staticHotel ?? apiHotel;
   if (!hotel) return notFound();
 
+  const activeImageLabel = getImageLabel(hotel.images[activeImg] || "", activeImg);
+
   const room = hotel.rooms[selectedRoom];
   const isFullyBooked = (room?.available || 0) <= 0;
   const baseTotal = room.price * nights;
@@ -89,22 +106,32 @@ export default function HotelDetailPage({ params }: Props) {
         <div className={styles.main}>
           {/* Gallery */}
           <div className={styles.gallery}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              className={styles.mainImage}
-              src={hotel.images[activeImg]}
-              alt={hotel.name}
-            />
+            <div className={styles.mainImageWrap}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                className={styles.mainImage}
+                src={hotel.images[activeImg]}
+                alt={`${hotel.name} - ${activeImageLabel}`}
+              />
+              <span className={styles.mainImageBadge}>{activeImageLabel}</span>
+            </div>
             <div className={styles.thumbStrip}>
               {hotel.images.map((img, i) => (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img
+                <button
                   key={img}
-                  className={`${styles.thumb} ${i === activeImg ? styles.thumbActive : ""}`}
-                  src={img}
-                  alt={`${hotel.name} ${i + 1}`}
+                  type="button"
+                  className={`${styles.thumbBtn} ${i === activeImg ? styles.thumbActive : ""}`}
                   onClick={() => setActiveImg(i)}
-                />
+                  aria-label={`View ${getImageLabel(img, i)} image`}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    className={styles.thumb}
+                    src={img}
+                    alt={`${hotel.name} - ${getImageLabel(img, i)}`}
+                  />
+                  <span className={styles.thumbLabel}>{getImageLabel(img, i)}</span>
+                </button>
               ))}
             </div>
           </div>

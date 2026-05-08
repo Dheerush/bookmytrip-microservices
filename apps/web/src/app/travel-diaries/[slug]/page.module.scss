@@ -144,6 +144,17 @@
   font-family: var(--font-body);
 }
 
+.contentGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(280px, 0.9fr);
+  gap: 2rem;
+  align-items: start;
+}
+
+.storyColumn {
+  min-width: 0;
+}
+
 .lead {
   font-size: 1.1rem;
   font-weight: 300;
@@ -152,21 +163,86 @@
   margin-bottom: 2rem;
 }
 
-/* ── Placeholder ── */
-.placeholder {
-  background: rgba(59, 158, 221, 0.04);
-  border: 1px dashed var(--border-soft);
-  border-radius: 8px;
-  padding: 2rem;
-  text-align: center;
+.sectionBlock + .sectionBlock {
+  margin-top: 1.5rem;
+}
+
+.sectionTitle {
+  margin: 0 0 0.55rem;
+  font-family: var(--font-display);
+  font-size: 1.55rem;
+  color: var(--deep-navy);
+}
+
+.sectionBody {
+  margin: 0;
+  font-size: 0.96rem;
+  line-height: 1.9;
+  color: #34495e;
+}
+
+.sidebar {
+  display: grid;
+  gap: 1rem;
+  position: sticky;
+  top: calc(var(--navbar-h, 72px) + 24px);
+}
+
+.sideCard,
+.takeawayCard {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(247, 250, 252, 0.98) 100%);
+  border: 1px solid rgba(59, 158, 221, 0.12);
+  border-radius: 18px;
+  padding: 1.2rem 1.25rem;
+  box-shadow: 0 18px 30px rgba(11, 25, 41, 0.06);
+}
+
+.takeawayCard {
+  margin-top: 1.6rem;
 
   p {
-    font-size: 0.88rem;
-    color: var(--text-muted);
+    margin: 0.35rem 0 0;
+    line-height: 1.75;
+    color: #42576b;
+  }
+}
+
+.takeawayLabel,
+.sideLabel {
+  display: block;
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.highlightList {
+  margin: 0.7rem 0 0;
+  padding-left: 1rem;
+
+  li + li {
+    margin-top: 0.55rem;
+  }
+}
+
+.sideCopy {
+  margin: 0.6rem 0 0;
+  line-height: 1.7;
+  color: #53697c;
+}
+
+@media (max-width: 900px) {
+  .contentGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    position: static;
   }
 }
 
 /* ── Responsive ── */
 @media (max-width: 640px) {
   .hero { height: 45vh; min-height: 320px; }
+  .sectionTitle { font-size: 1.35rem; }
 }

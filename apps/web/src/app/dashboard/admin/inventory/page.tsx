@@ -1203,6 +1203,19 @@ export default function AdminInventoryPage() {
       }
     });
 
+    if (entity === "tours") {
+      const description = (values.description || "").trim();
+      if (description.length < 20) {
+        errors.description = "Description must be at least 20 characters.";
+      }
+
+      const country = (values.country || "").trim().toLowerCase();
+      const isAbroad = country && country !== "india";
+      if (isAbroad && !(values.guidePhoto || "").trim()) {
+        errors.guidePhoto = "Guide Photo URL is required for abroad packages.";
+      }
+    }
+
     return errors;
   };
 

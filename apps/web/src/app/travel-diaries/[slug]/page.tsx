@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft, Calendar, Clock } from "lucide-react";
 import { travelDiaries } from "@/data/travelDiaries";
+import { travelDiaryDetails } from "@/data/travelDiaryDetails";
 import styles from "./page.module.scss";
 
 interface PageProps {
@@ -20,8 +21,9 @@ function formatDate(dateStr: string) {
 export default async function DiaryPage({ params }: PageProps) {
   const { slug } = await params;
   const diary = travelDiaries.find((d) => d.slug === slug);
+  const detail = travelDiaryDetails[slug];
 
-  if (!diary) notFound();
+  if (!diary || !detail) notFound();
 
   return (
     <main className={styles.page}>
@@ -68,12 +70,35 @@ export default async function DiaryPage({ params }: PageProps) {
         </div>
 
         <div className={styles.content}>
-          <p className={styles.lead}>{diary.excerpt}</p>
-          <div className={styles.placeholder}>
-            <p>
-              Full diary content, photo gallery, and comments will be loaded
-              from the backend API once integrated.
-            </p>
+          <div className={styles.contentGrid}>
+            <div className={styles.storyColumn}>
+              <p className={styles.lead}>{detail.lead}</p>
+              {detail.sections.map((section) => (
+                <section key={section.heading} className={styles.sectionBlock}>
+                  <h2 className={styles.sectionTitle}>{section.heading}</h2>
+                  <p className={styles.sectionBody}>{section.body}</p>
+                </section>
+              ))}
+              <div className={styles.takeawayCard}>
+                <span className={styles.takeawayLabel}>Why This Diary Stays With You</span>
+                <p>{detail.takeaway}</p>
+              </div>
+            </div>
+
+            <aside className={styles.sidebar}>
+              <div className={styles.sideCard}>
+                <span className={styles.sideLabel}>Trip Highlights</span>
+                <ul className={styles.highlightList}>
+                  {detail.highlights.map((highlight) => (
+                    <li key={highlight}>{highlight}</li>
+                  ))}
+                </ul>
+              </div>
+              <div className={styles.sideCard}>
+                <span className={styles.sideLabel}>Quick Snapshot</span>
+                <p className={styles.sideCopy}>{diary.excerpt}</p>
+              </div>
+            </aside>
           </div>
         </div>
       </article>

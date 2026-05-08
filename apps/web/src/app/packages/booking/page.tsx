@@ -28,6 +28,33 @@ type TourApiDetail = {
   durationDays: number;
   basePrice: number;
   discountPrice?: number;
+  hotel?: string;
+  hotelRating?: number;
+  food?: string[];
+  transport?: string[];
+  activities?: string[];
+  inclusions?: string[];
+  exclusions?: string[];
+  bestSeason?: string;
+  groupSize?: string;
+  tripType?: string;
+  hospitality?: string;
+  documents?: string[];
+  images?: string[];
+  heroImage?: string;
+  description?: string;
+  highlights?: string[];
+  tags?: string[];
+  guide?: {
+    name?: string;
+    speciality?: string;
+    rating?: number;
+    experience?: string;
+    languages?: string[];
+    bio?: string;
+    contact?: string;
+    photo?: string;
+  };
 };
 
 type TravelMode = "flight" | "train" | "self";
@@ -111,6 +138,14 @@ const hasModeIncluded = (pkg: Package | null, mode: Exclude<TravelMode, "self">)
   return keywords.some((keyword) => text.includes(keyword));
 };
 
+const normalizeTripType = (value?: string): Package["tripType"] => {
+  const allowed: Package["tripType"][] = ["Leisure", "Adventure", "Cultural", "Honeymoon", "Family", "Spiritual"];
+  if (value && allowed.includes(value as Package["tripType"])) {
+    return value as Package["tripType"];
+  }
+  return "Leisure";
+};
+
 function PackageBookingContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -140,7 +175,10 @@ function PackageBookingContent() {
   const [selectedTravelOptionId, setSelectedTravelOptionId] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  const allowsFlight = useMemo(() => hasModeIncluded(pkg, "flight"), [pkg]);
+  const allowsFlight = useMemo(() => {
+    if (!pkg) return false;
+    return hasModeIncluded(pkg, "flight") || pkg.region === "Abroad";
+  }, [pkg]);
   const allowsTrain = useMemo(() => hasModeIncluded(pkg, "train"), [pkg]);
 
   useEffect(() => {
@@ -184,34 +222,34 @@ function PackageBookingContent() {
           duration: `${tour.durationDays} days`,
           durationDays: tour.durationDays,
           durationNights: Math.max(0, tour.durationDays - 1),
-          hotel: "Included",
-          hotelRating: 4,
-          food: [],
-          transport: [],
-          activities: [],
-          inclusions: [],
-          exclusions: [],
-          bestSeason: "Oct-Mar",
-          groupSize: "2-15 pax",
-          tripType: "Leisure",
+          hotel: tour.hotel || "Included",
+          hotelRating: Number(tour.hotelRating || 4),
+          food: tour.food || [],
+          transport: tour.transport || [],
+          activities: tour.activities || [],
+          inclusions: tour.inclusions || [],
+          exclusions: tour.exclusions || [],
+          bestSeason: tour.bestSeason || "Oct-Mar",
+          groupSize: tour.groupSize || "2-15 pax",
+          tripType: normalizeTripType(tour.tripType),
           guide: {
-            name: "BMT Local Expert",
-            speciality: `${tour.city} & surroundings`,
-            rating: 4.5,
-            experience: "5+ years",
-            languages: ["English", "Hindi"],
-            bio: `Knowledgeable local guide for ${tour.city} tours.`,
-            contact: "+91 98765 43210",
-            photo: "",
+            name: tour.guide?.name || "BMT Local Expert",
+            speciality: tour.guide?.speciality || `${tour.city} & surroundings`,
+            rating: Number(tour.guide?.rating || 4.5),
+            experience: tour.guide?.experience || "5+ years",
+            languages: tour.guide?.languages || ["English", "Hindi"],
+            bio: tour.guide?.bio || `Knowledgeable local guide for ${tour.city} tours.`,
+            contact: tour.guide?.contact || "+91 98765 43210",
+            photo: tour.guide?.photo || "",
           },
-          hospitality: "Standard",
-          documents: [],
+          hospitality: tour.hospitality || "Standard",
+          documents: tour.documents || [],
           reviews: [],
-          images: [],
-          heroImage: "",
-          description: "",
-          highlights: [],
-          tags: [],
+          images: tour.images || [],
+          heroImage: tour.heroImage || "",
+          description: tour.description || "",
+          highlights: tour.highlights || [],
+          tags: tour.tags || [],
           cityFacts: [],
           countryFaqs: [],
         };
@@ -247,9 +285,29 @@ function PackageBookingContent() {
       const fromCode = resolveAliasCode(currentLocation, FLIGHT_CITY_ALIASES, 3, 3);
       const toCode = resolveAliasCode(pkg?.subRegion || "", FLIGHT_CITY_ALIASES, 3, 3);
 
-      if (!pkg || !fromCode || !toCode || !startDate || travelMode !== "flight" || !allowsFlight) {
+      if (!pkg || !startDate || travelMode !== "flight" || !allowsFlight) {
         setTravelOptions([]);
         setSelectedTravelOptionId("");
+        return;
+      }
+
+      if (!fromCode || !toCode) {
+        if (pkg.region === "Abroad") {
+          const fallback = {
+            id: `intl-flight-${pkg.id}`,
+            label: "International Flight (Assisted Ticketing)",
+            amount: 0,
+            meta: `Route from ${currentLocation || "your city"} to ${pkg.subRegion}`,
+            inventoryType: "flight" as const,
+            inventoryId: undefined,
+            availableSeats: 999,
+          };
+          setTravelOptions([fallback]);
+          setSelectedTravelOptionId(fallback.id);
+        } else {
+          setTravelOptions([]);
+          setSelectedTravelOptionId("");
+        }
         return;
       }
 
@@ -278,11 +336,45 @@ function PackageBookingContent() {
           availableSeats: Number(entry.flight?.seatsLeft || 0),
         }));
 
-        setTravelOptions(options);
-        setSelectedTravelOptionId(options[0]?.id || "");
+        if (options.length > 0) {
+          setTravelOptions(options);
+          setSelectedTravelOptionId(options[0]?.id || "");
+          return;
+        }
+
+        if (pkg.region === "Abroad") {
+          const fallback = {
+            id: `intl-flight-${pkg.id}`,
+            label: "International Flight (Assisted Ticketing)",
+            amount: 0,
+            meta: `No direct live inventory found. Our team will confirm best flight options.`,
+            inventoryType: "flight" as const,
+            inventoryId: undefined,
+            availableSeats: 999,
+          };
+          setTravelOptions([fallback]);
+          setSelectedTravelOptionId(fallback.id);
+        } else {
+          setTravelOptions([]);
+          setSelectedTravelOptionId("");
+        }
       } catch {
-        setTravelOptions([]);
-        setSelectedTravelOptionId("");
+        if (pkg.region === "Abroad") {
+          const fallback = {
+            id: `intl-flight-${pkg.id}`,
+            label: "International Flight (Assisted Ticketing)",
+            amount: 0,
+            meta: `Live search unavailable right now. Flight assistance will be included post-booking.`,
+            inventoryType: "flight" as const,
+            inventoryId: undefined,
+            availableSeats: 999,
+          };
+          setTravelOptions([fallback]);
+          setSelectedTravelOptionId(fallback.id);
+        } else {
+          setTravelOptions([]);
+          setSelectedTravelOptionId("");
+        }
       } finally {
         setTravelLoading(false);
       }

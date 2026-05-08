@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { MapPin, Star } from "lucide-react";
 import { destinations, type Destination } from "@/data/destinations";
+import { destinationGuides } from "@/data/destinationGuides";
 import styles from "./TopDestinations.module.scss";
 
 type Tab = "international" | "indian";
@@ -22,10 +23,11 @@ function DestinationCard({ dest }: { dest: Destination }) {
   const discount = Math.round(
     ((dest.originalPrice - dest.discountedPrice) / dest.originalPrice) * 100,
   );
+  const guide = destinationGuides[dest.slug];
 
   return (
-    <Link href={`/top-destinations/${dest.slug}`} className={styles.card}>
-      <div className={styles.imageWrap}>
+    <article className={styles.card}>
+      <Link href={`/top-destinations/${dest.slug}`} className={styles.imageWrap}>
         <Image
           src={dest.image}
           alt={dest.name}
@@ -35,7 +37,7 @@ function DestinationCard({ dest }: { dest: Destination }) {
         />
         <span className={styles.badge}>{discount}% OFF</span>
         <div className={styles.imageOverlay} />
-      </div>
+      </Link>
 
       <div className={styles.body}>
         <div className={styles.location}>
@@ -69,8 +71,19 @@ function DestinationCard({ dest }: { dest: Destination }) {
           </span>
           <span className={styles.perPerson}>per person</span>
         </div>
+
+        <p className={styles.description}>{guide?.summary || `${dest.name} is a curated getaway with strong scenery, local culture, and a stay rhythm designed for memorable trips.`}</p>
+
+        <div className={styles.ctaRow}>
+          <Link href={`/packages?destination=${encodeURIComponent(dest.name)}`} className={styles.bookBtn}>
+            Book Now
+          </Link>
+          <Link href={`/top-destinations/${dest.slug}`} className={styles.detailBtn}>
+            Destination Guide
+          </Link>
+        </div>
       </div>
-    </Link>
+    </article>
   );
 }
 

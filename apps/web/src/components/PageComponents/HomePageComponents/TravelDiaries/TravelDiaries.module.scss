@@ -180,6 +180,34 @@
   overflow: hidden;
 }
 
+.story {
+  font-family: var(--font-body);
+  font-size: 0.76rem;
+  line-height: 1.55;
+  color: #42576b;
+  background: #f8fbff;
+  border: 1px solid rgba(59, 158, 221, 0.16);
+  border-radius: 10px;
+  padding: 0.55rem 0.65rem;
+}
+
+.galleryRow {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.4rem;
+}
+
+.galleryItem {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.galleryImage {
+  object-fit: cover;
+}
+
 .cardMeta {
   display: flex;
   align-items: center;
@@ -224,6 +252,42 @@
   font-size: 0.74rem;
   font-weight: 400;
   color: var(--text-muted);
+}
+
+.ctaRow {
+  margin-top: 0.45rem;
+  display: flex;
+  gap: 0.45rem;
+}
+
+.bookBtn,
+.readBtn {
+  flex: 1;
+  text-decoration: none;
+  text-align: center;
+  padding: 0.5rem 0.6rem;
+  border-radius: 9px;
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.bookBtn {
+  background: var(--deep-navy);
+  color: var(--gold-light);
+}
+
+.readBtn {
+  border: 1px solid var(--border-soft);
+  color: var(--text-dark);
+  background: #fff;
+}
+
+.bookBtn:hover,
+.readBtn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgba(11, 25, 41, 0.14);
 }
 
 /* ── View all ── */

@@ -15,6 +15,7 @@ interface Coupon {
   maxDiscount?: number;
   endsAt: string;
   applicableOn: string[];
+  createdAt?: string;
 }
 
 interface Offer {
@@ -27,13 +28,28 @@ interface Offer {
   endsAt: string;
 }
 
+type CouponFilter = "all" | "flight" | "hotel" | "train" | "cab" | "package";
+type SortBy = "recommended" | "newest";
+
+const FILTERS: Array<{ value: CouponFilter; label: string }> = [
+  { value: "all", label: "All" },
+  { value: "flight", label: "Flights" },
+  { value: "hotel", label: "Hotels" },
+  { value: "train", label: "Trains" },
+  { value: "cab", label: "Cabs" },
+  { value: "package", label: "Packages" },
+];
+
+const normalizeCouponType = (value: string) => (value === "tour" ? "package" : value);
+
 const getServicePath = (svc: string) => {
   switch (svc) {
     case "flight": return "/flights";
     case "train": return "/trains";
     case "hotel": return "/hotels";
     case "cab": return "/cabs";
-    case "tour": return "/packages";
+    case "tour":
+    case "package": return "/packages";
     default: return "/";
   }
 };
@@ -47,6 +63,8 @@ export default function DealsPage() {
   const [offers, setOffers] = useState<Offer[]>([]);
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<CouponFilter>("all");
+  const [sortBy, setSortBy] = useState<SortBy>("recommended");
 
   useEffect(() => {
     const run = async () => {
@@ -71,6 +89,24 @@ export default function DealsPage() {
   }, []);
 
   const spotlight = useMemo(() => offers.slice(0, 3), [offers]);
+  const filteredCoupons = useMemo(() => {
+    const next = coupons.filter((coupon) => {
+      if (filter === "all") return true;
+      return coupon.applicableOn.map(normalizeCouponType).includes(filter);
+    });
+
+    next.sort((left, right) => {
+      if (sortBy === "newest") {
+        return new Date(right.createdAt || right.endsAt).getTime() - new Date(left.createdAt || left.endsAt).getTime();
+      }
+
+      const leftScore = (left.discountType === "percent" ? left.discountValue : left.discountValue / 100) + (endsSoon(left.endsAt) ? 8 : 0);
+      const rightScore = (right.discountType === "percent" ? right.discountValue : right.discountValue / 100) + (endsSoon(right.endsAt) ? 8 : 0);
+      return rightScore - leftScore;
+    });
+
+    return next;
+  }, [coupons, filter, sortBy]);
 
   return (
     <div className={styles.page}>
@@ -112,15 +148,36 @@ export default function DealsPage() {
       <section className={styles.section}>
         <div className={styles.sectionHead}>
           <h2><TicketPercent size={18} /> Active Coupons</h2>
+          <div className={styles.controlRow}>
+            <div className={styles.filterRow}>
+              {FILTERS.map((item) => (
+                <button
+                  key={item.value}
+                  type="button"
+                  className={`${styles.filterBtn} ${filter === item.value ? styles.filterBtnActive : ""}`}
+                  onClick={() => setFilter(item.value)}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+            <label className={styles.sortWrap}>
+              <span>Sort</span>
+              <select value={sortBy} onChange={(event) => setSortBy(event.target.value as SortBy)}>
+                <option value="recommended">Recommended</option>
+                <option value="newest">Newest</option>
+              </select>
+            </label>
+          </div>
         </div>
         {loading ? (
           <p className={styles.empty}>Loading live coupons...</p>
-        ) : coupons.length === 0 ? (
+        ) : filteredCoupons.length === 0 ? (
           <p className={styles.empty}>No active coupons right now.</p>
         ) : (
           <div className={styles.couponGrid}>
-            {coupons.map((coupon) => {
-              const service = coupon.applicableOn[0] || "all";
+            {filteredCoupons.map((coupon) => {
+              const service = normalizeCouponType(coupon.applicableOn[0] || "all");
               const link = getServicePath(service);
               return (
                 <article key={coupon._id} className={styles.couponCard}>
