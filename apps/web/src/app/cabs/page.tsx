@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, Suspense, useEffect } from "react";
+import { useState, useMemo, Suspense, useEffect, useCallback } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { parseApiResponse } from "@/lib/http";
 import { showToast } from "@/lib/toast";
@@ -215,7 +215,7 @@ function CabsContent() {
   const [apiLoading, setApiLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
 
-  const updateQuery = (next: Record<string, string | null>, resetPage = true) => {
+  const updateQuery = useCallback((next: Record<string, string | null>, resetPage = true) => {
     const params = new URLSearchParams(searchParams.toString());
     Object.entries(next).forEach(([key, value]) => {
       if (value === null || value === "") {
@@ -227,7 +227,7 @@ function CabsContent() {
     if (resetPage) params.delete("page");
     const qs = params.toString();
     router.replace(qs ? `${pathname}?${qs}` : pathname);
-  };
+  }, [pathname, router, searchParams]);
 
   useEffect(() => {
     setCommittedPickup(searchParams.get("pickup") || "Delhi");
@@ -426,7 +426,7 @@ function CabsContent() {
   useEffect(() => {
     if (page <= totalPages) return;
     updateQuery({ page: totalPages > 1 ? String(totalPages) : null }, false);
-  }, [page, totalPages]);
+  }, [page, totalPages, updateQuery]);
 
   const estimatedDistanceKm = estimateDistanceKm(pickup, drop);
   const todayIso = getTodayIso();
@@ -647,57 +647,66 @@ function CabsContent() {
                   loading="lazy"
                 />
                 <div className={s.cabInfo}>
-                  <div className={s.cabModel}>{cab.carModel}</div>
-                  <div className={s.cabMeta}>{cab.city} · {cab.seatingCapacity} seats · {cab.fuelType} · {cab.luggage}</div>
-                  <span className={s.cabType}>{cab.type}</span>
+                  <div className={s.cabHeader}>
+                    <div className={s.cabModel}>{cab.carModel}</div>
+                  </div>
+                  <div className={s.cabMetaLine}>{cab.type} · {cab.city} · {cab.seatingCapacity} seats · {cab.fuelType} · {cab.luggage}</div>
+                  <div className={s.cabInfoRow}>
+                    <span className={s.cabBrand}>🚗 {cab.brand}</span>
+                    <span className={s.cabDivider}>•</span>
+                    <span className={s.cabDriver}>👤 {cab.driverName} (★ {cab.driverRating})</span>
+                  </div>
                   <div className={s.cabFeatures}>
-                    {cab.features.map((f) => (
+                    {cab.features.slice(0, 4).map((f) => (
                       <span key={f} className={s.cabFeature}>{f}</span>
                     ))}
-                  </div>
-                  <div className={s.tags}>
-                    <span className={s.tag}>🚗 {cab.brand}</span>
-                    <span className={s.tag}>👤 {cab.driverName} (★ {cab.driverRating})</span>
+                    {cab.features.length > 4 && (
+                      <span className={s.cabFeatureMore}>+{cab.features.length - 4} more</span>
+                    )}
                   </div>
                 </div>
                 <div className={s.cabPricing}>
-                  <div className={s.price}>₹{cab.baseFare}</div>
-                  <div className={s.cabPerKm}>+ ₹{cab.pricePerKm}/km</div>
-                  <div className={s.rating}>★ {cab.rating}</div>
-                  <button
-                    className={s.bookBtn}
-                    type="button"
-                    onClick={() => {
-                      if (!drop.trim()) {
-                        showToast.error("Please enter a drop location before booking.");
-                        return;
-                      }
-                      if (!date) {
-                        showToast.error("Please select a travel date before booking.");
-                        return;
-                      }
-                      if (!pickupTime) {
-                        showToast.error("Please select a pickup time before booking.");
-                        return;
-                      }
-                      const selectedPickupDateTime = new Date(`${date}T${pickupTime}:00`);
-                      if (!Number.isNaN(selectedPickupDateTime.getTime()) && selectedPickupDateTime.getTime() < Date.now()) {
-                        showToast.error("Pickup time cannot be in the past.");
-                        return;
-                      }
-                      const bp = new URLSearchParams({
-                        cabId: cab.id,
-                        pickup,
-                        drop,
-                        date,
-                        time: pickupTime,
-                        distanceKm: String(estimateDistanceKm(pickup, drop)),
-                      });
-                      router.push(`/cabs/booking?${bp.toString()}`);
-                    }}
-                  >
-                    Book Now
-                  </button>
+                  <div className={s.cabPriceBlock}>
+                    <div className={s.price}>₹{cab.baseFare}</div>
+                    <div className={s.cabPerKm}>+ ₹{cab.pricePerKm}/km</div>
+                  </div>
+                  <div className={s.cabActionRow}>
+                    <div className={s.rating}>★ {cab.rating}</div>
+                    <button
+                      className={s.bookBtn}
+                      type="button"
+                      onClick={() => {
+                        if (!drop.trim()) {
+                          showToast.error("Please enter a drop location before booking.");
+                          return;
+                        }
+                        if (!date) {
+                          showToast.error("Please select a travel date before booking.");
+                          return;
+                        }
+                        if (!pickupTime) {
+                          showToast.error("Please select a pickup time before booking.");
+                          return;
+                        }
+                        const selectedPickupDateTime = new Date(`${date}T${pickupTime}:00`);
+                        if (!Number.isNaN(selectedPickupDateTime.getTime()) && selectedPickupDateTime.getTime() < Date.now()) {
+                          showToast.error("Pickup time cannot be in the past.");
+                          return;
+                        }
+                        const bp = new URLSearchParams({
+                          cabId: cab.id,
+                          pickup,
+                          drop,
+                          date,
+                          time: pickupTime,
+                          distanceKm: String(estimateDistanceKm(pickup, drop)),
+                        });
+                        router.push(`/cabs/booking?${bp.toString()}`);
+                      }}
+                    >
+                      Book Now
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
