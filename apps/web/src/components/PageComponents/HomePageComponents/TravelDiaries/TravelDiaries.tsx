@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Calendar, Clock } from "lucide-react";
+import { Calendar, Clock, MapPin } from "lucide-react";
 import { travelDiaries, type TravelDiary } from "@/data/travelDiaries";
 import styles from "./TravelDiaries.module.scss";
 
@@ -23,36 +23,7 @@ function formatDate(dateStr: string) {
   });
 }
 
-const DIARY_STORY: Record<string, string> = {
-  "delhi-chandni-chowk": "From Jama Masjid's sunrise azaan to late-night parathas in tiny alleys, this route captures Delhi's layered soul in one walk.",
-  "darjeeling-tiger-hill": "The jeep ride before dawn, local chai at the summit, and then the Himalayas lighting up in gold make this a once-in-a-lifetime ritual.",
-  "alleppey-houseboat": "Slow mornings with coconut pancakes, village canals, and sunset canoe rides turn a short trip into a deeply calming reset.",
-  "jodhpur-blue-city": "Clock tower bazaars, indigo rooftops, and stories from old artisans reveal why Jodhpur feels cinematic from every angle.",
-  "spiti-valley-camping": "High-altitude roads, moonlike landscapes, and stargazing camps make Spiti a journey that feels larger than life.",
-  "marrakech-souks": "Handmade lamps, hidden riads, and rooftop mint tea create a sensory maze that rewards every wrong turn.",
-  "kyoto-autumn": "Shrine trails, tea ceremonies, and soft autumn light over temple gardens make Kyoto quietly unforgettable.",
-  "iceland-golden-circle": "A loop of geysers, black-sand detours, and geothermal lagoons with dramatic weather every few hours.",
-  "santorini-sunsets": "Blue domes, cliffside paths, and sea-view tavernas that stretch into long sunset evenings.",
-  "patagonia-argentina": "Glacier treks, wild wind, and vast silence define a raw adventure at the edge of the continent.",
-};
-
-const DIARY_GALLERY: Record<string, string[]> = {
-  "delhi-chandni-chowk": ["/travel-diaries/india/delhi1.jpg", "/travel-diaries/india/jodhpur1.jpg"],
-  "darjeeling-tiger-hill": ["/travel-diaries/india/darjeeling1.jpg", "/travel-diaries/india/spiti1.jpg"],
-  "alleppey-houseboat": ["/travel-diaries/india/kerela1.jpeg", "/travel-diaries/india/delhi1.jpg"],
-  "jodhpur-blue-city": ["/travel-diaries/india/jodhpur1.jpg", "/travel-diaries/india/darjeeling1.jpg"],
-  "spiti-valley-camping": ["/travel-diaries/india/spiti1.jpg", "/travel-diaries/india/kerela1.jpeg"],
-  "marrakech-souks": ["/travel-diaries/abroad/morocco1.jpg", "/travel-diaries/abroad/greece1.jpg"],
-  "kyoto-autumn": ["/travel-diaries/abroad/kyoto1.jpg", "/travel-diaries/abroad/iceland1.jpg"],
-  "iceland-golden-circle": ["/travel-diaries/abroad/iceland1.jpg", "/travel-diaries/abroad/patagonia1.jpg"],
-  "santorini-sunsets": ["/travel-diaries/abroad/greece1.jpg", "/travel-diaries/abroad/morocco1.jpg"],
-  "patagonia-argentina": ["/travel-diaries/abroad/patagonia1.jpg", "/travel-diaries/abroad/iceland1.jpg"],
-};
-
 function DiaryCard({ diary }: { diary: TravelDiary }) {
-  const story = DIARY_STORY[diary.slug] || diary.excerpt;
-  const gallery = DIARY_GALLERY[diary.slug] || [diary.image, diary.image];
-
   return (
     <article className={styles.card}>
       <div className={styles.imageWrap}>
@@ -69,22 +40,8 @@ function DiaryCard({ diary }: { diary: TravelDiary }) {
 
       <div className={styles.body}>
         <h3 className={styles.cardTitle}>{diary.title}</h3>
+        <p className={styles.location}><MapPin size={13} /> {diary.city}, {diary.country}</p>
         <p className={styles.excerpt}>{diary.excerpt}</p>
-        <p className={styles.story}>{story}</p>
-
-        <div className={styles.galleryRow}>
-          {gallery.slice(0, 2).map((img, idx) => (
-            <div key={`${diary.slug}-${idx}`} className={styles.galleryItem}>
-              <Image
-                src={img}
-                alt={`${diary.title} gallery ${idx + 1}`}
-                fill
-                sizes="(max-width: 640px) 45vw, 160px"
-                className={styles.galleryImage}
-              />
-            </div>
-          ))}
-        </div>
 
         <div className={styles.cardMeta}>
           <span className={styles.metaItem}>

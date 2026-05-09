@@ -63,6 +63,13 @@ const serviceLabel = (value: string) => {
   }
 };
 
+type CategoryInsight = {
+  key: string;
+  label: string;
+  average: number;
+  count: number;
+};
+
 export default function TestimonialsCarousel() {
   const [items, setItems] = useState<FeaturedReview[]>(FALLBACK);
   const [index, setIndex] = useState(0);
@@ -95,7 +102,63 @@ export default function TestimonialsCarousel() {
     return () => window.clearInterval(timer);
   }, [items.length]);
 
+  useEffect(() => {
+    if (index >= items.length) {
+      setIndex(0);
+    }
+  }, [index, items.length]);
+
   const active = useMemo(() => items[index] || FALLBACK[0], [items, index]);
+
+  const metrics = useMemo(() => {
+    const total = items.length;
+    const avgRating = total > 0
+      ? items.reduce((sum, item) => sum + item.rating, 0) / total
+      : 0;
+    const recommendScore = total > 0
+      ? Math.round((items.filter((item) => item.rating >= 4).length / total) * 100)
+      : 0;
+
+    const categories = items.reduce<Map<string, { label: string; sum: number; count: number }>>((acc, item) => {
+      const key = item.itemType || "other";
+      const current = acc.get(key) || {
+        label: serviceLabel(key),
+        sum: 0,
+        count: 0,
+      };
+      current.sum += item.rating;
+      current.count += 1;
+      acc.set(key, current);
+      return acc;
+    }, new Map());
+
+    const categoryRatings: CategoryInsight[] = Array.from(categories.entries())
+      .map(([key, value]) => ({
+        key,
+        label: value.label,
+        average: value.sum / value.count,
+        count: value.count,
+      }))
+      .sort((a, b) => {
+        if (b.count !== a.count) return b.count - a.count;
+        return b.average - a.average;
+      })
+      .slice(0, 3);
+
+    const uniqueTravellers = new Set(
+      items
+        .map((item) => item.displayName)
+        .filter((name): name is string => Boolean(name && name.trim())),
+    ).size;
+
+    return {
+      total,
+      avgRating,
+      recommendScore,
+      categoryRatings,
+      uniqueTravellers,
+    };
+  }, [items]);
 
   return (
     <section className={styles.section}>
@@ -107,19 +170,39 @@ export default function TestimonialsCarousel() {
         </div>
 
         <div className={styles.carouselWrap}>
-          <div className={styles.rail}>
-            {items.slice(0, 4).map((item, idx) => (
-              <button
-                key={item.id}
-                type="button"
-                className={`${styles.railItem} ${idx === index ? styles.railItemActive : ""}`}
-                onClick={() => setIndex(idx)}
-              >
-                <span className={styles.railRating}>{stars(item.rating)}</span>
-                <strong>{item.title}</strong>
-                <span>{item.displayName || "Verified Traveller"}</span>
-              </button>
-            ))}
+          <div className={styles.insightsCol}>
+            <article className={`${styles.insightCard} ${styles.insightCardPrimary}`}>
+              <p className={styles.cardLabel}>Overall traveller rating</p>
+              <div className={styles.scoreRow}>
+                <p className={styles.bigScore}>{metrics.avgRating.toFixed(1)}</p>
+                <p className={styles.scoreStars}>{stars(metrics.avgRating)}</p>
+              </div>
+              <p className={styles.cardHint}>Based on {metrics.total} featured stories</p>
+            </article>
+
+            <article className={styles.insightCard}>
+              <p className={styles.cardLabel}>Average rating by category</p>
+              <div className={styles.categoryList}>
+                {metrics.categoryRatings.map((category) => (
+                  <div className={styles.categoryItem} key={category.key}>
+                    <div className={styles.categoryHead}>
+                      <span>{category.label}</span>
+                      <span>{category.average.toFixed(1)}</span>
+                    </div>
+                    <div className={styles.categoryTrack}>
+                      <span style={{ width: `${Math.max(8, (category.average / 5) * 100)}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </article>
+
+            <article className={styles.insightCard}>
+              <p className={styles.cardLabel}>Booking confidence</p>
+              <p className={styles.bigPercent}>{metrics.recommendScore}%</p>
+              <p className={styles.cardHint}>rated 4 stars or more</p>
+              <p className={styles.cardHint}>{metrics.uniqueTravellers || metrics.total} verified travellers</p>
+            </article>
           </div>
 
           <div className={styles.stage}>

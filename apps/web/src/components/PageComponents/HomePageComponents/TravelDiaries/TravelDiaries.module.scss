@@ -91,10 +91,10 @@
 .card {
   display: flex;
   flex-direction: column;
-  border-radius: 12px;
+  border-radius: 16px;
   overflow: hidden;
-  background: #fff;
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+  border: 1px solid rgba(11, 25, 41, 0.08);
   text-decoration: none;
   color: inherit;
   transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1),
@@ -102,8 +102,8 @@
 
   &:hover {
     transform: translateY(-6px);
-    box-shadow: 0 20px 50px rgba(11, 25, 41, 0.1),
-                0 4px 16px rgba(11, 25, 41, 0.06);
+    box-shadow: 0 24px 52px rgba(11, 25, 41, 0.14),
+                0 6px 18px rgba(11, 25, 41, 0.08);
   }
 
   &:hover .image {
@@ -114,7 +114,7 @@
 /* ── Image ── */
 .imageWrap {
   position: relative;
-  aspect-ratio: 16 / 10;
+  aspect-ratio: 16 / 9;
   overflow: hidden;
 }
 
@@ -149,10 +149,10 @@
 
 /* ── Card body ── */
 .body {
-  padding: 1.1rem 1.2rem 1.3rem;
+  padding: 1.1rem 1.2rem 1.2rem;
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
+  gap: 0.5rem;
   flex: 1;
 }
 
@@ -170,49 +170,34 @@
 
 .excerpt {
   font-family: var(--font-body);
-  font-size: 0.82rem;
-  font-weight: 300;
-  line-height: 1.65;
+  font-size: 0.84rem;
+  font-weight: 400;
+  line-height: 1.68;
   color: var(--text-muted);
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
 
-.story {
-  font-family: var(--font-body);
-  font-size: 0.76rem;
-  line-height: 1.55;
-  color: #42576b;
-  background: #f8fbff;
-  border: 1px solid rgba(59, 158, 221, 0.16);
-  border-radius: 10px;
-  padding: 0.55rem 0.65rem;
-}
-
-.galleryRow {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 0.4rem;
-}
-
-.galleryItem {
-  position: relative;
-  aspect-ratio: 16 / 10;
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.galleryImage {
-  object-fit: cover;
+.location {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: #6b7f93;
+  font-size: 0.73rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .cardMeta {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-top: auto;
+  margin-top: 0.2rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid rgba(11, 25, 41, 0.07);
 }
 
 .metaItem {
@@ -229,8 +214,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding-top: 0.6rem;
-  border-top: 1px solid rgba(0, 0, 0, 0.05);
+  padding-top: 0.1rem;
 }
 
 .authorInitial {
@@ -255,7 +239,7 @@
 }
 
 .ctaRow {
-  margin-top: 0.45rem;
+  margin-top: 0.35rem;
   display: flex;
   gap: 0.45rem;
 }

@@ -46,44 +46,102 @@
   margin: 0 auto;
 }
 
-.rail {
+.insightsCol {
   display: grid;
   gap: 0.8rem;
 }
 
-.railItem {
+.insightCard {
   border: 1px solid rgba(11, 25, 41, 0.08);
-  background: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.76);
   border-radius: 18px;
   padding: 1rem;
   text-align: left;
   display: grid;
-  gap: 0.3rem;
-  cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
-
-  strong {
-    color: var(--deep-navy);
-    font-size: 0.96rem;
-  }
-
-  span:last-child {
-    font-size: 0.78rem;
-    color: #667b8e;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-  }
+  gap: 0.55rem;
+  box-shadow: 0 12px 24px rgba(11, 25, 41, 0.06);
 }
 
-.railItemActive {
-  transform: translateY(-2px);
-  border-color: rgba(11, 25, 41, 0.16);
-  box-shadow: 0 16px 28px rgba(11, 25, 41, 0.08);
+.insightCardPrimary {
+  background:
+    radial-gradient(circle at 16% 16%, rgba(255, 224, 163, 0.25), transparent 42%),
+    rgba(255, 255, 255, 0.84);
+  border-color: rgba(11, 25, 41, 0.12);
 }
 
-.railRating {
-  color: #bb8808;
+.cardLabel {
+  margin: 0;
+  font-size: 0.72rem;
+  text-transform: uppercase;
   letter-spacing: 0.12em;
+  color: #607287;
+  font-weight: 700;
+}
+
+.scoreRow {
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+}
+
+.bigScore {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 2rem;
+  color: var(--deep-navy);
+}
+
+.scoreStars {
+  margin: 0;
+  color: #b8860b;
+  letter-spacing: 0.08em;
+}
+
+.cardHint {
+  margin: 0;
+  color: #627689;
+  font-size: 0.84rem;
+}
+
+.categoryList {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.categoryItem {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.categoryHead {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.6rem;
+  font-size: 0.82rem;
+  color: #34485d;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.categoryTrack {
+  height: 7px;
+  border-radius: 999px;
+  background: #dce6f0;
+  overflow: hidden;
+
+  span {
+    display: block;
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #d8a93c 0%, #6fbdec 100%);
+  }
+}
+
+.bigPercent {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 2rem;
+  color: var(--deep-navy);
 }
 
 .stage {
