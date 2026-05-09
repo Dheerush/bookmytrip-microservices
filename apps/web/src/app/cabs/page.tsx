@@ -646,16 +646,24 @@ function CabsContent() {
                   alt={cab.carModel}
                   loading="lazy"
                 />
-                <div className={s.cabInfo}>
-                  <div className={s.cabHeader}>
+                <div className={s.cabBody}>
+                  {/* Top row: model name + price */}
+                  <div className={s.cabTopRow}>
                     <div className={s.cabModel}>{cab.carModel}</div>
+                    <div className={s.cabPriceBlock}>
+                      <div className={s.price}>₹{cab.baseFare}</div>
+                      <div className={s.cabPerKm}>+ ₹{cab.pricePerKm}/km</div>
+                    </div>
                   </div>
+                  {/* Meta line */}
                   <div className={s.cabMetaLine}>{cab.type} · {cab.city} · {cab.seatingCapacity} seats · {cab.fuelType} · {cab.luggage}</div>
+                  {/* Brand + driver */}
                   <div className={s.cabInfoRow}>
                     <span className={s.cabBrand}>🚗 {cab.brand}</span>
-                    <span className={s.cabDivider}>•</span>
+                    <span className={s.cabDivider}>·</span>
                     <span className={s.cabDriver}>👤 {cab.driverName} (★ {cab.driverRating})</span>
                   </div>
+                  {/* Features */}
                   <div className={s.cabFeatures}>
                     {cab.features.slice(0, 4).map((f) => (
                       <span key={f} className={s.cabFeature}>{f}</span>
@@ -664,16 +672,11 @@ function CabsContent() {
                       <span className={s.cabFeatureMore}>+{cab.features.length - 4} more</span>
                     )}
                   </div>
-                </div>
-                <div className={s.cabPricing}>
-                  <div className={s.cabPriceBlock}>
-                    <div className={s.price}>₹{cab.baseFare}</div>
-                    <div className={s.cabPerKm}>+ ₹{cab.pricePerKm}/km</div>
-                  </div>
+                  {/* Rating + Book Now — always on its own row */}
                   <div className={s.cabActionRow}>
-                    <div className={s.rating}>★ {cab.rating}</div>
+                    <div className={s.cabRating}>★ {cab.rating}</div>
                     <button
-                      className={s.bookBtn}
+                      className={s.cabBookBtn}
                       type="button"
                       onClick={() => {
                         if (!drop.trim()) {
