@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.scss";
-import { Jost } from "next/font/google";
+import { Cormorant_Garamond, Jost } from "next/font/google";
 import ConditionalLayout from "@/components/layout/ConditionalLayout";
 import { AuthProvider } from "@/services/auth/context";
 import ToastProvider from "@/components/ui/ToastProvider/ToastProvider";
@@ -12,6 +12,13 @@ const jost = Jost({
   subsets: ["latin"],
   weight: ["300", "400", "500", "600"],
   variable: "--font-jost",
+  display: "swap",
+});
+
+const cormorant = Cormorant_Garamond({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-cormorant",
   display: "swap",
 });
 
