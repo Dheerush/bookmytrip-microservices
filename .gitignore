@@ -12,6 +12,7 @@ out
 dist
 build
 coverage
+.turbo
 
 # ─────────────────────────────────────────────
 # Environment variables
