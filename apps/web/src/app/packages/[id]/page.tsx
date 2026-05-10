@@ -1,6 +1,7 @@
 "use client";
 
 import { use, useState, useEffect } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { packages, type Package } from "../../../data/packages";
 import { useAuth } from "@/services/auth/context";
@@ -146,10 +147,12 @@ export default function PackageDetail({
       {/* ── Hero ── */}
       <div className={styles.hero}>
         {pkg.images?.[activeImg] && !imgError ? (
-          <img
+          <Image
             src={pkg.images[activeImg]}
             alt={pkg.name}
             className={styles.heroImg}
+            width={800}
+            height={500}
             onError={() => setImgError(true)}
           />
         ) : null}
@@ -180,11 +183,13 @@ export default function PackageDetail({
       {pkg.images.length > 1 && (
         <div className={styles.thumbStrip}>
           {pkg.images.map((img, i) => (
-            <img
+            <Image
               key={i}
               src={img}
               alt={`${pkg.name} view ${i + 1}`}
               className={`${styles.thumb} ${i === activeImg ? styles.thumbActive : ""}`}
+              width={100}
+              height={70}
               onClick={() => { setActiveImg(i); setImgError(false); }}
             />
           ))}
@@ -285,10 +290,12 @@ export default function PackageDetail({
           <p className={styles.sectionLabel}>Your Guide</p>
           <div className={styles.guideCard}>
             {pkg.guide.photo && !guideImgError ? (
-              <img
+              <Image
                 src={pkg.guide.photo}
                 alt={pkg.guide.name}
                 className={styles.guidePhoto}
+                width={150}
+                height={180}
                 onError={() => setGuideImgError(true)}
               />
             ) : (

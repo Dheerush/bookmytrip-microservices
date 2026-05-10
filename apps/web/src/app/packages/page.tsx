@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import styles from "./page.module.scss";
 import { parseApiResponse } from "@/lib/http";
@@ -205,10 +206,12 @@ function PackagesContent() {
                 {/* Image */}
                 <div className={styles.imageWrap}>
                   {hasImg ? (
-                    <img
+                    <Image
                       src={pkg.images[0]}
                       alt={pkg.name}
                       className={styles.image}
+                      width={300}
+                      height={200}
                       onError={() =>
                         setImgErrors((e) => ({ ...e, [pkg.id]: true }))
                       }

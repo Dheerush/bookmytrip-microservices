@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, Suspense, useEffect } from "react";
+import { useState, useMemo, Suspense, useEffect, useCallback } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { parseApiResponse } from "@/lib/http";
 import { showToast } from "@/lib/toast";
@@ -259,7 +259,7 @@ function FlightsContent() {
     return null;
   };
 
-  const updateQuery = (next: Record<string, string | null>, resetPage = true) => {
+  const updateQuery = useCallback((next: Record<string, string | null>, resetPage = true) => {
     const params = new URLSearchParams(searchParams.toString());
     Object.entries(next).forEach(([key, value]) => {
       if (value === null || value === "") {
@@ -271,7 +271,7 @@ function FlightsContent() {
     if (resetPage) params.delete("page");
     const qs = params.toString();
     router.replace(qs ? `${pathname}?${qs}` : pathname);
-  };
+  }, [searchParams, router, pathname]);
 
   useEffect(() => {
     setCommittedFrom(searchParams.get("from") || "Delhi");

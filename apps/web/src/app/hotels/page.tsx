@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, Suspense, useEffect } from "react";
+import { useState, useMemo, Suspense, useEffect, useCallback } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { parseApiResponse } from "@/lib/http";
@@ -94,7 +94,7 @@ function HotelsContent() {
   const [liveCitySuggestions, setLiveCitySuggestions] = useState<HotelSuggestion[]>([]);
   const [knownSuggestions, setKnownSuggestions] = useState<HotelSuggestion[]>([]);
 
-  const updateQuery = (next: Record<string, string | null>, resetPage = true) => {
+  const updateQuery = useCallback((next: Record<string, string | null>, resetPage = true) => {
     const params = new URLSearchParams(searchParams.toString());
     Object.entries(next).forEach(([key, value]) => {
       if (value === null || value === "") {
@@ -106,7 +106,7 @@ function HotelsContent() {
     if (resetPage) params.delete("page");
     const qs = params.toString();
     router.replace(qs ? `${pathname}?${qs}` : pathname);
-  };
+  }, [searchParams, router, pathname]);
 
   useEffect(() => {
     setCity(searchParams.get("city") || DEFAULT_HOTEL_CITY);
