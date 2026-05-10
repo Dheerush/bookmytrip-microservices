@@ -31,6 +31,14 @@ const assetsQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).optional().default(40),
 });
 
+type CloudinaryResource = {
+  public_id?: string;
+  secure_url?: string;
+  url?: string;
+  bytes?: number;
+  format?: string;
+};
+
 router.get('/assets', authenticate, authorizeRoles('admin', 'vendor'), async (req, res, next) => {
   try {
     const parsed = assetsQuerySchema.safeParse(req.query);
@@ -54,7 +62,9 @@ router.get('/assets', authenticate, authorizeRoles('admin', 'vendor'), async (re
         max_results: limit,
       });
 
-      const assets = (result.resources || []).map((asset) => ({
+      const resources = (result.resources || []) as CloudinaryResource[];
+
+      const assets = resources.map((asset) => ({
         publicId: String(asset.public_id || ''),
         url: String(asset.secure_url || asset.url || ''),
         bytes: Number(asset.bytes || 0),
