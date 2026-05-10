@@ -17,8 +17,9 @@ export function useRegister(): UseRegisterReturn {
       const result = await authService.register(data);
       showToast.success(result.message || 'Registration successful! Please verify OTP.');
       return result;
-    } catch (err: any) {
-      showToast.error(err.message || 'Registration failed.');
+    } catch (err: unknown) {
+      const error = err as { message?: string };
+      showToast.error(error.message || 'Registration failed.');
       return null;
     } finally {
       setLoading(false);

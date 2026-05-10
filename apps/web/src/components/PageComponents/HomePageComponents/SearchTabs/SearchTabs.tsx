@@ -106,13 +106,12 @@ export default function SearchTabs() {
   }, [focusedField, values]);
 
   useEffect(() => {
-    if (activeTab !== "hotels" || focusedField !== "city") {
-      setHotelSuggestions([]);
-      return;
-    }
-
-    if (!debouncedTerm) {
-      setHotelSuggestions([]);
+    if (activeTab !== "hotels" || focusedField !== "city" || !debouncedTerm) {
+      if (activeTab !== "hotels" || focusedField !== "city") {
+        queueMicrotask(() => {
+          setHotelSuggestions([]);
+        });
+      }
       return;
     }
 

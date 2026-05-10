@@ -145,7 +145,7 @@ function HotelsContent() {
       },
       true,
     );
-  }, [searchParams]);
+  }, [searchParams, updateQuery]);
 
   useEffect(() => {
     const timeout = setTimeout(() => {

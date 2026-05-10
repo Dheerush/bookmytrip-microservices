@@ -97,14 +97,16 @@ export default function TestimonialsCarousel() {
   useEffect(() => {
     if (items.length <= 1) return;
     const timer = window.setInterval(() => {
-      setIndex((prev) => (prev + 1) % items.length);
+      setIndex((prev) => (prev + 1) % (items.length || 1));
     }, 4500);
     return () => window.clearInterval(timer);
   }, [items.length]);
 
   useEffect(() => {
-    if (index >= items.length) {
-      setIndex(0);
+    if (index >= items.length && items.length > 0) {
+      queueMicrotask(() => {
+        setIndex(0);
+      });
     }
   }, [index, items.length]);
 

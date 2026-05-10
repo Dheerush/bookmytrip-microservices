@@ -23,8 +23,9 @@ export function useVerifyOtp(): UseVerifyOtpReturn {
       showToast.success(result.message || 'Email verified successfully!');
       setTimeout(() => router.replace('/login'), 900);
       return true;
-    } catch (err: any) {
-      const msg = err.message || 'Verification failed.';
+    } catch (err: unknown) {
+      const error = err as { message?: string };
+      const msg = error.message || 'Verification failed.';
       setError(msg);
       showToast.error(msg);
       return false;

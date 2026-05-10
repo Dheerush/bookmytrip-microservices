@@ -76,10 +76,17 @@ const itemVariants = {
 export default function DashboardHomePage() {
   const { user, token } = useAuth();
   const displayName = user?.fullName || user?.email?.split("@")[0] || "Traveller";
-  const [recentBookings, setRecentBookings] = useState<DashboardBooking[]>(RECENT_BOOKINGS.map((booking) => ({
-    ...booking,
-    createdAtTs: Date.now(),
-  })));
+  const [recentBookings, setRecentBookings] = useState<DashboardBooking[]>([]);
+
+  useEffect(() => {
+    queueMicrotask(() => {
+      setRecentBookings(RECENT_BOOKINGS.map((booking) => ({
+        ...booking,
+        id: String(booking.id),
+        createdAtTs: Date.now(),
+      })));
+    });
+  }, []);
 
   useEffect(() => {
     if (!token) return;

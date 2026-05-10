@@ -646,7 +646,7 @@ function FlightsContent() {
   useEffect(() => {
     if (page <= totalPages) return;
     updateQuery({ page: totalPages > 1 ? String(totalPages) : null }, false);
-  }, [page, totalPages]);
+  }, [page, totalPages, updateQuery]);
 
   const selectedFlight = selected;
   const discountedBase =

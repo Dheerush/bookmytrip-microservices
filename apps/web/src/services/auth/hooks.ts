@@ -18,8 +18,9 @@ export function useLogin() {
     try {
       const response = await login(data);
       return response.data;
-    } catch (err: any) {
-      setError(err.response?.data?.message || err.message);
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } }; message?: string };
+      setError(error.response?.data?.message || error.message || 'An error occurred');
       return null;
     } finally {
       setLoading(false);
@@ -39,8 +40,9 @@ export function useRegister() {
     try {
       const response = await register(data);
       return response.data;
-    } catch (err: any) {
-      setError(err.response?.data?.message || err.message);
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } }; message?: string };
+      setError(error.response?.data?.message || error.message || 'An error occurred');
       return null;
     } finally {
       setLoading(false);
@@ -60,8 +62,9 @@ export function useForgotPassword() {
     try {
       const response = await forgotPassword(data);
       return response.data;
-    } catch (err: any) {
-      setError(err.response?.data?.message || err.message);
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } }; message?: string };
+      setError(error.response?.data?.message || error.message || 'An error occurred');
       return null;
     } finally {
       setLoading(false);
@@ -81,8 +84,9 @@ export function useVerifyOtp() {
     try {
       const response = await verifyOtp(data);
       return response.data;
-    } catch (err: any) {
-      setError(err.response?.data?.message || err.message);
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } }; message?: string };
+      setError(error.response?.data?.message || error.message || 'An error occurred');
       return null;
     } finally {
       setLoading(false);
@@ -101,8 +105,9 @@ export function useRequestVerification() {
     try {
       const response = await requestVerification(email);
       return response.data;
-    } catch (err: any) {
-      setError(err.response?.data?.message || err.message);
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } }; message?: string };
+      setError(error.response?.data?.message || error.message || 'An error occurred');
       return null;
     } finally {
       setLoading(false);

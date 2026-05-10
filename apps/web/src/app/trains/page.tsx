@@ -377,7 +377,7 @@ function TrainsContent() {
   const taxes = Math.round(baseFare * 0.05);
   const serviceFee = 149;
 
-  const handleProceedToPayment = (_netAmount: number) => {
+  const handleProceedToPayment = () => {
     if (!current) {
       showToast.error("Select a train before proceeding.");
       return;

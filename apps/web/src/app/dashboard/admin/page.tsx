@@ -148,7 +148,8 @@ export default function AdminDashboardPage() {
     };
   }, [hydrated, user?.role]);
 
-  if (!hydrated || user?.role !== "admin") return null;
+  // ─ Calculate admin dashboard data (runs unconditionally) ─
+  const isAdmin = hydrated && user?.role === "admin";
 
   const filteredBookings = bookingTypeFilter === "all"
     ? bookings
@@ -222,7 +223,7 @@ export default function AdminDashboardPage() {
   }, [filteredBookings]);
 
   useEffect(() => {
-    if (!debouncedQuery || user?.role !== "admin") {
+    if (!debouncedQuery || !isAdmin) {
       setSearchSuggestions([]);
       setActiveSuggestionIndex(-1);
       return;
@@ -246,7 +247,9 @@ export default function AdminDashboardPage() {
     return () => {
       active = false;
     };
-  }, [debouncedQuery, user?.role]);
+  }, [debouncedQuery, isAdmin]);
+
+  if (!hydrated || !isAdmin) return null;
 
   const bookingMax = Math.max(...bookingTrend.map((day) => day.count), 1);
 

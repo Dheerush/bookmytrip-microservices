@@ -1,7 +1,6 @@
 "use client";
 
 import { use, useState, useEffect } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { packages, type Package } from "../../../data/packages";
 import { useAuth } from "@/services/auth/context";
@@ -243,7 +242,7 @@ export default function PackageDetail({
           </div>
 
           {/* Inclusions / Exclusions */}
-          <p className={styles.sectionLabel}>What's Included</p>
+          <p className={styles.sectionLabel}>What&apos;s Included</p>
           <div className={styles.inclExcl}>
             <div className={styles.inclBox}>
               <p className={styles.inclExclTitle}>Included</p>

@@ -32,7 +32,9 @@ export default function OtpPage({ email }: { email: string }) {
       router.replace("/register");
       return;
     }
-    setChecking(false);
+    queueMicrotask(() => {
+      setChecking(false);
+    });
   }, [sessionToken, router]);
 
   // ── Auto-focus first box once unblocked ───────────────────────────────

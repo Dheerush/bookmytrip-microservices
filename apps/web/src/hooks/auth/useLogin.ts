@@ -30,16 +30,17 @@ export function useLogin(): UseLoginReturn {
 
       showToast.success('Login successful!');
       router.replace('/');
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as { code?: string; data?: { sessionToken?: string }; message?: string };
       // Backend sends sessionToken when user is unverified
-      if (err.code === 'EMAIL_UNVERIFIED' && err.data?.sessionToken) {
-        sessionStorage.setItem('otp_session_token', err.data.sessionToken);
+      if (error.code === 'EMAIL_UNVERIFIED' && error.data?.sessionToken) {
+        sessionStorage.setItem('otp_session_token', error.data.sessionToken);
         sessionStorage.setItem('otp_email_display', data.email);
         showToast.info('Please verify your email first. OTP sent.');
-        router.push(`/otp?sessionToken=${encodeURIComponent(err.data.sessionToken)}`);
+        router.push(`/otp?sessionToken=${encodeURIComponent(error.data.sessionToken)}`);
         return;
       }
-      showToast.error(err.message || 'Login failed.');
+      showToast.error(error.message || 'Login failed.');
     } finally {
       setLoading(false);
     }

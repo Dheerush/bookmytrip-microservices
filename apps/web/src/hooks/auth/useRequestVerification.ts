@@ -20,8 +20,9 @@ export function useRequestVerification(): UseRequestVerificationReturn {
       const result = await authService.requestVerification({ email });
       showToast.success(result.message || 'If an unverified account exists, an OTP has been sent.');
       return result.data?.sessionToken ?? null;
-    } catch (err: any) {
-      showToast.error(err.message || 'Something went wrong.');
+    } catch (err: unknown) {
+      const error = err as { message?: string };
+      showToast.error(error.message || 'Something went wrong.');
       return null;
     } finally {
       setLoading(false);

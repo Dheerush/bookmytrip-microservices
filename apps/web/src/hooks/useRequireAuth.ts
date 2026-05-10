@@ -28,7 +28,7 @@ export function useRequireAuth(message?: string) {
       showToast.info("Your session has expired. Please sign in again.");
       router.replace("/login");
     }
-  }, [auth.hydrated, auth.isAuthenticated, auth.checkSession, router, message]);
+  }, [auth, router, message]);
 
   return auth;
 }

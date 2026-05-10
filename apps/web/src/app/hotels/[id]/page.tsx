@@ -81,9 +81,8 @@ export default function HotelDetailPage({ params }: Props) {
   const discount = (room.originalPrice - room.price) * nights;
   const taxes = Math.round(baseTotal * 0.12);
   const serviceFee = 399;
-  const netAmount = baseTotal + taxes + serviceFee - discount;
 
-  const handleProceedToPayment = (_netAmount: number) => {
+  const handleProceedToPayment = () => {
     if (isFullyBooked) {
       return;
     }

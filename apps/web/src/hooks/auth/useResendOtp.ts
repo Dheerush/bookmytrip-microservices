@@ -19,8 +19,9 @@ export function useResendOtp(): UseResendOtpReturn {
       const result = await authService.resendOtp({ sessionToken });
       showToast.success('OTP resent successfully.');
       return result.data?.sessionToken ?? null;
-    } catch (err: any) {
-      showToast.error(err.message || 'Failed to resend OTP.');
+    } catch (err: unknown) {
+      const error = err as { message?: string };
+      showToast.error(error.message || 'Failed to resend OTP.');
       return null;
     } finally {
       setLoading(false);

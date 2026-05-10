@@ -10,16 +10,18 @@ export default function OtpRoute() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    const token        = sessionStorage.getItem("otp_session_token");
-    const storedEmail  = sessionStorage.getItem("otp_email_display") || "";
+    const token = sessionStorage.getItem("otp_session_token");
+    const storedEmail = sessionStorage.getItem("otp_email_display") || "";
 
     if (!token) {
       router.replace("/register");
       return;
     }
 
-    setEmail(storedEmail);
-    setReady(true);
+    queueMicrotask(() => {
+      setEmail(storedEmail);
+      setReady(true);
+    });
   }, [router]);
 
   if (!ready) {

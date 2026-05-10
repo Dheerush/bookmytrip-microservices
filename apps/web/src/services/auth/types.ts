@@ -5,7 +5,7 @@ export interface LoginRequest {
 
 export interface LoginResponse {
   token: string;
-  user: any;
+  user: Record<string, unknown>;
 }
 
 export interface RegisterRequest {

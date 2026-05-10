@@ -16,8 +16,9 @@ export function useForgotPassword(): UseForgotPasswordReturn {
       const result = await authService.forgotPassword({ email });
       showToast.success(result.message || 'If that email exists, a reset link has been sent.');
       return true;
-    } catch (err: any) {
-      showToast.error(err.message || 'Something went wrong.');
+    } catch (err: unknown) {
+      const error = err as { message?: string };
+      showToast.error(error.message || 'Something went wrong.');
       return false;
     } finally {
       setLoading(false);

@@ -88,6 +88,19 @@ interface BookingMetadata {
   cabTravel?: CabTravelMetadata;
   trainTravel?: TrainTravelMetadata;
   flightTravel?: FlightTravelMetadata;
+  hotelStay?: {
+    amenities?: string[];
+    perks?: string[];
+    roomType?: string;
+    roomNumber?: string;
+    address?: string;
+    checkInTime?: string;
+    checkOutTime?: string;
+    nights?: number;
+    roomsBooked?: number;
+  };
+  hotelPerks?: string[];
+  boardingTerminal?: string;
   berthPreference?: string;
   seatClass?: string;
   platformNumber?: string;
